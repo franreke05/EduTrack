@@ -1,4 +1,5 @@
 package com.example.edutrack.Registro.signup
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -43,8 +44,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat.startActivity
 import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
+import com.example.edutrack.Registro.Registros.RegistroActivity
 
 class RegistrarUsuarioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,7 +88,8 @@ fun SignUpScreen(
         Card(
             modifier = Modifier
                 .fillMaxSize()
-                .height(screenWidth * 0.9f),
+                .height(screenWidth * 0.9f)
+                .align(Alignment.Center),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
@@ -118,7 +122,7 @@ fun SignUpScreen(
                         placeholder = { Text("Nombre") },
                         shape = RoundedCornerShape(50),
                         colors = TextFieldDefaults.colors(
-                            Color.White
+                            Color.Black
                         ),
                         modifier =Modifier.width(screenWidth * 0.7f),
                     )
@@ -130,7 +134,7 @@ fun SignUpScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         shape = RoundedCornerShape(50),
                         colors = TextFieldDefaults.colors(
-                            Color.White
+                            Color.Black
                         ),
                         modifier = Modifier.width(screenWidth * 0.7f),
                     )
@@ -142,38 +146,59 @@ fun SignUpScreen(
                         visualTransformation = PasswordVisualTransformation(),
                         shape = RoundedCornerShape(50),
                         colors = TextFieldDefaults.colors(
-                            Color.White
+                            Color.Black
                         ),
                         modifier = Modifier.width(screenWidth * 0.7f),
                     )
 
-
+                    val context = LocalContext.current
                     // Botón Sign Up
-                    Button(
-                        onClick = {
-                            var usuario = Usuario(
-                                id = UUID.randomUUID().toString(),
-                                nombre = nombre,
-                                email = email,
-                                password = password,
-                                anio = mutableListOf()
-                            )
-                            Log.d("Usuario22", usuario.id.toString())
-                            Log.d("Usuario22", usuario.nombre.toString())
-                            Log.d("Usuario22", usuario.email.toString())
-                            Log.d("Usuario22", usuario.password.toString())
-                            Log.d("Usuario22", usuario.anio.toString())
-                            registerUser(usuario)
-                        },
-                        shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, Color.White),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        modifier = Modifier
-                            .width(screenWidth * 0.7f)
-                            .height(50.dp)
-                    ) {
-                        Text("SIGN UP", color = Color.White)
-                    }
+                   Row(modifier = Modifier.fillMaxWidth().height(screenWidth * 0.15f).padding(top = screenWidth*0.02f)) {
+                       Button(
+
+                           onClick = {
+                               var usuario = Usuario(
+                                   id = UUID.randomUUID().toString(),
+                                   nombre = nombre,
+                                   email = email,
+                                   password = password,
+                                   anio = mutableListOf()
+                               )
+                               Log.d("Usuario22", usuario.id.toString())
+                               Log.d("Usuario22", usuario.nombre.toString())
+                               Log.d("Usuario22", usuario.email.toString())
+                               Log.d("Usuario22", usuario.password.toString())
+                               Log.d("Usuario22", usuario.anio.toString())
+                               registerUser(usuario)
+
+                               val intent = Intent(context, RegistroActivity::class.java)
+                               context.startActivity(intent)
+                           },
+                           shape = RoundedCornerShape(50),
+                           border = BorderStroke(1.dp, Color.White),
+                           colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                           modifier = Modifier
+                               .weight(0.25f)
+                               .height(screenWidth * 0.05f)
+                       ) {
+                           Text("SIGN UP", color = Color.White)
+                       }
+                       Button(
+
+                           onClick = {
+                               val intent = Intent(context, RegistroActivity::class.java)
+                               context.startActivity(intent)
+                           },
+                           shape = RoundedCornerShape(50),
+                           border = BorderStroke(1.dp, Color.White),
+                           colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                           modifier = Modifier
+                               .weight(0.25f)
+                               .height(screenWidth * 0.05f)
+                       ) {
+                           Text("Cancelar", color = Color.White)
+                       }
+                   }
                 }
             }
         }

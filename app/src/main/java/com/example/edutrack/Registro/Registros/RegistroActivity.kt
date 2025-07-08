@@ -1,7 +1,9 @@
 package com.example.edutrack.Registro.Registros
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -34,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.startActivity
+import androidx.core.content.edit
 import com.example.edutrack.R
 import com.example.edutrack.Registro.signup.RegistrarUsuarioActivity
 import com.example.edutrack.dataclass.Usuario
@@ -59,14 +62,15 @@ class RegistroActivity : ComponentActivity() {
 }
 @Composable
 fun LoginScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var listo by remember { mutableStateOf(false) }
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     // Guardamos el usuario de Firebase cuando se registre exitosamente
-    var currentFirebaseUser by remember { mutableStateOf<FirebaseUser?>(null) }
 
-    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -134,7 +138,8 @@ fun LoginScreen(modifier: Modifier = Modifier) {
                     // Botón LOGIN (mantiene acción pendiente)
                     Button(
                         onClick = {
-
+                            Log.d("Login", "Login button clicked")
+                          listo=true
                         } ,
                         modifier = Modifier.weight(0.5f),
                         shape = RoundedCornerShape(50),
@@ -143,7 +148,11 @@ fun LoginScreen(modifier: Modifier = Modifier) {
                     ) {
                         Text("LOGIN", color = Color.White)
                     }
+                    if (listo) {
 
+                        LoginUser(context, email, password)
+
+                    }
                     // Botón SIGN UP
                     Button(
                         onClick = {

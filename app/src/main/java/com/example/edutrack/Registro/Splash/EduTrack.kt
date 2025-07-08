@@ -1,5 +1,6 @@
 package com.example.edutrack.Registro.Splash
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Inicio.InicioActivity
 import com.example.edutrack.R
 import com.example.edutrack.Registro.Registros.RegistroActivity
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -61,9 +63,16 @@ fun SplashScreen(modifier: Modifier) {
             )
         )
         delay(500)
+        var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        var login = sharedPreferences.getBoolean("login", false)
+        if (login) {
+            val intent = Intent(context, InicioActivity::class.java)
+            context.startActivity(intent)
+        }else{
+            val intent = Intent(context, RegistroActivity::class.java)
+            context.startActivity(intent)
+        }
 
-        val intent = Intent(context, RegistroActivity::class.java)
-        context.startActivity(intent)
     }
 
     Box(
