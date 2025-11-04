@@ -2,27 +2,18 @@ package com.example.edutrack
 
 import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.Curso
 import com.example.edutrack.dataclass.Usuario
 import com.google.firebase.Firebase
-import com.google.firebase.app
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
-import kotlinx.coroutines.awaitAll
+
 val datosUsuario: MutableList<Usuario> = mutableListOf()
 val datosAnio: MutableList<Anio> = mutableListOf()
 val datosCurso: MutableList<Curso> = mutableListOf()
 val datosAsignatura: MutableList<Asignatura> = mutableListOf()
-var terminado by  androidx.compose.runtime.mutableStateOf(false)
 lateinit var db_ref: DatabaseReference
 @Composable
 fun ConectarBaseDatosConUnValor(primervalor: String) {
@@ -68,17 +59,17 @@ fun ConectarBaseDatosConUnValor(primervalor: String) {
                 } else {
                     Log.d("No hay datos2", "No hay datos2")
                 }
-                terminado = true
             }
 }
-
-
 fun CrearUsuario(
     usuario: Usuario,
 ){
 
     val db_ref = Firebase.database.reference
-    usuario.id=db_ref.child("Edutrack").child("Usuario").child(usuario.id.toString()).key
+    if (usuario.id=="") {
+       //le ponemos un id unico al usuario
+        usuario.id=db_ref.push().key.toString()
+    }
     Log.d("Usuario222", usuario.id.toString())
     db_ref.child("Edutrack").child("Usuario").child(usuario.id.toString()).setValue(usuario)
 }

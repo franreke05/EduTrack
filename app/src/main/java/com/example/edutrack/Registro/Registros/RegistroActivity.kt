@@ -28,12 +28,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.content.edit
@@ -69,109 +72,137 @@ fun LoginScreen(modifier: Modifier = Modifier) {
     var listo by remember { mutableStateOf(false) }
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    // Guardamos el usuario de Firebase cuando se registre exitosamente
 
-
-    Box(
+    // --- Contenedor principal ---
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                )
-            )
-            .padding(horizontal = screenWidth * 0.005f, vertical = screenHeight * 0.01f),
-        contentAlignment = Alignment.Center
+            .background(Color(0xFFF5F5F5)), // Fondo gris claro estilo F7
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Navbar estilo Framework7
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(screenHeight * 0.8f)
-                .clip(RoundedCornerShape(screenHeight * 0.1f)),
+                .height(screenHeight * 0.051f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                    )),
             contentAlignment = Alignment.Center
+        ){}
+
+        Spacer(modifier = Modifier.height(screenHeight*0.2f))
+        
+        // Logo o título del login
+        Text(
+            text = "EduTrack",
+            style = MaterialTheme.typography.headlineLarge,
+            color = Color(0xFF8E9090)
+                ,
+            modifier = Modifier.padding(bottom = screenHeight*0.014f)
+        )
+
+        // --- Caja estilo "list form" ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(screenHeight*0.02f))
+                .shadow(screenHeight*0.41f),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.05f),
-                modifier = Modifier.padding(screenHeight * 0.015f)
+                modifier = Modifier.padding(screenHeight*0.01f),
+                verticalArrangement = Arrangement.spacedBy(screenHeight*0.01f)
+                ,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Imagen circular (asegúrate de tener el recurso R.drawable.agendita)
-                Image(
-                    painter = painterResource(id = R.drawable.agendita),
-                    contentDescription = "Logo",
-                    modifier = Modifier
-                        .size(screenHeight * 0.345f)
-                        .clip(CircleShape)
-                )
-
-                // Campo para ingresar el email
+                // Email Input
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("email or username") },
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.width(screenWidth * 0.7f),
-                    colors = TextFieldDefaults.colors(
-                        Color.White,
-                    )
+                    label = { Text("Username") },
+                    placeholder = { Text("Your username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
 
-                    )
-
-                // Campo para ingresar la contraseña
+                // Password Input
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("password") },
-                    shape = RoundedCornerShape(50),
+                    label = { Text("Password") },
+                    placeholder = { Text("Your password") },
+                    singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.width(screenWidth * 0.7f),
-                    colors = TextFieldDefaults.colors(
-                        Color.White,
-                    )
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
-
-                // Fila de botones para LOGIN y SIGN UP
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.05f),
-                    modifier = Modifier.width(screenWidth * 0.7f)
-                ) {
-                    // Botón LOGIN (mantiene acción pendiente)
-                    Button(
-                        onClick = {
-                            Log.d("Login", "Login button clicked")
-                          listo=true
-                        } ,
-                        modifier = Modifier.weight(0.5f),
-                        shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, Color.White),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                    ) {
-                        Text("LOGIN", color = Color.White)
-                    }
-                    if (listo) {
-
-                        LoginUser(context, email, password)
-
-                    }
-                    // Botón SIGN UP
-                    Button(
-                        onClick = {
-                            // Llamamos a registerUser pasándole email y password
-                            val intent = Intent(context, RegistrarUsuarioActivity::class.java)
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.weight(0.5f),
-                        shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, Color.White),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                    ) {
-                        Text("SIGN UP", color = Color.White)
-                    }
-                }
-
-                // Botón para comprobar si el correo fue verificado
-
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // --- Botones estilo F7 (fill + raised) ---
+        Column(
+            verticalArrangement = Arrangement.spacedBy(screenHeight*0.01f),
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            Button(
+                onClick = {
+                    listo = true
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ,
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor =
+                     (Color(0xFF00BCD4)))
+
+            ) {
+                Text("Sign In", color = Color.White)
+            }
+
+            if (listo) {
+                LoginUser(context, email, password)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val intent = Intent(context, RegistrarUsuarioActivity::class.java)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenHeight*0.06f),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3F51B5))
+            ) {
+                Text("Sign Up")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(screenHeight*0.286f))
+
+        // --- Footer estilo Framework7 ---
+        Text(
+            text = "Some text about login information.\nLorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            textAlign = TextAlign.Center,
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.fillMaxWidth(0.9f)
+        )
     }
 }
+@Composable
+@Preview
+fun LoginScreenPreview() {
+    EduTrackTheme {
+        LoginScreen()
+    }
+}
+

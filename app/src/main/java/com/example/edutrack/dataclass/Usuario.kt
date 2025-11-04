@@ -3,7 +3,7 @@ package com.example.edutrack.dataclass
 
 
 class Usuario (
-    var id: String? = "",
+    var id: String? ="",
     var nombre: String? = "",
     var email: String? = "",
     var password: String? = "",

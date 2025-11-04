@@ -34,7 +34,7 @@
             android:label="@string/title_activity_registro"
             android:theme="@style/Theme.EduTrack" />
         <activity
-            android:name=".Registro.Splash.EduTrack"
+            android:name=".Splash.EduTrack"
             android:exported="true"
             android:label="@string/title_activity_splash_screem"
             android:theme="@style/Theme.EduTrack">

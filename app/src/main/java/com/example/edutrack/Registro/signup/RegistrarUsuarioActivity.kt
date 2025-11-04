@@ -1,4 +1,5 @@
 package com.example.edutrack.Registro.signup
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -23,7 +24,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -36,18 +36,31 @@ import androidx.compose.ui.unit.dp
 import com.example.edutrack.dataclass.Usuario
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.example.edutrack.R
-import com.example.edutrack.Registro.Registros.registerUser
+
 import java.util.UUID
 import android.net.Uri
 import android.util.Log
+import android.widget.ImageButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
+import com.example.edutrack.CrearUsuario
+import com.example.edutrack.Registro.Registros.LoginScreen
+import com.example.edutrack.Registro.Registros.LoginUser
 import com.example.edutrack.Registro.Registros.RegistroActivity
+import com.example.edutrack.datosUsuario
 
 class RegistrarUsuarioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +74,7 @@ class RegistrarUsuarioActivity : ComponentActivity() {
             }
         }
     }
+    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
     override fun onBackPressed() {
         super.onBackPressed()
         finishAffinity()
@@ -71,136 +85,183 @@ class RegistrarUsuarioActivity : ComponentActivity() {
 fun SignUpScreen(
    modifier: Modifier = Modifier,
 ) {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-
-    var nombre by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
     var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var foto by remember { mutableStateOf("") }
+    var listo by remember { mutableStateOf(false) }
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
 
-    Box(
+    // --- Contenedor principal ---
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            ,
-        contentAlignment = Alignment.Center
+            .background(Color(0xFFF5F5F5)), // Fondo gris claro estilo F7
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Navbar estilo Framework7
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight * 0.051f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                    )),
+        ) {
+
+                Text(
+                    text = "Sign Up",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                    ,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+
+        }
+        Spacer(modifier = Modifier.height(screenHeight*0.0505f))
+
+
+        // Logo o título del login
+        IconButton (onClick = {
+            //Abrimos la galeria para que el usuario elija una imagen para su perfil si lo desea
+            //Si no elige ninguna foto se le pondra una por defecto
+
+        },modifier = Modifier.fillMaxWidth().height(screenHeight*0.3f)
+        ){
+            Image(
+                painter = painterResource(id = R.drawable.agendita),
+                contentDescription = "Logo",
+
+            )
+        }
+        Spacer(modifier = Modifier.height(screenHeight*0.015f))
+
+        // --- Caja estilo "list form" ---
         Card(
             modifier = Modifier
-                .fillMaxSize()
-                .height(screenWidth * 0.9f)
-                .align(Alignment.Center),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(screenHeight*0.02f))
+                .shadow(screenHeight*0.41f),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
-            Box(
-                modifier = Modifier
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF4AD9E2), Color(0xFF195FCF))
-                        )
-                    )
-                    .padding(screenWidth * 0.05f),
-                contentAlignment = Alignment.TopCenter
+            Column(
+                modifier = Modifier.padding(screenHeight*0.01f),
+                verticalArrangement = Arrangement.spacedBy(screenHeight*0.01f)
+                ,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Imagen del logo
-                    Image(
-                        painter = painterResource(id = R.drawable.agendita),
-                        contentDescription = "Logo",
-                        modifier = Modifier.size(screenWidth * 0.2f)
-                    )
 
-                    // Campos de registro
-                    OutlinedTextField(
-                        value = nombre,
-                        onValueChange = { nombre = it },
-                        placeholder = { Text("Nombre") },
-                        shape = RoundedCornerShape(50),
-                        colors = TextFieldDefaults.colors(
-                            Color.Black
-                        ),
-                        modifier =Modifier.width(screenWidth * 0.7f),
-                    )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    placeholder = { Text("Your Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                // username Input
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    placeholder = { Text("Your username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
 
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        placeholder = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        shape = RoundedCornerShape(50),
-                        colors = TextFieldDefaults.colors(
-                            Color.Black
-                        ),
-                        modifier = Modifier.width(screenWidth * 0.7f),
-                    )
+                // Password Input
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    placeholder = { Text("Your password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
 
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        placeholder = { Text("Contraseña") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(50),
-                        colors = TextFieldDefaults.colors(
-                            Color.Black
-                        ),
-                        modifier = Modifier.width(screenWidth * 0.7f),
-                    )
-
-                    val context = LocalContext.current
-                    // Botón Sign Up
-                   Row(modifier = Modifier.fillMaxWidth().height(screenWidth * 0.15f).padding(top = screenWidth*0.02f)) {
-                       Button(
-
-                           onClick = {
-                               var usuario = Usuario(
-                                   id = UUID.randomUUID().toString(),
-                                   nombre = nombre,
-                                   email = email,
-                                   password = password,
-                                   anio = mutableListOf()
-                               )
-                               Log.d("Usuario22", usuario.id.toString())
-                               Log.d("Usuario22", usuario.nombre.toString())
-                               Log.d("Usuario22", usuario.email.toString())
-                               Log.d("Usuario22", usuario.password.toString())
-                               Log.d("Usuario22", usuario.anio.toString())
-                               registerUser(usuario)
-
-                               val intent = Intent(context, RegistroActivity::class.java)
-                               context.startActivity(intent)
-                           },
-                           shape = RoundedCornerShape(50),
-                           border = BorderStroke(1.dp, Color.White),
-                           colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                           modifier = Modifier
-                               .weight(0.25f)
-                               .height(screenWidth * 0.05f)
-                       ) {
-                           Text("SIGN UP", color = Color.White)
-                       }
-                       Button(
-
-                           onClick = {
-                               val intent = Intent(context, RegistroActivity::class.java)
-                               context.startActivity(intent)
-                           },
-                           shape = RoundedCornerShape(50),
-                           border = BorderStroke(1.dp, Color.White),
-                           colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                           modifier = Modifier
-                               .weight(0.25f)
-                               .height(screenWidth * 0.05f)
-                       ) {
-                           Text("Cancelar", color = Color.White)
-                       }
-                   }
-                }
             }
         }
+
+        Spacer(modifier = Modifier.height(screenHeight*0.05f))
+
+        // --- Botones estilo F7 (fill + raised) ---
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(screenHeight*0.01f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = {
+                    listo = true
+                },
+                modifier = Modifier
+                    .width(screenWidth*0.5f)
+                    .height(screenHeight*0.06f)
+                    .padding(start = screenHeight*0.06f)
+                ,
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor =
+                    (Color(0xff4cd964)))
+
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.baseline_check_24),
+                    contentDescription = "Check Icon",
+                    modifier = Modifier.size(screenHeight*0.04f)
+                )
+            }
+
+            if (listo) {
+                CrearUsuario(usuario=Usuario(email=email,nombre=username, password = password))
+            }
+
+            Button(
+                onClick = {
+                    var intent = Intent(context, RegistroActivity::class.java)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenHeight*0.06f)
+                    .padding(end = screenHeight*0.06f)
+                ,
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor =
+                    (Color(0xffff3b30)))
+
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.baseline_cancel_24),
+                    contentDescription = "Check Icon",
+                    modifier = Modifier.size(screenHeight*0.04f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(screenHeight*0.286f))
+
+        // --- Footer estilo Framework7 ---
+        Text(
+            text = "Some text about login information.\nLorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            textAlign = TextAlign.Center,
+            color = Color.Gray,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.fillMaxWidth(0.9f)
+        )
+    }
+}
+@Composable
+@Preview
+fun LoginScreenPreview() {
+    EduTrackTheme {
+        SignUpScreen()
     }
 }
