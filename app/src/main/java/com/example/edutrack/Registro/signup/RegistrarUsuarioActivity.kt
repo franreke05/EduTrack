@@ -132,6 +132,7 @@ fun SignUpScreen(
 
         },modifier = Modifier.fillMaxWidth().height(screenHeight*0.3f)
         ){
+            //asdad
             Image(
                 painter = painterResource(id = R.drawable.agendita),
                 contentDescription = "Logo",
