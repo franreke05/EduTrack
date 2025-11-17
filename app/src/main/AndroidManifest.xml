@@ -19,6 +19,16 @@
         android:theme="@style/Theme.EduTrack"
         tools:targetApi="31">
         <activity
+            android:name=".Anio.AnioActivity"
+            android:exported="false"
+            android:label="@string/title_activity_anio"
+            android:theme="@style/Theme.EduTrack" />
+        <activity
+            android:name=".navigation.NavigationActivity"
+            android:exported="false"
+            android:label="@string/title_activity_navigation"
+            android:theme="@style/Theme.EduTrack" />
+        <activity
             android:name=".Inicio.InicioActivity"
             android:exported="false"
             android:label="@string/title_activity_inicio"

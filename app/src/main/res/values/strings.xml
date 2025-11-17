@@ -6,4 +6,6 @@
     <string name="title_activity_registrar_usuario">RegistrarUsuarioActivity</string>
     <string name="title_activity_edu_track">EduTrack</string>
     <string name="title_activity_inicio">InicioActivity</string>
+    <string name="title_activity_navigation">NavigationActivity</string>
+    <string name="title_activity_anio">AnioActivity</string>
 </resources>

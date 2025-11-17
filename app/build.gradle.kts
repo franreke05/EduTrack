@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.androidx.material3.v121) // O la versión más reciente
     implementation(libs.firebase.database.ktx)
+    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

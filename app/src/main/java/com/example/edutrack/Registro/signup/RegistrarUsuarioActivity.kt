@@ -58,9 +58,7 @@ import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
 import com.example.edutrack.CrearUsuario
 import com.example.edutrack.Registro.Registros.LoginScreen
-import com.example.edutrack.Registro.Registros.LoginUser
 import com.example.edutrack.Registro.Registros.RegistroActivity
-import com.example.edutrack.datosUsuario
 
 class RegistrarUsuarioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,7 +72,7 @@ class RegistrarUsuarioActivity : ComponentActivity() {
             }
         }
     }
-    @Deprecated("This method has been deprecated in favor of using the\n      {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}.\n      The OnBackPressedDispatcher controls how back button events are dispatched\n      to one or more {@link OnBackPressedCallback} objects.")
+    @Deprecated("This method has been deprecated in favor of using the {@link OnBackPressedDispatcher} via {@link #getOnBackPressedDispatcher()}. The OnBackPressedDispatcher controls how back button events are dispatched to one or more {@link OnBackPressedCallback} objects.")
     override fun onBackPressed() {
         super.onBackPressed()
         finishAffinity()
@@ -86,7 +84,6 @@ fun SignUpScreen(
    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -98,7 +95,7 @@ fun SignUpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5)), // Fondo gris claro estilo F7
+            .background(MaterialTheme.colorScheme.background), // Fondo adaptado al tema
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -112,14 +109,6 @@ fun SignUpScreen(
                         colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
                     )),
         ) {
-
-                Text(
-                    text = "Sign Up",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
-                    ,
-                    modifier = Modifier.align(Alignment.Center)
-                )
 
         }
         Spacer(modifier = Modifier.height(screenHeight*0.0505f))
@@ -136,7 +125,7 @@ fun SignUpScreen(
             Image(
                 painter = painterResource(id = R.drawable.agendita),
                 contentDescription = "Logo",
-
+                modifier = Modifier.shadow(8.dp, CircleShape)
             )
         }
         Spacer(modifier = Modifier.height(screenHeight*0.015f))
@@ -145,14 +134,14 @@ fun SignUpScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .wrapContentHeight()
-                .clip(RoundedCornerShape(screenHeight*0.02f))
-                .shadow(screenHeight*0.41f),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(
-                modifier = Modifier.padding(screenHeight*0.01f),
-                verticalArrangement = Arrangement.spacedBy(screenHeight*0.01f)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
                 ,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -196,27 +185,26 @@ fun SignUpScreen(
 
         // --- Botones estilo F7 (fill + raised) ---
         Row(
-            horizontalArrangement = Arrangement.spacedBy(screenHeight*0.01f),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(0.9f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Button(
                 onClick = {
-                    listo = true
+                    var intent = Intent(context, RegistroActivity::class.java)
+                    context.startActivity(intent)
                 },
                 modifier = Modifier
-                    .width(screenWidth*0.5f)
-                    .height(screenHeight*0.06f)
-                    .padding(start = screenHeight*0.06f)
-                ,
+                    .weight(1f)
+                    .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
                 colors = ButtonDefaults.buttonColors(containerColor =
-                    (Color(0xff4cd964)))
+                    (Color(0xffff3b30)))
 
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.baseline_check_24),
-                    contentDescription = "Check Icon",
-                    modifier = Modifier.size(screenHeight*0.04f)
+                    painter = painterResource(id = R.drawable.baseline_cancel_24),
+                    contentDescription = "Cancel Icon",
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -226,23 +214,20 @@ fun SignUpScreen(
 
             Button(
                 onClick = {
-                    var intent = Intent(context, RegistroActivity::class.java)
-                    context.startActivity(intent)
+                    listo = true
                 },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(screenHeight*0.06f)
-                    .padding(end = screenHeight*0.06f)
-                ,
+                    .weight(1f)
+                    .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
                 colors = ButtonDefaults.buttonColors(containerColor =
-                    (Color(0xffff3b30)))
+                    (Color(0xff4cd964)))
 
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.baseline_cancel_24),
+                    painter = painterResource(id = R.drawable.baseline_check_24),
                     contentDescription = "Check Icon",
-                    modifier = Modifier.size(screenHeight*0.04f)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -251,7 +236,7 @@ fun SignUpScreen(
 
         // --- Footer estilo Framework7 ---
         Text(
-            text = "Some text about login information.\nLorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            text = "Some text about login information.Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
             textAlign = TextAlign.Center,
             color = Color.Gray,
             style = MaterialTheme.typography.bodyMedium,

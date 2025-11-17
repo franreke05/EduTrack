@@ -1,7 +1,7 @@
 package com.example.edutrack.dataclass
 
-class Curso (
+class Notas (
     var id: String?="",
     val nombre: String?="",
-    val asignaturas: MutableList<Asignatura> = mutableListOf()
+
 )

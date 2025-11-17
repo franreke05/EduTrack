@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Inicio.InicioActivity
 import com.example.edutrack.R
 import com.example.edutrack.Registro.Registros.RegistroActivity
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -64,11 +65,14 @@ fun SplashScreen(modifier: Modifier) {
         )
         delay(500)
         var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        var login = sharedPreferences.getBoolean("login", false)
-
-            val intent = Intent(context, RegistroActivity::class.java)
-            context.startActivity(intent)
-
+        var login = sharedPreferences.getBoolean("isLogged", false)
+            if (login) {
+                val intent = Intent(context, InicioActivity::class.java)
+                context.startActivity(intent)
+            }else {
+                val intent = Intent(context, RegistroActivity::class.java)
+                context.startActivity(intent)
+            }
 
     }
 

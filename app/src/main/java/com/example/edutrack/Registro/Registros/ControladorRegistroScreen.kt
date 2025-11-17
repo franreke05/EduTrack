@@ -1,50 +1,40 @@
 package com.example.edutrack.Registro.Registros
 
-import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.Composable
-import com.example.edutrack.Inicio.InicioActivity
-import androidx.core.content.edit
-import com.example.edutrack.ConectarBaseDatosConUnValor
-import com.example.edutrack.datosUsuario
+import androidx.compose.runtime.LaunchedEffect
+import com.example.edutrack.dataclass.Usuario
+import com.example.edutrack.db_ref
+import com.google.firebase.Firebase
+import com.google.firebase.database.database
 
 // Verifica si el correo tiene formato válido
 // Registra un usuario en Firebase con email y password
 
 
+
 @Composable
-fun LoginUser(
-    context: Context,
-    email: String,
-    password: String
+fun buscarUsuario(email: String, password: String, function: () -> Unit): Boolean {
+    db_ref = Firebase.database.reference
+    var comprobacion = false
+    LaunchedEffect(true) {
+        Log.d("Login Buscando usuario","Buscando usuario")
+        db_ref.child("Edutrack").child("Usuario").get().addOnSuccessListener { dataSnapshot ->
+            for (snapshot in dataSnapshot.children) {
+                val usuario = snapshot.getValue(Usuario::class.java)
+                if (usuario != null && usuario.email == email && usuario.password == password) {
+                    Log.d("Login Buscando usuario","Usuario encontrado")
+                    function()
+                    comprobacion = true
 
-) {
-    ConectarBaseDatosConUnValor("Usuario")
-    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-
-    Log.d("Login pasado", true.toString())
-
-    if (true) {
-        var datos = datosUsuario
-        Log.d("Login", datos.toString())
-        for (dato in datos) {
-            Log.d("Login", dato.email.toString())
-            Log.d("Login", dato.password.toString())
-            if (dato.email == email && dato.password == password) {
-                sharedPreferences.edit {
-                    putString("email", email)
-                    putString("nombre", dato.nombre)
-                    apply()
                 }
-                sharedPreferences.edit {
-                    putBoolean("login",true)
-                }
-                val intent = Intent(context, InicioActivity::class.java)
-                context.startActivity(intent)
             }
+
         }
     }
-
+    return comprobacion
 }
+
+
+
 
