@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.InicioActivity
 import com.example.edutrack.Registro.signup.RegistrarUsuarioActivity
 import androidx.core.content.edit
+import com.example.edutrack.dataclass.Usuario
 
 class RegistroActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +57,7 @@ class RegistroActivity : ComponentActivity() {
 @Composable
 fun LoginScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var listo by remember { mutableStateOf(false) }
@@ -167,6 +168,7 @@ fun LoginScreen(modifier: Modifier = Modifier) {
                         var sharedPreferences =
                             context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
                         sharedPreferences.edit { putBoolean("isLogged", true).apply() }
+                        sharedPreferences.edit { putString("user","").apply() }
                         val intent = Intent(context, InicioActivity::class.java)
                         context.startActivity(intent)
 

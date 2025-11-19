@@ -55,6 +55,7 @@ fun SplashScreen(modifier: Modifier) {
     var context = LocalContext.current
     val scale = remember { Animatable(0.5f) }
     // Lanzar animación al iniciar
+
     LaunchedEffect(true) {
         scale.animateTo(
             targetValue = 1.2f,
@@ -69,6 +70,7 @@ fun SplashScreen(modifier: Modifier) {
             if (login) {
                 val intent = Intent(context, InicioActivity::class.java)
                 context.startActivity(intent)
+
             }else {
                 val intent = Intent(context, RegistroActivity::class.java)
                 context.startActivity(intent)

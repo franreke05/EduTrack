@@ -7,6 +7,7 @@ class Anio(
     val descripcion: String? = "",
     val fechaInicio: String? = "",
     val fechaFin: String? = "",
+    var numero_asignaturas: Int? = 0,
     var lista_asignaturas: List<Asignatura>? = mutableListOf<Asignatura>(),
     val id_user: String? = "",
 )
