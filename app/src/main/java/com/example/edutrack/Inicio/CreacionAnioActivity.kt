@@ -1,5 +1,13 @@
 package com.example.edutrack.Inicio
 
+//El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )✅
+
+
+/**
+ *
+ * Import
+ */
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -75,20 +83,31 @@ class CreacionAnioActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Funcion para Crear la actividad de creacion de un año
+ * @param modifier modificador para el layout
+ * @param onFinish funcion para finalizar la actividad
+ * @return layout de la actividad
+ */
+@SuppressLint("SuspiciousIndentation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
-    var nombre by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-    var fechaInicio by remember { mutableStateOf("") }
-    var mostrarDialoginicio by remember { mutableStateOf(false) }
-    var mostrarDialogfin by remember { mutableStateOf(false) }
-    var fechaFin by remember { mutableStateOf("") }
-    var numero_asignaturas by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    //Declaracion de variables
+    var nombre by remember { mutableStateOf("") } // Estado para el nombre del año
+    var descripcion by remember { mutableStateOf("") } // Estado para la descripción
+    var fechaInicio by remember { mutableStateOf("") } // Estado para la fecha de inicio
+    var mostrarDialoginicio by remember { mutableStateOf(false) } // Estado para mostrar el calendario para la fecha de inicio
+    var mostrarDialogfin by remember { mutableStateOf(false) } //Estado para mostrar el calendario para la fecha de fin
+    var fechaFin by remember { mutableStateOf("") } // Estado para la fecha de fin
+    var numero_asignaturas by remember { mutableStateOf("") } // Estado para el número de asignaturas
+    val context = LocalContext.current // Contexto local de la app para acceder a las sharedpreferences
+    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE) // Sharedpreferences para obtener el id del usuario
+    var id_user = sharedPreferences.getString("USER", "") // Id del usuario
+    var anio : Anio //Variable para crear el año
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp // Altura de la pantalla
 
-
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    //Box para el color del topbar
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -100,29 +119,38 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             ),
     ) {
     }
+    //Column para el contenido del topbar y el contenido de la actividad
     Column(
-        modifier = modifier
+        modifier = modifier // Modificador para el layout
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // TopAppBar simulada
+        // TopAppBar simulada con un botón de retroceso
         TopAppBar(
-            title = { Text("Nuevo Año Escolar", color = Color.Blue) },
+            title = { Text("Nuevo Año Escolar", color = Color.Blue) }, // Título del topbar
             navigationIcon = {
                 IconButton(onClick = onFinish) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = Color.Blue)
                 }
-            },
-            actions = {
+            }, // Botón de retroceso
+            actions = { // Botón de guardado
                 IconButton(onClick = {
                     //Inicializamos el db_ref
                     db_ref = FirebaseDatabase.getInstance().getReference("Anios")
                     //Recogemos el id del usuario de las sharedpreferences
-                    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-                    var id_user = sharedPreferences.getString("USER", "")
+
                     Log.d ("Login Buscando usuario f",id_user.toString())
-                    if(comprobarCampos(numero_asignaturas,nombre,descripcion,fechaInicio,fechaFin)){
-                     val anio = Anio(db_ref.push().key,nombre= nombre,descripcion= descripcion,fechaInicio= fechaInicio, fechaFin= fechaFin,numero_asignaturas.toInt(), id_user=id_user)
+
+                    if(comprobarCampos(numero_asignaturas,nombre,fechaInicio,fechaFin)){
+                      anio =
+                         Anio(db_ref.push().key,
+                             nombre= nombre,
+                             descripcion= descripcion,
+                             fechaInicio= fechaInicio,
+                             fechaFin= fechaFin,
+                             numero_asignaturas.toInt(), id_user=id_user
+                         )
+
                         CrearAnio(anio)
                         onFinish()
                     }
@@ -297,6 +325,10 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
         }
     }
 }
+
+
+
+
 @Preview(showBackground = true)
 @Composable
 fun CrearAnioScreenPreview() {

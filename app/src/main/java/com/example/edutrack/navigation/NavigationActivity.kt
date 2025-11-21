@@ -1,5 +1,8 @@
 package com.example.edutrack.navigation
 
+//El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )❌
+
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent

@@ -1,7 +1,8 @@
 package com.example.edutrack.Inicio
 
+//El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )✅
+
 import android.content.Context.MODE_PRIVATE
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -11,17 +12,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +36,6 @@ import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
-import java.util.UUID
 
 
 class InicioActivity : ComponentActivity() {
@@ -62,26 +56,34 @@ class InicioActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Cuerpo de la pantalla de inicio.
+ * @param modifier El modificador para personalizar la apariencia de la pantalla.
+ * @return El diseño de la pantalla de inicio.
+ *
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoInicio(modifier: Modifier = Modifier) {
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val context = LocalContext.current
-    val sharedPreferences = context.getSharedPreferences("MyPrefs", MODE_PRIVATE)
-    val id_user = sharedPreferences.getString("USER", "")
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp // Altura de la pantalla
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp //Anchura de la pantalla
+    val context = LocalContext.current //Contexto Local de la app
+    val sharedPreferences = context.getSharedPreferences("MyPrefs", MODE_PRIVATE) //SharedPreferences
+    val id_user = sharedPreferences.getString("USER", "") // Id del usuario
 
-    val anios by rememberAniosState(id_user)
+
+    // Lista original de Firebase
+    val aniosFromFirebase by rememberAniosState(id_user)
+    // Lista que se muestra en pantalla (puede ser filtrada)
+    var displayedAnios by remember { mutableStateOf<List<Anio>>(emptyList()) }
+
+    // Actualiza la lista a mostrar cuando la de Firebase cambia
+    LaunchedEffect(aniosFromFirebase) {
+        displayedAnios = aniosFromFirebase
+    }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
-
-    val actions = listOf(
-        "Perfil" to Icons.Default.Person,
-        "Buscar" to Icons.Default.Search,
-        "Añadir" to Icons.Default.Add,
-        "Opciones" to Icons.Default.MoreVert
-    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -95,49 +97,22 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize()) {
 
 
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = screenHeight * 0.02f),
-            horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f),
-            contentPadding = PaddingValues(horizontal = screenWidth * 0.04f)
-        ) {
-            items(actions) { (label, icon) ->
-                CircularActionButton(
-                    icon = icon,
-                    label = label,
-                    onClick = {
-                        when (label) {
-                            "Perfil" -> { /* TODO: Implementar pantalla de perfil */
-                            }
-
-                            "Buscar" -> { /* TODO: Implementar búsqueda */
-                            }
-
-                            "Añadir" -> {
-                                Intent(context, CreacionAnioActivity::class.java).apply {
-                                    context.startActivity(this)
-                                }
-                            }
-
-                            "Opciones" -> { /* TODO: Implementar pantalla de opciones */
-                            }
-                        }
-                    },
-                    screenHeight = screenHeight
-                )
-            }
-        }
+        // La función AnimationSearch ahora se encarga de los botones Y de la búsqueda
+        AnimationSearch(
+            initialAnios = aniosFromFirebase, // Le pasamos la lista original
+            onAniosFiltered = { filteredList ->
+                displayedAnios = filteredList // Actualizamos la lista que se muestra
+            },
+            screenHeight = screenHeight,
+            screenWidth = screenWidth
+        )
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(bottom = screenHeight * 0.02f)
         ) {
-            itemsIndexed(
-                anios,
-                key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
-                // state específico para SwipeToDismissBox (Material3)
-                val swipeState = rememberSwipeToDismissBoxState(
+            itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
+                val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
                         if (value == SwipeToDismissBoxValue.EndToStart) {
                             anioToDelete = anio
@@ -150,39 +125,32 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
                 )
 
                 SwipeToDismissBox(
-                    state = swipeState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min), // ajusta según tu UI
-                    // Opcional: limitar direcciones (usa enableDismissFrom... si quieres)
+                    state = dismissState,
+                    modifier = Modifier.fillMaxWidth(),
                     enableDismissFromStartToEnd = false,
                     enableDismissFromEndToStart = true,
                     backgroundContent = {
-                        // cambia el fondo según la dirección objetivo
-                        val bg = when (swipeState.dismissDirection) {
+                        val color = when (dismissState.targetValue) {
                             SwipeToDismissBoxValue.EndToStart -> Color.Red.copy(alpha = 0.8f)
-                            SwipeToDismissBoxValue.StartToEnd -> Color.Green.copy(alpha = 0.8f)
-                            SwipeToDismissBoxValue.Settled -> Color.Transparent
                             else -> Color.Transparent
                         }
 
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(bg)
+                                .background(color)
                                 .padding(horizontal = screenWidth * 0.05f),
                             contentAlignment = Alignment.CenterEnd
                         ) {
-                            androidx.compose.material3.Icon(
+                            Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Eliminar",
                                 tint = Color.White,
-                                modifier = Modifier.size((screenHeight * 0.04f))
+                                modifier = Modifier.size(screenHeight * 0.04f)
                             )
                         }
                     }
                 ) {
-                    // Contenido principal (tu card)
                     AnioCard(anio, index + 1, screenHeight, screenWidth, function = {
                         // navegación o acción
                     })
@@ -191,7 +159,7 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
         }
     }
 
-        if (showDeleteDialog) {
+    if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Confirmar Eliminación") },
@@ -224,42 +192,15 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun CircularActionButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    screenHeight: Dp
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(screenHeight * 0.07f)
-                .shadow(elevation = screenHeight * 0.01f, shape = CircleShape)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(screenHeight * 0.045f)
-            )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(screenHeight * 0.09f)
-        )
-    }
-}
-
+/**
+ * Tarjeta de año.
+ * @param anio El año a mostrar.
+ * @param index El índice del año en la lista.
+ * @param screenHeight La altura de la pantalla.
+ * @param screenWidth La anchura de la pantalla.
+ * @param function La función a ejecutar cuando se hace click en la tarjeta.
+ *
+ */
 @Composable
 fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function : () -> Unit) {
     Card(
@@ -301,5 +242,91 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
 fun GreetingPreview() {
     EduTrackTheme {
         CuerpoInicio()
+    }
+}
+
+
+
+
+/**
+ * Funcion para crear un boton circular.
+ * (Es la configuracion predefinida para los botones de las opciones de la app)
+ * @param icon El icono del boton.
+ * @param label El texto del boton.
+ * @param onClick La funcion que se ejecuta cuando se hace click en el boton.
+ * @param screenHeight La altura de la pantalla.
+ * @return El boton circular.
+ */
+
+@Composable
+fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(screenHeight * 0.07f)
+                .shadow(elevation = screenHeight * 0.01f, shape = CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(screenHeight * 0.045f)
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(screenHeight * 0.09f)
+        )
+    }
+}
+
+
+
+
+/**
+ * Funcion para abrir el selector de fecha.
+ * (Solo funciona si la fecha de fin es mayor que la de inicio)
+ *
+ * @param onFechaSeleccionada Una funcion que se llama cuando se selecciona una fecha.
+ * @param onDismiss Una funcion que se llama cuando se cierra el selector.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = System.currentTimeMillis()
+    )
+
+    DatePickerDialog(
+        onDismissRequest = { onDismiss() },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val fechaSeleccionada = datePickerState.selectedDateMillis?.let {
+                        formatearFecha(it)
+                    } ?: ""
+                    onFechaSeleccionada(fechaSeleccionada)
+                    onDismiss()
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onDismiss() }) {
+                Text("Cancelar")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }

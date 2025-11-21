@@ -1,5 +1,15 @@
 package com.example.edutrack.Registro.Registros
 
+//El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )❌
+
+//Cambios para el registro
+/*
+1. Codificar la contraseña para guardar en la base de datos
+2. Hacer una funcion privada para que descodifique la contraseña (Hacerlo mediante token)
+3. Que la app pueda enviar correos de verificacion a gmail
+
+ */
+
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
