@@ -3,6 +3,7 @@ package com.example.edutrack.Inicio
 //El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )✅
 
 import android.content.Context.MODE_PRIVATE
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -32,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Anio.AnioActivity
+import com.example.edutrack.Perfil.PerfilActivity
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
@@ -152,7 +155,11 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
                     }
                 ) {
                     AnioCard(anio, index + 1, screenHeight, screenWidth, function = {
-                        // navegación o acción
+                        sharedPreferences.edit().putString("id_anio", anio.id).apply()
+                        //entramos en anioActivity
+                        Intent(context, AnioActivity::class.java).apply {
+                            context.startActivity(this)
+                        }
                     })
                 }
             }
@@ -229,10 +236,24 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
                 )
             }
             Spacer(modifier = Modifier.width(screenWidth * 0.04f))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(0.55f).padding(start = screenWidth * 0.02f)) {
                 anio.nombre?.let { Text(text = it, style = MaterialTheme.typography.titleLarge) }
                 anio.descripcion?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
+                anio.numero_asignaturas?.let { Text(text = "Número de asignaturas: $it", style = MaterialTheme.typography.bodyMedium) }
+
+
             }
+            Column(
+                modifier = Modifier.width(screenWidth * 0.04f).weight(0.35f).padding(end = screenWidth * 0.02f),
+                horizontalAlignment = Alignment.End
+            ) {
+                //Columnm para poner a la derecha las fechas del curso
+                Text(text = "Fecha  Inicio", style = MaterialTheme.typography.titleMedium)
+                anio.fechaInicio?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
+                Text(text = "Fecha Fin", style = MaterialTheme.typography.titleMedium)
+                anio.fechaFin?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
+            }
+
         }
     }
 }
@@ -241,7 +262,7 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
 @Composable
 fun GreetingPreview() {
     EduTrackTheme {
-        CuerpoInicio()
+        AnioCard(anio = Anio("Año 1", "Descripción del año 1","descripcion","14/10/25","14/10/25"), index = 1, screenHeight = 100.dp, screenWidth = 100.dp) { }
     }
 }
 

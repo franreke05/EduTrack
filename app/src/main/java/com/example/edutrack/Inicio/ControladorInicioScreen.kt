@@ -60,6 +60,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import com.example.edutrack.Inicio.CircularActionButton
+import com.example.edutrack.Perfil.PerfilActivity
 import com.example.edutrack.dataclass.Anio
 import com.google.firebase.Firebase
 import com.google.firebase.database.DataSnapshot
@@ -223,6 +225,9 @@ fun AnimationSearch(initialAnios: List<Anio>, onAniosFiltered: (List<Anio>) -> U
                                     }
                                 }
                                 "Perfil" ->{
+                                    Intent(context, PerfilActivity::class.java).apply {
+                                        context.startActivity(this)
+                                    }
 
                                 }
                                 "Opciones" ->{
