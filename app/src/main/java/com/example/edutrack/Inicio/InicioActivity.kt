@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,12 +34,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.edutrack.Anio.AnioActivity
+import com.example.edutrack.Perfil.CuerpoPerfil
 import com.example.edutrack.Perfil.PerfilActivity
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 
 
 class InicioActivity : ComponentActivity() {
@@ -46,16 +52,76 @@ class InicioActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            // Comentario: Integración de Navigation Drawer + NavHost dentro de InicioActivity.
+            // Esto permite navegación Compose entre "inicio" y "perfil" sin MainActivity.
             EduTrackTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CuerpoInicio(modifier = Modifier.padding(innerPadding))
-                }
+                InAppNavRoot()
             }
         }
     }
     override fun onBackPressed() {
         super.onBackPressed()
         finishAffinity()
+    }
+}
+
+// Comentario: Raíz de navegación interna con Drawer y NavHost (inicio/perfil).
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InAppNavRoot() {
+    val navController = rememberNavController()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NavigationDrawerItem(
+                label = { Text("Inicio") },
+                selected = false,
+                onClick = {
+                    scope.launch { drawerState.close() }
+                    navController.navigate("inicio") { launchSingleTop = true }
+                },
+                colors = NavigationDrawerItemDefaults.colors(
+                    selectedContainerColor = MaterialTheme.colorScheme.surface,
+                    unselectedContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+            NavigationDrawerItem(
+                label = { Text("Perfil") },
+                selected = false,
+                onClick = {
+                    scope.launch { drawerState.close() }
+                    navController.navigate("perfil") { launchSingleTop = true }
+                },
+                colors = NavigationDrawerItemDefaults.colors(
+                    selectedContainerColor = MaterialTheme.colorScheme.surface,
+                    unselectedContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("EduTrack") },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = "inicio",
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable("inicio") { CuerpoInicio() }
+                composable("perfil") { CuerpoPerfil() }
+            }
+        }
     }
 }
 
@@ -92,9 +158,7 @@ fun CuerpoInicio(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(screenHeight * 0.055f)
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                )
+                brush = com.example.edutrack.ui.theme.PrimaryGradient
             ),
     ) {}
     Column(modifier = modifier.fillMaxSize()) {

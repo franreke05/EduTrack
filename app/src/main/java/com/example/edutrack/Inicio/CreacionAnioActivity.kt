@@ -113,9 +113,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             .fillMaxWidth()
             .height(screenHeight * 0.051f)
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                )
+                brush = com.example.edutrack.ui.theme.PrimaryGradient
             ),
     ) {
     }
@@ -127,10 +125,10 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
     ) {
         // TopAppBar simulada con un botón de retroceso
         TopAppBar(
-            title = { Text("Nuevo Año Escolar", color = Color.Blue) }, // Título del topbar
+            title = { Text("Nuevo Año Escolar", color = MaterialTheme.colorScheme.primary) }, // Título del topbar
             navigationIcon = {
                 IconButton(onClick = onFinish) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = Color.Blue)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.primary)
                 }
             }, // Botón de retroceso
             actions = { // Botón de guardado
@@ -158,7 +156,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
 
 
                 },modifier = Modifier.padding(end = screenHeight * 0.005f)) {
-                    Icon(Icons.Default.Done, contentDescription = "Guardar", tint = Color.Blue)
+                    Icon(Icons.Default.Done, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -181,7 +179,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             Text(
                 text = "Información del Año",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.Blue,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -213,7 +211,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             Text(
                 text = "Duración",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.Blue,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -289,7 +287,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             Text(
                 text = "Numero de Asignaturas",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.Blue,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth()
             )
             Card(

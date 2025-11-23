@@ -78,9 +78,8 @@ fun LoginScreen(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .height(screenHeight * 0.051f)
                 .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )),
+                    brush = com.example.edutrack.ui.theme.PrimaryGradient
+                ),
         ) {
 
         }
