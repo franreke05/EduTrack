@@ -1,0 +1,62 @@
+Plan de pasos para la nueva tarea (rama duro2)
+
+Objetivo general:
+Implementar la lógica completa de la actividad de año (sin tocar Inicio), entendiendo el contexto de toda la carpeta edutrack, haciendo que todos sus botones tengan funcionalidad coherente, y añadiendo dos asignaturas de ejemplo en Firebase utilizando la dataclass Asignatura.
+
+PASOS A SEGUIR
+
+1) Analizar la estructura del proyecto
+   - Revisar la carpeta app/src/main/java/com/example/edutrack completa para entender:
+     - Qué pantallas/activities existen y cómo se relacionan.
+     - Cómo se navega actualmente entre pantallas.
+     - Cómo se maneja actualmente Firebase (si ya existe integración) y los modelos de datos.
+
+2) Revisar la pantalla de Inicio (sin modificarla)
+   - Leer el código de la Activity/Fragment de Inicio y su layout para:
+     - Entender su comportamiento actual.
+     - Ver cómo se llega desde Inicio a la actividad de año (si aplica), sin hacer ningún cambio.
+
+3) Analizar en detalle la actividad de año
+   - Localizar la Activity correspondiente al año (por ejemplo CreacionAnioActivity u otra con nombre similar).
+   - Revisar su código Kotlin y sus layouts XML asociados.
+   - Identificar todos los botones presentes en la UI (por id y por texto) y anotar qué debería hacer cada uno según el contexto del proyecto.
+
+4) Analizar la dataclass Asignatura
+   - Localizar la dataclass Asignatura en la carpeta edutrack.
+   - Revisar sus propiedades (campos) y tipos de datos.
+   - Definir cómo se va a representar una Asignatura en Firebase (colección, documento, campos) basándose en esta dataclass.
+
+5) Diseñar la funcionalidad de cada botón en la actividad de año
+   - Para cada botón identificado:
+     - Decidir qué acción concreta debe realizar (navegar a otra pantalla, crear año, añadir asignatura, guardar en Firebase, etc.).
+     - Ver si ya existe alguna lógica similar en otras pantallas para reutilizar el mismo patrón.
+
+6) Implementar la funcionalidad de los botones en la actividad de año
+   - Añadir o completar los listeners onClick de todos los botones.
+   - Implementar la lógica necesaria (navegación, validaciones, llamadas a Firebase u otras capas de datos) de forma coherente con el resto de la app.
+   - Asegurar que no se modifica la pantalla de Inicio.
+
+7) Revisar la configuración de Firebase en el proyecto
+   - Comprobar dependencias de Firebase en Gradle.
+   - Verificar la presencia de google-services.json y la inicialización de Firebase en la app.
+   - Identificar si ya hay colecciones o nodos existentes relacionados con años/asignaturas.
+
+8) Añadir dos asignaturas de ejemplo a Firebase usando la dataclass Asignatura
+   - Definir dos objetos Asignatura de ejemplo con valores representativos.
+   - Implementar en la lógica de la actividad de año (o en un punto apropiado) la escritura de esas dos asignaturas en Firebase (por ejemplo, en una colección Asignaturas o similar).
+   - Asegurarse de que el formato de los documentos en Firebase coincide con la dataclass Asignatura.
+
+9) (Opcional) Mostrar o verificar visualmente las asignaturas añadidas
+   - Si ya existe una pantalla o lista que muestre asignaturas, reutilizarla para comprobar que se ven correctamente.
+   - Si no existe, al menos verificar en la consola de Firebase que las dos asignaturas se han creado con los campos esperados.
+
+10) Probar la app y ajustar
+   - Ejecutar la app.
+   - Navegar desde Inicio (sin tocar su código) hasta la actividad de año.
+   - Probar cada botón para asegurarse de que hace lo esperado.
+   - Confirmar que las dos asignaturas de ejemplo se crean en Firebase sin errores.
+
+11) Revisión final y commit
+   - Revisar los cambios en los archivos modificados.
+   - Hacer un commit en la rama duro2 con un mensaje descriptivo (por ejemplo: "Funcionalidad completa en actividad de año y ejemplo de Asignatura en Firebase").
+   - Dejar lista la rama para un pull request si es necesario.

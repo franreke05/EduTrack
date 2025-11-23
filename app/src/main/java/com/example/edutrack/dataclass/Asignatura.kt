@@ -15,6 +15,8 @@ class Asignatura(
     val media : Double?=0.0, //Media de la asignatura (Lo calcula una funcion a partir de
     //la lista de notas y sus porcentajes)
 
-    val id_usuario: String?="" //Id del usuario al que pertenece la asignatura)
+    val id_usuario: String?="", //Id del usuario al que pertenece la asignatura)
+
+    val id_anio: String?="" //Id del año al que pertenece la asignatura
 
 ) : java.io.Serializable

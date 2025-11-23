@@ -5,6 +5,7 @@ package com.example.edutrack.ui.navigation
 // De forma progresiva iremos eliminando Intents en pantallas internas y usaremos navController.
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
