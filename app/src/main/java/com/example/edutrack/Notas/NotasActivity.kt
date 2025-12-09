@@ -137,23 +137,21 @@ fun NotasScreen(
     val promedio = calcularPromedio(notasState.value)
     val porcentajeTotal = notasState.value.sumOf { it.porcentaje ?: 0.0 }
 
-    Scaffold(
-        topBar = {
-            TopNotasBar(
-                onBack = onBack,
-                onAdd = { notaEnEdicion.value = null; showDialog.value = true },
-                onInfo = {
-                    Toast.makeText(context, "Gestiona notas con porcentaje por $tipoPeriodo.", Toast.LENGTH_LONG).show()
-                }
-            )
-        }
-    ) { inner ->
+    Scaffold { inner ->
         Column(
             modifier = Modifier
                 .padding(inner)
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            GradientMenuNotas(
+                onBack = onBack,
+                onAdd = { notaEnEdicion.value = null; showDialog.value = true },
+                onInfo = {
+                    Toast.makeText(context, "Gestiona notas con porcentaje por $tipoPeriodo.", Toast.LENGTH_LONG).show()
+                }
+            )
+
             EncabezadoNotas(
                 nombre = asignaturaNombre,
                 promedio = promedio,
@@ -211,10 +209,9 @@ fun NotasScreen(
 }
 
 @Composable
-private fun TopNotasBar(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Unit) {
+private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
     Column {
         Box(
             modifier = Modifier
@@ -230,7 +227,7 @@ private fun TopNotasBar(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Uni
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = screenWidth * 0.05f, vertical = screenHeight * 0.015f),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircleIcon(Icons.Default.ArrowBack, "Volver", onBack)
@@ -265,9 +262,19 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
             .padding(horizontal = screenHeight * 0.025f, vertical = screenHeight * 0.02f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Notas", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-
+        Box(
+            modifier = Modifier
+                .size(screenHeight * 0.22f)
+                .shadow(12.dp, RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = abreviarNombre(nombre),
+                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+        Spacer(modifier = Modifier.height(screenHeight * 0.015f))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -277,20 +284,8 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
                 Text(text = "Media", style = MaterialTheme.typography.labelMedium)
                 Text(text = String.format("%.2f", promedio), style = MaterialTheme.typography.headlineMedium)
             }
-            Box(
-                modifier = Modifier
-                    .size(screenHeight * 0.2f)
-                    .shadow(8.dp, RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = abreviarNombre(nombre),
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Porc. usado", style = MaterialTheme.typography.labelMedium)
+                Text(text = "Porcentaje usado", style = MaterialTheme.typography.labelMedium)
                 Text(text = String.format("%.0f%%", porcentajeTotal), style = MaterialTheme.typography.headlineMedium)
             }
         }
@@ -316,7 +311,16 @@ private fun ListaNotasPorPeriodo(
                 Text(
                     text = "$tipoPeriodo $periodo",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(vertical = 8.dp, horizontal = 12.dp),
+                    color = Color.White
                 )
             }
             val lista = grouped[periodo].orEmpty()
@@ -331,27 +335,35 @@ private fun ListaNotasPorPeriodo(
 
 @Composable
 private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditar() }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 6.dp)
+            .clickable { onEditar() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = nota.nombre ?: "Examen", style = MaterialTheme.typography.bodyLarge)
-            Text(text = nota.fecha.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
-            Text(text = String.format("%.1f", nota.nota ?: 0.0), fontWeight = FontWeight.Bold)
-            Text(text = "${nota.porcentaje ?: 0.0}%", style = MaterialTheme.typography.bodySmall)
-        }
-        IconButton(onClick = onEditar) {
-            Icon(Icons.Default.Edit, contentDescription = "Editar")
-        }
-        IconButton(onClick = onEliminar) {
-            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp, horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = nota.nombre ?: "Examen", style = MaterialTheme.typography.bodyLarge)
+                Text(text = nota.fecha.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(end = 8.dp)) {
+                Text(text = String.format("%.1f", nota.nota ?: 0.0), fontWeight = FontWeight.Bold)
+                Text(text = "${nota.porcentaje ?: 0.0}%", style = MaterialTheme.typography.bodySmall)
+            }
+            IconButton(onClick = onEditar) {
+                Icon(Icons.Default.Edit, contentDescription = "Editar")
+            }
+            IconButton(onClick = onEliminar) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

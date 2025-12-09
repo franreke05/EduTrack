@@ -1,9 +1,6 @@
 package com.example.edutrack.Anio
 
-import android.os.Bundle
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,15 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,24 +36,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
-import com.example.edutrack.Notas.NotasActivity
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
@@ -72,20 +70,9 @@ fun AnioRoute(
     val anios by rememberAniosState(userId)
     val anio = anios.firstOrNull { it.id == anioId }
     if (anio == null) {
-        androidx.compose.material3.CircularProgressIndicator()
+        CircularProgressIndicator()
     } else {
         AnioScreen(anio = anio, pageIndex = anios.indexOf(anio), onBack = onBack, onOpenNotas = onOpenNotas)
-    }
-}
-
-class AnioActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            EduTrackTheme {
-                AnioScreenWrapper()
-            }
-        }
     }
 }
 
@@ -120,42 +107,40 @@ fun AnioScreen(
 ) {
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showAsignaturaDialog by remember { mutableStateOf(false) }
-
     val maxAsignaturas = anio.numero_asignaturas ?: 0
     val anioLleno = (anio.lista_asignaturas?.size ?: 0) >= maxAsignaturas
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            androidx.compose.material3.TopAppBar(
-                title = { Text("EduTrack") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.Home, contentDescription = "Inicio")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Perfil */ }) {
-                        Icon(Icons.Default.Person, contentDescription = "Perfil")
-                    }
-                    IconButton(onClick = { /* TODO: Buscar Asignatura */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Buscar")
-                    }
-                    IconButton(onClick = { showAsignaturaDialog = true }, enabled = !anioLleno) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Agregar Asignatura",
-                            tint = if (anioLleno) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                    )
+                )
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircleAction(icon = Icons.Default.ArrowBack, content = "Volver") { onBack() }
+            CircleAction(icon = Icons.Default.Add, content = "Añadir", enabled = !anioLleno) { showAsignaturaDialog = true }
+            CircleAction(icon = Icons.Default.FilterList, content = "Filtrar") { }
+            CircleAction(icon = Icons.Default.Person, content = "Perfil") { }
         }
-    ) { innerPadding ->
+
         Column(
             modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -180,9 +165,6 @@ fun AnioScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* TODO: Filtrar asignaturas */ }) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filtrar Asignaturas")
-                }
                 Text(
                     anio.nombre ?: "",
                     style = MaterialTheme.typography.headlineSmall,
@@ -190,22 +172,13 @@ fun AnioScreen(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center
                 )
-                IconButton(onClick = { /* TODO: Editar nombre del aヵo */ }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Editar Nombre")
+                IconButton(onClick = { showDescriptionDialog = true }) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Mostrar Descripción")
                 }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { showDescriptionDialog = true }
-            ) {
-                Text("DescripciИn", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Mostrar DescripciИn", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val context = LocalContext.current
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -221,8 +194,8 @@ fun AnioScreen(
     if (showDescriptionDialog) {
         AlertDialog(
             onDismissRequest = { showDescriptionDialog = false },
-            title = { Text("DescripciИn de ${anio.nombre}") },
-            text = { Text(anio.descripcion ?: "No hay descripciИn.") },
+            title = { Text("Descripción de ${anio.nombre}") },
+            text = { Text(anio.descripcion ?: "No hay descripción.") },
             confirmButton = {
                 TextButton(onClick = { showDescriptionDialog = false }) {
                     Text("Cerrar")
@@ -264,7 +237,6 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
     val descripcion = remember { mutableStateOf("") }
     val creditos = remember { mutableStateOf("") }
     val tipo = remember { mutableStateOf("Trimestre") }
-    val context = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -272,8 +244,8 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = nombre.value, onValueChange = { nombre.value = it }, label = { Text("Nombre") })
-                OutlinedTextField(value = descripcion.value, onValueChange = { descripcion.value = it }, label = { Text("DescripciИn") })
-                OutlinedTextField(value = creditos.value, onValueChange = { creditos.value = it.filter { c -> c.isDigit() } }, label = { Text("CrИditos") })
+                OutlinedTextField(value = descripcion.value, onValueChange = { descripcion.value = it }, label = { Text("Descripción") })
+                OutlinedTextField(value = creditos.value, onValueChange = { creditos.value = it.filter { c -> c.isDigit() } }, label = { Text("Créditos") })
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Tipo:")
                     listOf("Trimestre", "Cuatrimestre").forEach { opcion ->
@@ -292,17 +264,12 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
         confirmButton = {
             TextButton(onClick = {
                 if (anioId.isNullOrEmpty() || nombre.value.isBlank()) {
-                    Toast.makeText(context, "Completa el nombre del curso.", Toast.LENGTH_LONG).show()
                     return@TextButton
                 }
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
                 val numeroPeriodos = if (tipo.value == "Cuatrimestre") 4 else 3
                 val dbRef = Firebase.database.reference
-                val nuevoId = dbRef.child("Edutrack").child("Asignatura").push().key
-                if (nuevoId == null) {
-                    Toast.makeText(context, "No se pudo generar ID.", Toast.LENGTH_LONG).show()
-                    return@TextButton
-                }
+                val nuevoId = dbRef.child("Edutrack").child("Asignatura").push().key ?: return@TextButton
                 val asignatura = Asignatura(
                     id = nuevoId,
                     nombre = nombre.value,
@@ -321,12 +288,28 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
     )
 }
 
+@Composable
+fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled) { onClick() },
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shadowElevation = 4.dp
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Icon(icon, contentDescription = content, tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun AnioScreenPreview() {
     EduTrackTheme {
         val mockAsignaturas = List(8) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
-        val mockAnio = com.example.edutrack.dataclass.Anio(id = "1", nombre = "Aヵo 2023-2024", descripcion = "DescripciИn de prueba", lista_asignaturas = mockAsignaturas, numero_asignaturas = 8)
+        val mockAnio = com.example.edutrack.dataclass.Anio(id = "1", nombre = "Año 2023-2024", descripcion = "Descripción de prueba", lista_asignaturas = mockAsignaturas, numero_asignaturas = 8)
         AnioScreen(anio = mockAnio, pageIndex = 0)
     }
 }
