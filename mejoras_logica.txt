@@ -1,0 +1,12 @@
+Ideas rápidas para mejorar la lógica de la app
+----------------------------------------------
+- Autenticación única con Firebase Auth: usa siempre auth.currentUser en lugar de flags en SharedPreferences. Si necesitas más datos, sincroniza los uid en prefs solo como caché de conveniencia.
+- Capa de datos clara: crea un repositorio (interfaz) que encapsule Firebase (Auth + Realtime DB). Mantén las Activities/Composables limpias y sin llamadas directas al SDK.
+- Operaciones async con coroutines: expone suspend functions y Flow<State> (Loading/Success/Error) en los viewmodels para no depender de callbacks anidados.
+- Modelos inmutables: convierte Usuario, Anio, Asignatura, Notas a data class y evita vars mutables salvo que sea estrictamente necesario. Esto simplifica copias y diffs.
+- Validación centralizada: valida inputs (nombre, fechas, número de asignaturas) en un validador reutilizable que devuelva errores de campo y estados de formulario.
+- Rutas en DB estables: usa siempre el uid de Auth como clave de usuario; guarda referencias a anios/asignaturas bajo ese uid para evitar búsquedas completas.
+- Seguridad: no guardes contraseñas en Realtime DB. Para cualquier login no-Google, usa Firebase Auth Email/Password y deja que Firebase gestione el hash.
+- Emails: mantén una función para reenviar verificación y considera un botón para soporte (mailto) si quieres notificaciones manuales sin backend.
+- Logging/observabilidad: reemplaza Log con Timber y define niveles (d/e) para fallos de red, auth y persistencia. Añade un interceptor de red si usas HTTP en el futuro.
+- Tests: crea fakes del repositorio de datos para probar lógica de validación, filtrado y ordenamiento de Años/Asignaturas. Añade tests de UI básicos con Compose para el flujo de login y navegación inicial.

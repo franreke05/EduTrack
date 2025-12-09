@@ -1,6 +1,5 @@
 package com.example.edutrack.Registro.signup
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +40,7 @@ import java.util.UUID
 import android.net.Uri
 import android.util.Log
 import android.widget.ImageButton
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
@@ -53,11 +53,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.content.ContextCompat.startActivity
 import androidx.core.net.toUri
 import coil.compose.rememberAsyncImagePainter
-import com.example.edutrack.CrearUsuario
-import com.example.edutrack.Registro.Registros.LoginScreen
 import com.example.edutrack.Registro.Registros.RegistroActivity
 
 class RegistrarUsuarioActivity : ComponentActivity() {
@@ -87,7 +84,6 @@ fun SignUpScreen(
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var listo by remember { mutableStateOf(false) }
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
 
@@ -190,8 +186,7 @@ fun SignUpScreen(
         ) {
             Button(
                 onClick = {
-                    var intent = Intent(context, RegistroActivity::class.java)
-                    context.startActivity(intent)
+                    Toast.makeText(context, "Usa Google para gestionar tu cuenta", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -208,13 +203,11 @@ fun SignUpScreen(
                 )
             }
 
-            if (listo) {
-                CrearUsuario(usuario=Usuario(email=email,nombre=username, password = password))
-            }
-
             Button(
                 onClick = {
-                    listo = true
+                    Toast
+                        .makeText(context, "El registro se realiza con tu cuenta de Google.", Toast.LENGTH_LONG)
+                        .show()
                 },
                 modifier = Modifier
                     .weight(1f)

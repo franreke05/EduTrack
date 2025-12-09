@@ -78,10 +78,12 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences)
 
     // Firebase
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.database.ktx)
+    implementation(libs.play.services.auth)
 
     // Coil (Image Loading)
     implementation(libs.coil.compose)

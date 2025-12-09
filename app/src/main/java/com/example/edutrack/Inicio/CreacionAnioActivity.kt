@@ -1,18 +1,5 @@
 package com.example.edutrack.Inicio
 
-//El contenido del archivo esta comentado (si se agrega alguna otra funcion cambiar el check )✅
-
-
-/**
- *
- * Import
- */
-import android.annotation.SuppressLint
-import android.content.Context
-import android.os.Bundle
-import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,54 +47,22 @@ import com.example.edutrack.db_ref
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.FirebaseDatabase
 
-
-class CreacionAnioActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-
-            EduTrackTheme {
-                Scaffold(
-                    content = { paddingValues ->
-
-                        CrearAnioScreen(onFinish = { finish() },modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues))
-
-                    }
-                )
-
-
-            }
-        }
-    }
-}
-
-/**
- * Funcion para Crear la actividad de creacion de un año
- * @param modifier modificador para el layout
- * @param onFinish funcion para finalizar la actividad
- * @return layout de la actividad
- */
-@SuppressLint("SuspiciousIndentation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
-    //Declaracion de variables
-    var nombre by remember { mutableStateOf("") } // Estado para el nombre del año
-    var descripcion by remember { mutableStateOf("") } // Estado para la descripción
-    var fechaInicio by remember { mutableStateOf("") } // Estado para la fecha de inicio
-    var mostrarDialoginicio by remember { mutableStateOf(false) } // Estado para mostrar el calendario para la fecha de inicio
-    var mostrarDialogfin by remember { mutableStateOf(false) } //Estado para mostrar el calendario para la fecha de fin
-    var fechaFin by remember { mutableStateOf("") } // Estado para la fecha de fin
-    var numero_asignaturas by remember { mutableStateOf("") } // Estado para el número de asignaturas
-    val context = LocalContext.current // Contexto local de la app para acceder a las sharedpreferences
-    var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE) // Sharedpreferences para obtener el id del usuario
-    var id_user = sharedPreferences.getString("USER", "") // Id del usuario
-    var anio : Anio //Variable para crear el año
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp // Altura de la pantalla
+fun CreacionAnioScreen(
+    modifier: Modifier = Modifier,
+    onFinish: () -> Unit = {},
+    userId: String? = null
+) {
+    var nombre by remember { mutableStateOf("") }
+    var descripcion by remember { mutableStateOf("") }
+    var fechaInicio by remember { mutableStateOf("") }
+    var mostrarDialoginicio by remember { mutableStateOf(false) }
+    var mostrarDialogfin by remember { mutableStateOf(false) }
+    var fechaFin by remember { mutableStateOf("") }
+    var numero_asignaturas by remember { mutableStateOf("") }
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-    //Box para el color del topbar
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -117,46 +72,34 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
                 )
             ),
-    ) {
-    }
-    //Column para el contenido del topbar y el contenido de la actividad
+    )
     Column(
-        modifier = modifier // Modificador para el layout
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // TopAppBar simulada con un botón de retroceso
         TopAppBar(
-            title = { Text("Nuevo Año Escolar", color = Color.Blue) }, // Título del topbar
+            title = { Text("Nuevo Año Escolar", color = Color.Blue) },
             navigationIcon = {
                 IconButton(onClick = onFinish) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = Color.Blue)
                 }
-            }, // Botón de retroceso
-            actions = { // Botón de guardado
+            },
+            actions = {
                 IconButton(onClick = {
-                    //Inicializamos el db_ref
                     db_ref = FirebaseDatabase.getInstance().getReference("Anios")
-                    //Recogemos el id del usuario de las sharedpreferences
-
-                    Log.d ("Login Buscando usuario f",id_user.toString())
-
-                    if(comprobarCampos(numero_asignaturas,nombre,fechaInicio,fechaFin)){
-                      anio =
-                         Anio(db_ref.push().key,
-                             nombre= nombre,
-                             descripcion= descripcion,
-                             fechaInicio= fechaInicio,
-                             fechaFin= fechaFin,
-                             numero_asignaturas.toInt(), id_user=id_user
-                         )
-
+                    if (comprobarCampos(numero_asignaturas, nombre, fechaInicio, fechaFin)) {
+                        val anio =
+                            Anio(db_ref.push().key,
+                                nombre= nombre,
+                                descripcion= descripcion,
+                                fechaInicio= fechaInicio,
+                                fechaFin= fechaFin,
+                                numero_asignaturas.toInt(), id_user=userId
+                            )
                         CrearAnio(anio)
                         onFinish()
                     }
-
-
-
                 },modifier = Modifier.padding(end = screenHeight * 0.005f)) {
                     Icon(Icons.Default.Done, contentDescription = "Guardar", tint = Color.Blue)
                 }
@@ -166,11 +109,9 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
             )
         )
 
-        // Contenido que antes estaba dentro del Scaffold
         Column(
             modifier = Modifier
                 .padding(horizontal = screenHeight * 0.02f)
-
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -228,12 +169,9 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                         value = fechaInicio,
                         onValueChange = { },
                         label = { Text("Fecha de Inicio") },
-                        readOnly = true, // Evita que el usuario escriba directamente.
+                        readOnly = true,
                         trailingIcon = {
-                            IconButton(onClick = {
-                                // Al hacer clic, se pone el estado a true para mostrar el diálogo.
-                                mostrarDialoginicio = true
-                            }) {
+                            IconButton(onClick = { mostrarDialoginicio = true }) {
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = "Abrir calendario"
@@ -246,12 +184,9 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                         value = fechaFin,
                         onValueChange = { },
                         label = { Text("Fecha de Fin") },
-                        readOnly = true, // Evita que el usuario escriba directamente.
+                        readOnly = true,
                         trailingIcon = {
-                            IconButton(onClick = {
-                                // Al hacer clic, se pone el estado a true para mostrar el diálogo.
-                                mostrarDialogfin = true
-                            }) {
+                            IconButton(onClick = { mostrarDialogfin = true }) {
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = "Abrir calendario"
@@ -264,26 +199,14 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
 
             if (mostrarDialoginicio) {
                 SelectorDeFecha(
-                    onFechaSeleccionada = { fecha ->
-                        // Actualiza la fecha en el estado cuando el usuario confirma.
-                        fechaInicio = fecha
-                    },
-                    onDismiss = {
-                        // Cierra el diálogo.
-                        mostrarDialoginicio = false
-                    }
+                    onFechaSeleccionada = { fecha -> fechaInicio = fecha },
+                    onDismiss = { mostrarDialoginicio = false }
                 )
             }
             if (mostrarDialogfin) {
                 SelectorDeFecha(
-                    onFechaSeleccionada = { fecha ->
-                        // Actualiza la fecha en el estado cuando el usuario confirma.
-                        fechaFin = fecha
-                    },
-                    onDismiss = {
-                        // Cierra el diálogo.
-                        mostrarDialogfin = false
-                    }
+                    onFechaSeleccionada = { fecha -> fechaFin = fecha },
+                    onDismiss = { mostrarDialogfin = false }
                 )
             }
             Text(
@@ -302,12 +225,8 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     OutlinedTextField(
                         value = numero_asignaturas,
                         onValueChange = { nuevoValor ->
-                            // 1. Filtra la entrada para que solo contenga dígitos.
                             val textoFiltrado = nuevoValor.filter { it.isDigit() }
-
-                            // 2. Comprueba la restricción de longitud máxima (2 dígitos para "20")
                             if (textoFiltrado.length <= 2) {
-                                // 3. Verifica si el texto está vacío o si el número es <= 20
                                 if (textoFiltrado.isEmpty() || textoFiltrado.toInt() <= 20) {
                                     numero_asignaturas = textoFiltrado
                                 }
@@ -315,9 +234,7 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                         },
                         label = { Text("Numero de Asignaturas (máx. 20)") },
                         modifier = Modifier.fillMaxWidth(),
-                        // Muestra el teclado numérico.
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        // Opcional: para asegurar que el campo no tenga múltiples líneas.
                         singleLine = true
                     )
                 }
@@ -326,13 +243,10 @@ fun CrearAnioScreen(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
     }
 }
 
-
-
-
 @Preview(showBackground = true)
 @Composable
 fun CrearAnioScreenPreview() {
     EduTrackTheme {
-        CrearAnioScreen()
+        CreacionAnioScreen()
     }
 }

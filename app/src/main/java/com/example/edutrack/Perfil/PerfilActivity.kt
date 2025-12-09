@@ -1,63 +1,68 @@
 package com.example.edutrack.Perfil
 
-import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.EditarUsuario
-import com.example.edutrack.Registro.Registros.RegistroActivity
 import com.example.edutrack.borrarUsuarioCompleto
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.ui.theme.EduTrackTheme
 import kotlinx.coroutines.launch
 
-class PerfilActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            EduTrackTheme {
-                CuerpoPerfil(onFinish = { finish() })
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
-    val context = LocalContext.current
-    val usuario by rememberUsuarioState()
+fun CuerpoPerfil(
+    modifier: Modifier = Modifier,
+    userId: String? = null,
+    onFinish: () -> Unit = {},
+    onLogout: () -> Unit = {}
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val usuario by rememberUsuarioState(userId)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Estados editables
-    var nombreEditable by remember(usuario) { mutableStateOf(usuario?.nombre ?: "") }
-    var passwordEditable by remember { mutableStateOf("") } // Inicia vacío por seguridad
+    var nombreEditable = remember(usuario) { mutableStateOf(usuario?.nombre ?: "") }
+    var passwordEditable = remember { mutableStateOf("") }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
@@ -76,11 +81,9 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     IconButton(onClick = {
                         usuario?.id?.let {
                             val updates = mutableMapOf<String, Any>()
-                            if (nombreEditable != usuario?.nombre) {
-                                updates["nombre"] = nombreEditable
+                            if (nombreEditable.value != usuario?.nombre) {
+                                updates["nombre"] = nombreEditable.value
                             }
-                            // TODO: Añadir lógica para cambiar contraseña y email si es necesario
-
                             if (updates.isNotEmpty()) {
                                 EditarUsuario(it, updates) { success ->
                                     coroutineScope.launch {
@@ -108,7 +111,7 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                androidx.compose.material3.CircularProgressIndicator()
             }
         } else {
             LazyColumn(
@@ -117,7 +120,6 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Sección de la foto de perfil
                 item {
                     Spacer(modifier = Modifier.height(screenHeight * 0.04f))
                     Icon(
@@ -135,7 +137,6 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     Spacer(modifier = Modifier.height(screenHeight * 0.04f))
                 }
 
-                // Sección de información personal
                 item {
                     Text(
                         text = "Información de la Cuenta",
@@ -149,8 +150,8 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     Card(modifier = Modifier.padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.005f)) {
                         Column(modifier = Modifier.padding(vertical = screenHeight * 0.01f)) {
                             OutlinedTextField(
-                                value = nombreEditable,
-                                onValueChange = { nombreEditable = it },
+                                value = nombreEditable.value,
+                                onValueChange = { nombreEditable.value = it },
                                 label = { Text("Nombre") },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -158,7 +159,7 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                             )
                             OutlinedTextField(
                                 value = usuario?.email ?: "",
-                                onValueChange = { /* El email no es editable */ },
+                                onValueChange = { },
                                 label = { Text("Email") },
                                 readOnly = true,
                                 modifier = Modifier
@@ -166,8 +167,8 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                                     .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.01f)
                             )
                             PasswordTextField(
-                                value = passwordEditable,
-                                onValueChange = { passwordEditable = it },
+                                value = passwordEditable.value,
+                                onValueChange = { passwordEditable.value = it },
                                 label = { Text("Nueva Contraseña (opcional)") },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -177,7 +178,6 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     }
                 }
 
-                // Sección de años escolares
                 item {
                     Spacer(modifier = Modifier.height(screenHeight * 0.03f))
                     Text(
@@ -203,10 +203,9 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     }
                 }
 
-                // Sección de acciones de cuenta
                 item {
                     Spacer(modifier = Modifier.height(screenHeight * 0.04f))
-                    OutlinedButton(
+                    androidx.compose.material3.OutlinedButton(
                         onClick = { showDeleteDialog = true },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -218,13 +217,7 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     Spacer(modifier = Modifier.height(screenHeight * 0.01f))
                     Button(
                         onClick = {
-                            val sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-                            sharedPreferences.edit().clear().apply()
-
-                            val intent = Intent(context, RegistroActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            }
-                            context.startActivity(intent)
+                            onLogout()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -247,8 +240,9 @@ fun CuerpoPerfil(modifier: Modifier = Modifier, onFinish: () -> Unit = {}) {
                     Button(
                         onClick = {
                             usuario?.id?.let {
-                                borrarUsuarioCompleto(context, it) {
+                                borrarUsuarioCompleto(context, it) { 
                                     showDeleteDialog = false
+                                    onLogout()
                                 }
                             }
                         },

@@ -1,11 +1,10 @@
 package com.example.edutrack
 
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.example.edutrack.Registro.Registros.RegistroActivity
+import com.example.edutrack.data.clearSession
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.Notas
@@ -40,12 +39,12 @@ fun AgregarNota_Asignatura(asignatura: Asignatura, nota: Notas){
 }
 fun CrearAnio(anio: Anio) {
     val db_ref = Firebase.database.reference
-    anio.id=db_ref.child("Edutrack").child("Anio").child(anio.id.toString()).key
+    anio.id = db_ref.child("Edutrack").child("Anio").push().key
     db_ref.child("Edutrack").child("Anio").child(anio.id.toString()).setValue(anio)
 }
 fun CrearAsignatura(asignatura: Asignatura) {
     val db_ref = Firebase.database.reference
-    asignatura.id=db_ref.child("Edutrack").child("Asignatura").child(asignatura.id.toString()).key
+    asignatura.id = db_ref.child("Edutrack").child("Asignatura").push().key
     db_ref.child("Edutrack").child("Asignatura").child(asignatura.id.toString()).setValue(asignatura)
 }
 
@@ -107,15 +106,6 @@ fun borrarUsuarioCompleto(context: Context, userId: String, onFinish: () -> Unit
                 authUser?.delete()?.addOnCompleteListener { authTask ->
                     if (authTask.isSuccessful) {
                         Log.d("FirebaseAuth", "Usuario eliminado de Auth.")
-                        // 4. Limpiar SharedPreferences
-                        val sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-                        sharedPreferences.edit().clear().apply()
-
-                        // 5. Navegar a la pantalla de registro
-                        val intent = Intent(context, RegistroActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        }
-                        context.startActivity(intent)
                     } else {
                         Log.e("FirebaseAuth", "Error al eliminar de Auth.", authTask.exception)
                     }

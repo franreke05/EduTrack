@@ -1,7 +1,5 @@
 package com.example.edutrack.Splash
 
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,12 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.edutrack.Inicio.InicioActivity
 import com.example.edutrack.R
-import com.example.edutrack.Registro.Registros.RegistroActivity
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.delay
@@ -37,24 +32,21 @@ import kotlinx.coroutines.delay
 class EduTrack : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
         enableEdgeToEdge()
         setContent {
             EduTrackTheme {
                 Scaffold { innerPadding ->
-                    SplashScreen(Modifier.Companion.padding(innerPadding))
-                    FirebaseApp.initializeApp(this)
+                    SplashScreen(Modifier.padding(innerPadding)) { }
                 }
             }
         }
     }
 }
 
-
 @Composable
-fun SplashScreen(modifier: Modifier) {
-    var context = LocalContext.current
+fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit) {
     val scale = remember { Animatable(0.5f) }
-    // Lanzar animación al iniciar
 
     LaunchedEffect(true) {
         scale.animateTo(
@@ -65,22 +57,13 @@ fun SplashScreen(modifier: Modifier) {
             )
         )
         delay(500)
-        var sharedPreferences = context.getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        var login = sharedPreferences.getBoolean("isLogged", false)
-            if (login) {
-                val intent = Intent(context, InicioActivity::class.java)
-                context.startActivity(intent)
-
-            }else {
-                val intent = Intent(context, RegistroActivity::class.java)
-                context.startActivity(intent)
-            }
-
+        onFinished()
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize().background(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
                 )
@@ -88,12 +71,11 @@ fun SplashScreen(modifier: Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.agendita), // Reemplaza con tu logo
+            painter = painterResource(id = R.drawable.agendita),
             contentDescription = "Logo",
             modifier = Modifier
                 .size(200.dp)
                 .scale(scale.value)
         )
     }
-
 }
