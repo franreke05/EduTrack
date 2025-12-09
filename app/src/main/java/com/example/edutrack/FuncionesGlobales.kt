@@ -44,8 +44,14 @@ fun CrearAnio(anio: Anio) {
 }
 fun CrearAsignatura(asignatura: Asignatura) {
     val db_ref = Firebase.database.reference
-    asignatura.id = db_ref.child("Edutrack").child("Asignatura").push().key
-    db_ref.child("Edutrack").child("Asignatura").child(asignatura.id.toString()).setValue(asignatura)
+    // Usar el nombre como clave estable para no pisar datos y evitar duplicados accidentales
+    val keyFromName = asignatura.nombre
+        ?.lowercase()
+        ?.replace("\\s+".toRegex(), "_")
+        ?.replace("[^a-z0-9_\\-]".toRegex(), "")
+    val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else db_ref.child("Edutrack").child("Asignatura").push().key
+    asignatura.id = finalKey
+    db_ref.child("Edutrack").child("Asignatura").child(finalKey ?: "asignatura").setValue(asignatura)
 }
 
 /**

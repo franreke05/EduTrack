@@ -58,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
+import com.example.edutrack.CrearAsignatura
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
@@ -114,6 +115,12 @@ fun AnioScreen(
     val actuales = anio.lista_asignaturas?.size ?: 0
     val anioLleno = actuales >= maxAsignaturas
     val context = LocalContext.current
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val asignaturasBase = anio.lista_asignaturas ?: emptyList()
+    val asignaturasFiltradas = if (showSearch && searchQuery.isNotBlank()) {
+        asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
+    } else asignaturasBase
 
     Column(
         modifier = modifier
@@ -145,9 +152,30 @@ fun AnioScreen(
                     showAsignaturaDialog = true
                 }
             }
-            CircleAction(icon = Icons.Default.Search, content = "Buscar") { }
+            CircleAction(icon = Icons.Default.Search, content = "Buscar") {
+                showSearch = !showSearch
+                if (!showSearch) searchQuery = ""
+            }
             CircleAction(icon = Icons.Default.Person, content = "Perfil") { }
-            CircleAction(icon = Icons.Default.MoreVert, content = "Opciones") { }
+            CircleAction(icon = Icons.Default.MoreVert, content = "Nueva asignatura") {
+                if (anioLleno) {
+                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                } else {
+                    showAsignaturaDialog = true
+                }
+            }
+        }
+
+        if (showSearch) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Buscar asignatura") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                singleLine = true
+            )
         }
 
         Column(
@@ -196,7 +224,7 @@ fun AnioScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(anio.lista_asignaturas ?: emptyList()) { index, asignatura ->
+                itemsIndexed(asignaturasFiltradas) { index, asignatura ->
                     AsignaturaCard(index + 1, asignatura) { onOpenNotas(asignatura) }
                 }
             }
@@ -292,20 +320,24 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
                 }
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
                 val numeroPeriodos = if (tipo.value == "Cuatrimestre") 4 else 3
-                val dbRef = Firebase.database.reference
-                val nuevoId = dbRef.child("Edutrack").child("Asignatura").push().key ?: return@TextButton
                 val asignatura = Asignatura(
-                    id = nuevoId,
                     nombre = nombre.value,
                     descripcion = descripcion.value,
                     creditos = creditosInt,
                     id_usuario = idUsuario,
+                    id_anio = anioId,
                     tipo_periodo = tipo.value,
                     numero_periodos = numeroPeriodos
                 )
-                // Guardamos la asignatura completa y referenciada en el año
-                dbRef.child("Edutrack").child("Asignatura").child(nuevoId).setValue(asignatura)
-                dbRef.child("Edutrack").child("Anio").child(anioId).child("lista_asignaturas").child(nuevoId).setValue(asignatura)
+                CrearAsignatura(asignatura)
+                val asignaturaIdFinal = asignatura.id ?: return@TextButton
+                Firebase.database.reference
+                    .child("Edutrack")
+                    .child("Anio")
+                    .child(anioId)
+                    .child("lista_asignaturas")
+                    .child(asignaturaIdFinal)
+                    .setValue(asignatura)
                 onDismiss()
             }) { Text("Crear") }
         },
