@@ -1,5 +1,6 @@
 package com.example.edutrack.Anio
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,9 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -108,7 +111,9 @@ fun AnioScreen(
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showAsignaturaDialog by remember { mutableStateOf(false) }
     val maxAsignaturas = anio.numero_asignaturas ?: 0
-    val anioLleno = (anio.lista_asignaturas?.size ?: 0) >= maxAsignaturas
+    val actuales = anio.lista_asignaturas?.size ?: 0
+    val anioLleno = actuales >= maxAsignaturas
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -133,9 +138,16 @@ fun AnioScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircleAction(icon = Icons.Default.ArrowBack, content = "Volver") { onBack() }
-            CircleAction(icon = Icons.Default.Add, content = "Añadir", enabled = !anioLleno) { showAsignaturaDialog = true }
-            CircleAction(icon = Icons.Default.FilterList, content = "Filtrar") { }
+            CircleAction(icon = Icons.Default.Add, content = "Añadir", enabled = !anioLleno) {
+                if (anioLleno) {
+                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                } else {
+                    showAsignaturaDialog = true
+                }
+            }
+            CircleAction(icon = Icons.Default.Search, content = "Buscar") { }
             CircleAction(icon = Icons.Default.Person, content = "Perfil") { }
+            CircleAction(icon = Icons.Default.MoreVert, content = "Opciones") { }
         }
 
         Column(
@@ -208,6 +220,8 @@ fun AnioScreen(
         CrearAsignaturaDialog(
             anioId = anio.id,
             idUsuario = anio.id_user,
+            maxAsignaturas = maxAsignaturas,
+            actuales = actuales,
             onDismiss = { showAsignaturaDialog = false }
         )
     }
@@ -232,11 +246,12 @@ fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
 }
 
 @Composable
-fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> Unit) {
+fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: Int, actuales: Int, onDismiss: () -> Unit) {
     val nombre = remember { mutableStateOf("") }
     val descripcion = remember { mutableStateOf("") }
     val creditos = remember { mutableStateOf("") }
     val tipo = remember { mutableStateOf("Trimestre") }
+    val context = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -259,11 +274,20 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
                         ) { Text(opcion.take(3)) }
                     }
                 }
+                Text(
+                    text = "Asignaturas actuales: $actuales / $maxAsignaturas",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 if (anioId.isNullOrEmpty() || nombre.value.isBlank()) {
+                    Toast.makeText(context, "Completa el nombre de la asignatura", Toast.LENGTH_SHORT).show()
+                    return@TextButton
+                }
+                if (actuales >= maxAsignaturas) {
+                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
@@ -279,6 +303,7 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, onDismiss: () -> 
                     tipo_periodo = tipo.value,
                     numero_periodos = numeroPeriodos
                 )
+                // Guardamos la asignatura completa y referenciada en el año
                 dbRef.child("Edutrack").child("Asignatura").child(nuevoId).setValue(asignatura)
                 dbRef.child("Edutrack").child("Anio").child(anioId).child("lista_asignaturas").child(nuevoId).setValue(asignatura)
                 onDismiss()
@@ -308,8 +333,8 @@ fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content:
 @Composable
 fun AnioScreenPreview() {
     EduTrackTheme {
-        val mockAsignaturas = List(8) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
-        val mockAnio = com.example.edutrack.dataclass.Anio(id = "1", nombre = "Año 2023-2024", descripcion = "Descripción de prueba", lista_asignaturas = mockAsignaturas, numero_asignaturas = 8)
+        val mockAsignaturas = List(3) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
+        val mockAnio = com.example.edutrack.dataclass.Anio(id = "1", nombre = "Año 2023-2024", descripcion = "Descripción de prueba", lista_asignaturas = mockAsignaturas, numero_asignaturas = 3)
         AnioScreen(anio = mockAnio, pageIndex = 0)
     }
 }
