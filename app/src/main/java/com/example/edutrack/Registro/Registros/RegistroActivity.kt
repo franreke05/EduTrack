@@ -63,14 +63,15 @@ fun LoginScreen(
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
+    val googleAuthDisabled = remember { true } // Deshabilitado temporalmente
     val webClientId = remember { context.getString(R.string.default_web_client_id) }
     val resolvedWebClientId = remember(webClientId) {
         webClientId
             .takeIf { it.isNotBlank() }
             ?.takeUnless { it.contains("REPLACE_WITH_WEB_CLIENT_ID", ignoreCase = true) }
     }
-    val googleSignInClient = remember(resolvedWebClientId) {
-        resolvedWebClientId?.let { GoogleSignIn.getClient(context, googleSignInOptions(it)) }
+    val googleSignInClient = remember(resolvedWebClientId, googleAuthDisabled) {
+        if (googleAuthDisabled) null else resolvedWebClientId?.let { GoogleSignIn.getClient(context, googleSignInOptions(it)) }
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -94,6 +95,10 @@ fun LoginScreen(
             isLoading = isLoading,
             onGoogleSignIn = {
                 if (loading.value) return@LoginContent
+                if (googleAuthDisabled) {
+                    Toast.makeText(context, "Autenticacion con Google deshabilitada temporalmente.", Toast.LENGTH_LONG).show()
+                    return@LoginContent
+                }
                 if (googleSignInClient == null) {
                     Toast.makeText(context, "Configura el ID de cliente web de Firebase antes de iniciar sesion.", Toast.LENGTH_LONG).show()
                     return@LoginContent
