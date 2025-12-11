@@ -2,6 +2,7 @@ package com.example.edutrack.Registro.Registros
 
 import android.content.Context
 import android.content.Intent
+import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Divider
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,11 +20,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,6 +43,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -66,6 +72,9 @@ fun LoginScreen(
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
+    val manualEmail = remember { mutableStateOf("") }
+    val manualPassword = remember { mutableStateOf("") }
+    val manualLoading = remember { mutableStateOf(false) }
     val googleAuthDisabled = remember { true } // Deshabilitado temporalmente
     val webClientId = remember { context.getString(R.string.default_web_client_id) }
     val resolvedWebClientId = remember(webClientId) {
@@ -114,6 +123,30 @@ fun LoginScreen(
             onRegister = {
                 val intent = Intent(context, RegistrarUsuarioActivity::class.java)
                 context.startActivity(intent)
+            },
+            manualEmail = manualEmail.value,
+            manualPassword = manualPassword.value,
+            onManualEmailChange = { manualEmail.value = it },
+            onManualPasswordChange = { manualPassword.value = it },
+            manualLoading = manualLoading.value,
+            onManualLogin = {
+                val email = manualEmail.value.trim()
+                val pass = manualPassword.value.trim()
+                when {
+                    email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches() ->
+                        Toast.makeText(context, "Introduce un email valido.", Toast.LENGTH_LONG).show()
+                    pass.isEmpty() ->
+                        Toast.makeText(context, "Introduce tu contrasena.", Toast.LENGTH_LONG).show()
+                    else -> loginWithEmail(
+                        auth = auth,
+                        email = email,
+                        password = pass,
+                        context = context,
+                        loading = manualLoading
+                    ) { user ->
+                        onLoginSuccess(user.uid)
+                    }
+                }
             }
         )
     }
@@ -124,7 +157,13 @@ private fun LoginContent(
     modifier: Modifier,
     isLoading: Boolean,
     onGoogleSignIn: () -> Unit,
-    onRegister: () -> Unit
+    onRegister: () -> Unit,
+    manualEmail: String,
+    manualPassword: String,
+    onManualEmailChange: (String) -> Unit,
+    onManualPasswordChange: (String) -> Unit,
+    manualLoading: Boolean,
+    onManualLogin: () -> Unit
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
@@ -227,7 +266,70 @@ private fun LoginContent(
             modifier = Modifier.fillMaxWidth(0.9f)
         )
 
-        Spacer(modifier = Modifier.height(screenHeight * 0.18f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Divider(color = Color.White.copy(alpha = 0.2f), modifier = Modifier.fillMaxWidth(0.9f))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Inicia sesión con tu email",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                OutlinedTextField(
+                    value = manualEmail,
+                    onValueChange = onManualEmailChange,
+                    label = { Text("Email") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+                OutlinedTextField(
+                    value = manualPassword,
+                    onValueChange = onManualPasswordChange,
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Button(
+                    onClick = onManualLogin,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    enabled = !manualLoading
+                ) {
+                    if (manualLoading) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        Text("Iniciar sesión", color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Tus datos se guardaran en tu cuenta y podras recuperarlos en cualquier dispositivo.",
@@ -256,6 +358,29 @@ private fun firebaseAuthWithGoogle(
     // Autenticacion con Google deshabilitada temporalmente.
     loading.value = false
     Toast.makeText(context, "Autenticacion con Google deshabilitada temporalmente.", Toast.LENGTH_LONG).show()
+}
+
+private fun loginWithEmail(
+    auth: FirebaseAuth,
+    email: String,
+    password: String,
+    context: Context,
+    loading: MutableState<Boolean>,
+    onSuccess: (FirebaseUser) -> Unit
+) {
+    loading.value = true
+    auth.signInWithEmailAndPassword(email, password)
+        .addOnCompleteListener { task ->
+            loading.value = false
+            if (task.isSuccessful) {
+                val user = auth.currentUser
+                persistUserInDatabase(user, context)
+                if (user != null) onSuccess(user)
+            } else {
+                val reason = task.exception?.localizedMessage ?: "intenta de nuevo"
+                Toast.makeText(context, "No se pudo iniciar sesion: $reason", Toast.LENGTH_LONG).show()
+            }
+        }
 }
 
 private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {

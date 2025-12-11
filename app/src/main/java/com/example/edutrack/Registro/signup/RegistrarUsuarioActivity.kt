@@ -269,13 +269,12 @@ fun SignUpScreen(
                     .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xffff3b30))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_cancel_24),
-                    contentDescription = "Cancel Icon",
-                    modifier = Modifier.size(24.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 )
+            ) {
+                Text("Cancelar")
             }
 
             Button(
@@ -309,21 +308,17 @@ fun SignUpScreen(
                     .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff4cd964)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(24.dp)
                     )
                 } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.baseline_check_24),
-                        contentDescription = "Check Icon",
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Text("Crear cuenta", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
