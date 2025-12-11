@@ -71,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.dataclass.Anio
+import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.Firebase
 import com.google.firebase.database.DataSnapshot
@@ -345,7 +346,7 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
         } else {
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val aniosList = snapshot.children.mapNotNull { it.getValue(Anio::class.java) }
+                    val aniosList = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
                         .filter { it.id_user == id_user }
                     aniosState.value = aniosList
                 }
@@ -361,6 +362,54 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
     }
 
     return aniosState
+}
+
+private fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
+    // Primer intento: deserializar directamente
+    val direct = try {
+        snapshot.getValue(Anio::class.java)
+    } catch (_: Exception) {
+        null
+    }
+    if (direct != null) return direct.copy(
+        lista_asignaturas = snapshot.child("lista_asignaturas")
+            .children
+            .mapNotNull { child ->
+                child.getValue(Asignatura::class.java)?.let { asignatura ->
+                    (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+                }
+            }
+            .toMap()
+            .takeIf { it.isNotEmpty() }
+    )
+
+    // Fallback manual por si la lista viene como array
+    val id = snapshot.child("id").getValue(String::class.java)
+    val nombre = snapshot.child("nombre").getValue(String::class.java)
+    val descripcion = snapshot.child("descripcion").getValue(String::class.java)
+    val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
+    val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
+    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Int::class.java)
+    val idUser = snapshot.child("id_user").getValue(String::class.java)
+    val asignaturasMap = snapshot.child("lista_asignaturas").children.mapNotNull { child ->
+        child.getValue(Asignatura::class.java)?.let { asignatura ->
+            (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+        }
+    }.toMap()
+
+    // Si no hay datos mínimos, devuelve null
+    if (nombre == null && descripcion == null && fechaInicio == null && fechaFin == null) return null
+
+    return Anio(
+        id = id,
+        nombre = nombre,
+        descripcion = descripcion,
+        fechaInicio = fechaInicio,
+        fechaFin = fechaFin,
+        numero_asignaturas = numeroAsignaturas,
+        lista_asignaturas = asignaturasMap,
+        id_user = idUser
+    )
 }
 
 @OptIn(ExperimentalAnimationApi::class)
