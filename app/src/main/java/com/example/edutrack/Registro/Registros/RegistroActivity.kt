@@ -1,9 +1,11 @@
 package com.example.edutrack.Registro.Registros
 
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
+import com.example.edutrack.Registro.signup.RegistrarUsuarioActivity
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -107,52 +110,61 @@ fun LoginScreen(
                 }
                 loading.value = true
                 launcher?.launch(googleSignInClient.signInIntent)
+            },
+            onRegister = {
+                val intent = Intent(context, RegistrarUsuarioActivity::class.java)
+                context.startActivity(intent)
             }
         )
     }
 }
 
 @Composable
-private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn: () -> Unit) {
+private fun LoginContent(
+    modifier: Modifier,
+    isLoading: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onRegister: () -> Unit
+) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF2196F3), Color(0xFF6A00FF))
+                )
+            ),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.051f)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )
-                ),
-        )
-
-        Spacer(modifier = Modifier.height(screenHeight * 0.12f))
+        Spacer(modifier = Modifier.height(screenHeight * 0.06f))
 
         Text(
             text = "EduTrack",
             style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = screenHeight * 0.014f)
+            color = Color.White,
+            modifier = Modifier.padding(bottom = screenHeight * 0.01f)
+        )
+
+        Text(
+            text = "Tu estudio, sin friccion",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White.copy(alpha = 0.8f)
         )
 
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .wrapContentHeight()
-                .clip(RoundedCornerShape(screenHeight * 0.02f))
-                .shadow(screenHeight * 0.02f),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .clip(RoundedCornerShape(screenHeight * 0.03f))
+                .shadow(screenHeight * 0.03f),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.92f)),
+            border = CardDefaults.outlinedCardBorder()
         ) {
             Column(
-                modifier = Modifier.padding(screenHeight * 0.02f),
+                modifier = Modifier.padding(screenHeight * 0.025f),
                 verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -176,20 +188,33 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
             onClick = { onGoogleSignIn() },
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                .height(54.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
             enabled = !isLoading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(24.dp)
                 )
             } else {
-                Text("Continuar con Google", color = MaterialTheme.colorScheme.onPrimary)
+                Text("Continuar con Google", color = Color.White)
             }
+        }
+
+        Button(
+            onClick = onRegister,
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .height(50.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0x1A007AFF)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+        ) {
+            Text("Registrarse", color = Color(0xFF007AFF))
         }
 
         Spacer(modifier = Modifier.height(screenHeight * 0.02f))
@@ -197,7 +222,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
         Text(
             text = "Usamos tu cuenta de Google para autenticacion segura.\nSe enviara un correo de verificacion si tu email no esta verificado.",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White.copy(alpha = 0.9f),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth(0.9f)
         )
@@ -207,7 +232,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
         Text(
             text = "Tus datos se guardaran en tu cuenta y podras recuperarlos en cualquier dispositivo.",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = Color.White.copy(alpha = 0.9f),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth(0.9f)
         )
