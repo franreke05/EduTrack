@@ -365,39 +365,24 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
 }
 
 private fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
-    // Primer intento: deserializar directamente
-    val direct = try {
-        snapshot.getValue(Anio::class.java)
-    } catch (_: Exception) {
-        null
-    }
-    if (direct != null) return direct.copy(
-        lista_asignaturas = snapshot.child("lista_asignaturas")
-            .children
-            .mapNotNull { child ->
-                child.getValue(Asignatura::class.java)?.let { asignatura ->
-                    (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
-                }
-            }
-            .toMap()
-            .takeIf { it.isNotEmpty() }
-    )
-
-    // Fallback manual por si la lista viene como array
     val id = snapshot.child("id").getValue(String::class.java)
     val nombre = snapshot.child("nombre").getValue(String::class.java)
     val descripcion = snapshot.child("descripcion").getValue(String::class.java)
     val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
     val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
-    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Int::class.java)
+    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
     val idUser = snapshot.child("id_user").getValue(String::class.java)
-    val asignaturasMap = snapshot.child("lista_asignaturas").children.mapNotNull { child ->
-        child.getValue(Asignatura::class.java)?.let { asignatura ->
-            (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
-        }
-    }.toMap()
 
-    // Si no hay datos mínimos, devuelve null
+    val asignaturasMap = snapshot.child("lista_asignaturas")
+        .children
+        .mapNotNull { child ->
+            child.getValue(Asignatura::class.java)?.let { asignatura ->
+                (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+            }
+        }
+        .toMap()
+        .takeIf { it.isNotEmpty() }
+
     if (nombre == null && descripcion == null && fechaInicio == null && fechaFin == null) return null
 
     return Anio(
