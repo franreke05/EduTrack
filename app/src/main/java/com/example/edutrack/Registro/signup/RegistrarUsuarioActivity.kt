@@ -28,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -136,6 +137,27 @@ private fun sendVerificationEmail(user: FirebaseUser?, context: Context, onDone:
         }
 }
 
+private fun loginUser(
+    auth: FirebaseAuth,
+    email: String,
+    password: String,
+    context: Context,
+    setLoading: (Boolean) -> Unit
+) {
+    setLoading(true)
+    auth.signInWithEmailAndPassword(email, password)
+        .addOnCompleteListener { task ->
+            setLoading(false)
+            if (task.isSuccessful) {
+                Toast.makeText(context, "Sesion iniciada.", Toast.LENGTH_LONG).show()
+                (context as? Activity)?.finish()
+            } else {
+                val reason = task.exception?.localizedMessage ?: "intenta de nuevo"
+                Toast.makeText(context, "No se pudo iniciar sesion: $reason", Toast.LENGTH_LONG).show()
+            }
+        }
+}
+
 @Composable
 fun SignUpScreen(
    modifier: Modifier = Modifier,
@@ -146,29 +168,20 @@ fun SignUpScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var loginEmail by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
+    var loginLoading by remember { mutableStateOf(false) }
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     // --- Contenedor principal ---
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background), // Fondo adaptado al tema
+            .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Navbar estilo Framework7
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.051f)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )),
-        ) {
-
-        }
-        Spacer(modifier = Modifier.height(screenHeight*0.0505f))
+        Spacer(modifier = Modifier.height(screenHeight * 0.04f))
 
 
         // Logo o título del login
@@ -240,12 +253,12 @@ fun SignUpScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(screenHeight*0.05f))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // --- Botones estilo F7 (fill + raised) ---
-        Row(
+        // Botones separados
+        Column(
             modifier = Modifier.fillMaxWidth(0.9f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
                 onClick = {
@@ -253,12 +266,10 @@ fun SignUpScreen(
                     (context as? Activity)?.finish()
                 },
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor =
-                    (Color(0xffff3b30)))
-
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xffff3b30))
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.baseline_cancel_24),
@@ -295,13 +306,11 @@ fun SignUpScreen(
                     }
                 },
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor =
-                    (Color(0xff4cd964))),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff4cd964)),
                 enabled = !isLoading
-
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -319,7 +328,87 @@ fun SignUpScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(screenHeight*0.286f))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Divider(modifier = Modifier.fillMaxWidth(0.9f))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Login manual compacto
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "¿Ya tienes cuenta? Inicia sesión",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                OutlinedTextField(
+                    value = loginEmail,
+                    onValueChange = { loginEmail = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+                OutlinedTextField(
+                    value = loginPassword,
+                    onValueChange = { loginPassword = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Button(
+                    onClick = {
+                        if (loginLoading) return@Button
+                        val mail = loginEmail.trim()
+                        val pass = loginPassword.trim()
+                        when {
+                            mail.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(mail).matches() ->
+                                Toast.makeText(context, "Email no valido.", Toast.LENGTH_LONG).show()
+                            pass.isEmpty() ->
+                                Toast.makeText(context, "Introduce tu contrasena.", Toast.LENGTH_LONG).show()
+                            else -> loginUser(
+                                auth = auth,
+                                email = mail,
+                                password = pass,
+                                context = context,
+                                setLoading = { loginLoading = it }
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    enabled = !loginLoading
+                ) {
+                    if (loginLoading) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        Text("Iniciar sesión", color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         // --- Footer estilo Framework7 ---
         Text(
