@@ -64,11 +64,13 @@ fun LoginScreen(
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
     val webClientId = remember { context.getString(R.string.default_web_client_id) }
-    val isWebClientIdMissing = remember(webClientId) {
-        webClientId.isBlank() || webClientId.contains("REPLACE_WITH_WEB_CLIENT_ID", ignoreCase = true)
+    val resolvedWebClientId = remember(webClientId) {
+        webClientId
+            .takeIf { it.isNotBlank() }
+            ?.takeUnless { it.contains("REPLACE_WITH_WEB_CLIENT_ID", ignoreCase = true) }
     }
-    val googleSignInClient = remember(webClientId) {
-        if (isWebClientIdMissing) null else GoogleSignIn.getClient(context, googleSignInOptions(webClientId))
+    val googleSignInClient = remember(resolvedWebClientId) {
+        resolvedWebClientId?.let { GoogleSignIn.getClient(context, googleSignInOptions(it)) }
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -206,6 +208,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
 }
 
 private fun googleSignInOptions(webClientId: String): GoogleSignInOptions {
+    require(webClientId.isNotBlank()) { "webClientId no puede ser vacio." }
     return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
         .requestIdToken(webClientId)
         .requestEmail()
