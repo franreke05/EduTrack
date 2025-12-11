@@ -63,7 +63,13 @@ fun LoginScreen(
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
-    val googleSignInClient = remember { GoogleSignIn.getClient(context, googleSignInOptions(context)) }
+    val webClientId = remember { context.getString(R.string.default_web_client_id) }
+    val isWebClientIdMissing = remember(webClientId) {
+        webClientId.isBlank() || webClientId.contains("REPLACE_WITH_WEB_CLIENT_ID", ignoreCase = true)
+    }
+    val googleSignInClient = remember(webClientId) {
+        if (isWebClientIdMissing) null else GoogleSignIn.getClient(context, googleSignInOptions(webClientId))
+    }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
@@ -86,6 +92,10 @@ fun LoginScreen(
             isLoading = isLoading,
             onGoogleSignIn = {
                 if (loading.value) return@LoginContent
+                if (googleSignInClient == null) {
+                    Toast.makeText(context, "Configura el ID de cliente web de Firebase antes de iniciar sesion.", Toast.LENGTH_LONG).show()
+                    return@LoginContent
+                }
                 loading.value = true
                 launcher.launch(googleSignInClient.signInIntent)
             }
@@ -195,9 +205,9 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
     }
 }
 
-private fun googleSignInOptions(context: Context): GoogleSignInOptions {
+private fun googleSignInOptions(webClientId: String): GoogleSignInOptions {
     return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.default_web_client_id))
+        .requestIdToken(webClientId)
         .requestEmail()
         .build()
 }
@@ -222,7 +232,7 @@ private fun firebaseAuthWithGoogle(
             if (task.isSuccessful) {
                 val user = auth.currentUser
                 persistUserInDatabase(user, context)
-                sendVerificationEmailIfNeeded(user)
+                sendVerificationEmailIfNeeded(user, context)
                 if (user != null) onSuccess(user)
             } else {
                 Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
@@ -249,10 +259,18 @@ private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {
     }
 }
 
-private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
+private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context) {
     val currentUser = user ?: return
     if (!currentUser.isEmailVerified) {
         currentUser.sendEmailVerification()
+            .addOnCompleteListener { task ->
+                val message = if (task.isSuccessful) {
+                    "Hemos reenviado un correo de verificacion a ${currentUser.email}"
+                } else {
+                    "No se pudo enviar el correo de verificacion. Intenta mas tarde."
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
     }
 }
 
