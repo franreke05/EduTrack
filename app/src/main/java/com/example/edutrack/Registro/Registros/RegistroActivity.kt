@@ -74,18 +74,20 @@ fun LoginScreen(
         if (googleAuthDisabled) null else resolvedWebClientId?.let { GoogleSignIn.getClient(context, googleSignInOptions(it)) }
     }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            firebaseAuthWithGoogle(auth, account?.idToken, context, loading) { user ->
-                onLoginSuccess(user.uid)
+    val launcher =
+        if (googleAuthDisabled) null
+        else rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                firebaseAuthWithGoogle(auth, account?.idToken, context, loading) { user ->
+                    onLoginSuccess(user.uid)
+                }
+            } catch (e: ApiException) {
+                loading.value = false
+                Toast.makeText(context, "No se pudo iniciar sesion con Google.", Toast.LENGTH_LONG).show()
             }
-        } catch (e: ApiException) {
-            loading.value = false
-            Toast.makeText(context, "No se pudo iniciar sesión con Google.", Toast.LENGTH_LONG).show()
         }
-    }
 
     val isLoading = isLoadingOverride ?: loading.value
 
@@ -104,7 +106,7 @@ fun LoginScreen(
                     return@LoginContent
                 }
                 loading.value = true
-                launcher.launch(googleSignInClient.signInIntent)
+                launcher?.launch(googleSignInClient.signInIntent)
             }
         )
     }
@@ -160,7 +162,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
                     modifier = Modifier.size(screenHeight * 0.15f)
                 )
                 Text(
-                    text = "Autentícate con Google para continuar",
+                    text = "Autenticate con Google para continuar",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -193,7 +195,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
         Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
         Text(
-            text = "Usamos tu cuenta de Google para autenticación segura.\nSe enviará un correo de verificación si tu email no está verificado.",
+            text = "Usamos tu cuenta de Google para autenticacion segura.\nSe enviara un correo de verificacion si tu email no esta verificado.",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
@@ -203,7 +205,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
         Spacer(modifier = Modifier.height(screenHeight * 0.18f))
 
         Text(
-            text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
+            text = "Tus datos se guardaran en tu cuenta y podras recuperarlos en cualquier dispositivo.",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
@@ -213,9 +215,8 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
 }
 
 private fun googleSignInOptions(webClientId: String): GoogleSignInOptions {
-    require(webClientId.isNotBlank()) { "webClientId no puede ser vacio." }
+    // Autenticacion con Google deshabilitada: devolvemos opciones minimas sin token.
     return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(webClientId)
         .requestEmail()
         .build()
 }
@@ -227,25 +228,9 @@ private fun firebaseAuthWithGoogle(
     loading: MutableState<Boolean>,
     onSuccess: (FirebaseUser) -> Unit
 ) {
-    if (idToken.isNullOrEmpty()) {
-        loading.value = false
-        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG).show()
-        return
-    }
-
-    val credential = GoogleAuthProvider.getCredential(idToken, null)
-    auth.signInWithCredential(credential)
-        .addOnCompleteListener { task ->
-            loading.value = false
-            if (task.isSuccessful) {
-                val user = auth.currentUser
-                persistUserInDatabase(user, context)
-                sendVerificationEmailIfNeeded(user, context)
-                if (user != null) onSuccess(user)
-            } else {
-                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
-            }
-        }
+    // Autenticacion con Google deshabilitada temporalmente.
+    loading.value = false
+    Toast.makeText(context, "Autenticacion con Google deshabilitada temporalmente.", Toast.LENGTH_LONG).show()
 }
 
 private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {
