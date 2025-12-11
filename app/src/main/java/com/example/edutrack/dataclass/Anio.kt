@@ -14,8 +14,8 @@ class Anio(
 
     var numero_asignaturas: Int? = 0, //Numero de asignaturas que tiene el año
 
-    var lista_asignaturas: List<Asignatura>? = mutableListOf<Asignatura>(),
-    //Lista de asignaturas que tiene el año
+    var lista_asignaturas: Map<String, Asignatura>? = emptyMap(),
+    //Mapa de asignaturas que tiene el año, indexadas por id/clave
 
     val id_user: String? = "", //Id del usuario que creo el año
 )

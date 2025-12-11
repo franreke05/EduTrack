@@ -117,7 +117,7 @@ fun AnioScreen(
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val asignaturasBase = anio.lista_asignaturas ?: emptyList()
+    val asignaturasBase = anio.lista_asignaturas?.values?.toList() ?: emptyList()
     val asignaturasFiltradas = if (showSearch && searchQuery.isNotBlank()) {
         asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
     } else asignaturasBase
@@ -366,7 +366,13 @@ fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content:
 fun AnioScreenPreview() {
     EduTrackTheme {
         val mockAsignaturas = List(3) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
-        val mockAnio = com.example.edutrack.dataclass.Anio(id = "1", nombre = "Año 2023-2024", descripcion = "Descripción de prueba", lista_asignaturas = mockAsignaturas, numero_asignaturas = 3)
+        val mockAnio = com.example.edutrack.dataclass.Anio(
+            id = "1",
+            nombre = "Año 2023-2024",
+            descripcion = "Descripción de prueba",
+            lista_asignaturas = mockAsignaturas.associateBy { it.id ?: it.nombre ?: it.toString() },
+            numero_asignaturas = 3
+        )
         AnioScreen(anio = mockAnio, pageIndex = 0)
     }
 }
