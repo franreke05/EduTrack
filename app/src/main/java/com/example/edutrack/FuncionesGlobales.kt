@@ -2,22 +2,17 @@ package com.example.edutrack
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import com.example.edutrack.data.clearSession
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.dataclass.Usuario
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
-import com.google.firebase.database.ktx.database
 
 lateinit var db_ref: DatabaseReference
 

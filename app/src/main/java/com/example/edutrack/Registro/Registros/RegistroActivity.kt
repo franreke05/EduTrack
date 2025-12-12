@@ -101,20 +101,13 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(brush = Brush.verticalGradient(
+                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+            )),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.051f)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )
-                ),
-        )
+
 
         Spacer(modifier = Modifier.height(screenHeight * 0.12f))
 
@@ -131,7 +124,7 @@ private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn:
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(screenHeight * 0.02f))
                 .shadow(screenHeight * 0.02f),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+
         ) {
             Column(
                 modifier = Modifier.padding(screenHeight * 0.02f),
@@ -261,6 +254,7 @@ private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
 @Preview
 fun LoginScreenPreview() {
     EduTrackTheme {
-        LoginScreen(onLoginSuccess = {})
+       LoginContent( modifier = Modifier, isLoading = false, onGoogleSignIn = {})
+
     }
 }
