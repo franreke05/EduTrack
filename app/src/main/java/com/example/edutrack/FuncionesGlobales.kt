@@ -25,9 +25,9 @@ fun CrearUsuario(
     usuario: Usuario,
 ){
 
-     db_ref = Firebase.database.reference
+    db_ref = Firebase.database.reference
     if (usuario.id=="") {
-       //le ponemos un id unico al usuario
+        //le ponemos un id unico al usuario
         usuario.id=db_ref.push().key.toString()
     }
     Log.d("Usuario222", usuario.id.toString())
@@ -52,6 +52,49 @@ fun CrearAsignatura(asignatura: Asignatura) {
     val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else db_ref.child("Edutrack").child("Asignatura").push().key
     asignatura.id = finalKey
     db_ref.child("Edutrack").child("Asignatura").child(finalKey ?: "asignatura").setValue(asignatura)
+}
+
+/**
+ * Borra una asignatura y todas sus notas, limpiando tambien la referencia dentro del anio.
+ */
+fun borrarAsignaturaCompleta(
+    asignaturaId: String?,
+    anioId: String?,
+    onResult: (Boolean) -> Unit = {}
+) {
+    if (asignaturaId.isNullOrBlank()) {
+        onResult(false)
+        return
+    }
+
+    val dbRoot = Firebase.database.reference.child("Edutrack")
+    val asignaturaRef = dbRoot.child("Asignatura").child(asignaturaId)
+
+    // Al borrar el nodo de Asignatura desaparecen tambien sus notas hijas.
+    asignaturaRef.removeValue().addOnCompleteListener { asignaturaTask ->
+        if (!asignaturaTask.isSuccessful) {
+            Log.e("FirebaseCleanup", "Error al borrar asignatura $asignaturaId", asignaturaTask.exception)
+            onResult(false)
+            return@addOnCompleteListener
+        }
+
+        if (anioId.isNullOrBlank()) {
+            onResult(true)
+            return@addOnCompleteListener
+        }
+
+        dbRoot.child("Anio")
+            .child(anioId)
+            .child("lista_asignaturas")
+            .child(asignaturaId)
+            .removeValue()
+            .addOnCompleteListener { anioTask ->
+                if (!anioTask.isSuccessful) {
+                    Log.e("FirebaseCleanup", "Asignatura borrada pero fallo limpiar en anio $anioId", anioTask.exception)
+                }
+                onResult(anioTask.isSuccessful)
+            }
+    }
 }
 
 /**

@@ -59,7 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Anio.CircleAction
 import com.example.edutrack.Inicio.CircularActionButton
+import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.DataSnapshot
@@ -104,7 +106,8 @@ fun NotasScreenPreview() {
     NotasScreen("", "Asignatura", "Trimestre", 3, {})
 
 }
-
+var idAsignatura: String = ""
+var anioId: String = ""
 @Composable
 fun NotasScreen(
     asignaturaId: String,
@@ -118,6 +121,9 @@ fun NotasScreen(
     val showDialog = remember { mutableStateOf(false) }
     val notaEnEdicion = remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
+    idAsignatura = asignaturaId
+
+
 
     DisposableEffect(asignaturaId) {
         val notasRef = Firebase.database.reference
@@ -160,7 +166,9 @@ fun NotasScreen(
                 onAdd = { notaEnEdicion.value = null; showDialog.value = true },
                 onInfo = {
                     Toast.makeText(context, "Gestiona notas con porcentaje por $tipoPeriodo.", Toast.LENGTH_LONG).show()
-                }
+                },
+
+
             )
 
             EncabezadoNotas(
@@ -220,9 +228,10 @@ fun NotasScreen(
 }
 
 @Composable
-private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Unit) {
+private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Unit, ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+
     Column {
         Box(
             modifier = Modifier
@@ -239,8 +248,11 @@ private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () 
         ) {
             CircularActionButton(Icons.Default.ArrowBack, "Volver", onBack, screenHeight)
             CircularActionButton(Icons.Default.Add, "Agregar", onAdd, screenHeight)
-            CircularActionButton(Icons.Default.Percent, "Porcentajes", onInfo, screenHeight)
             CircularActionButton(Icons.Default.Info, "Info", onInfo,screenHeight)
+            CircleAction( Icons.Default.Delete,"Delete") {
+                borrarAsignaturaCompleta(asignaturaId =idAsignatura, anioId = anioId )
+                onBack()
+            }
         }
     }
 }

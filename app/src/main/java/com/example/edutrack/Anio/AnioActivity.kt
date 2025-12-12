@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -66,6 +67,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
+import com.example.edutrack.Inicio.CircularActionButton
+import com.example.edutrack.Notas.anioId
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
@@ -164,6 +167,8 @@ fun AnioScreen(
                 navController.navigate("perfil")
             }
 
+
+
         }
 
         if (showSearch) {
@@ -238,7 +243,9 @@ fun AnioScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(asignaturasFiltradas) { index, asignatura ->
-                    AsignaturaCard(index + 1, asignatura) { onOpenNotas(asignatura) }
+                    AsignaturaCard(index + 1, asignatura) { onOpenNotas(asignatura)
+                        anioId = anio.id.toString()
+                    }
                 }
             }
         }
