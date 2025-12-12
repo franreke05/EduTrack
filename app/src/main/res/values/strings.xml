@@ -10,5 +10,4 @@
     <string name="title_activity_anio">AnioActivity</string>
     <string name="title_activity_creacion_anio">CreacionAnioActivity</string>
     <string name="title_activity_perfil">PerfilActivity</string>
-    <string name="default_web_client_id" translatable="false">REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com</string>
 </resources>

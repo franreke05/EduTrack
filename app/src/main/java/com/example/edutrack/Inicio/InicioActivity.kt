@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
@@ -68,9 +71,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.dataclass.Anio
+import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.Firebase
 import com.google.firebase.database.DataSnapshot
@@ -103,17 +108,11 @@ fun CuerpoInicio(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(screenHeight * 0.055f)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                )
-            ),
-    ) {}
-    Column(modifier = modifier.fillMaxWidth()) {
+
+    Column(modifier = modifier.fillMaxSize()
+        .background( brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+        ))) {
 
         AnimationSearch(
             initialAnios = aniosFromFirebase,
@@ -161,7 +160,7 @@ fun CuerpoInicio(
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Default. Delete,
                                 contentDescription = "Eliminar",
                                 tint = Color.White,
                                 modifier = Modifier.size(screenHeight * 0.04f)
@@ -258,12 +257,12 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
 @Composable
 fun GreetingPreview() {
     EduTrackTheme {
-        AnioCard(anio = Anio("Año 1", "Descripción del año 1","descripcion","14/10/25","14/10/25"), index = 1, screenHeight = 100.dp, screenWidth = 100.dp) { }
+            CuerpoInicio( userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
     }
 }
 
 @Composable
-fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
+fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
@@ -345,7 +344,7 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
         } else {
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val aniosList = snapshot.children.mapNotNull { it.getValue(Anio::class.java) }
+                    val aniosList = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
                         .filter { it.id_user == id_user }
                     aniosState.value = aniosList
                 }
@@ -361,6 +360,39 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
     }
 
     return aniosState
+}
+
+private fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
+    val id = snapshot.child("id").getValue(String::class.java)
+    val nombre = snapshot.child("nombre").getValue(String::class.java)
+    val descripcion = snapshot.child("descripcion").getValue(String::class.java)
+    val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
+    val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
+    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
+    val idUser = snapshot.child("id_user").getValue(String::class.java)
+
+    val asignaturasMap = snapshot.child("lista_asignaturas")
+        .children
+        .mapNotNull { child ->
+            child.getValue(Asignatura::class.java)?.let { asignatura ->
+                (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+            }
+        }
+        .toMap()
+        .takeIf { it.isNotEmpty() }
+
+    if (nombre == null && descripcion == null && fechaInicio == null && fechaFin == null) return null
+
+    return Anio(
+        id = id,
+        nombre = nombre,
+        descripcion = descripcion,
+        fechaInicio = fechaInicio,
+        fechaFin = fechaFin,
+        numero_asignaturas = numeroAsignaturas,
+        lista_asignaturas = asignaturasMap,
+        id_user = idUser
+    )
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -434,7 +466,9 @@ fun AnimationSearch(
                                 "Buscar" -> isSearchExpanded = true
                                 "Añadir" -> onCrearAnio()
                                 "Perfil" -> onPerfil()
-                                "Opciones" -> { }
+                                "Opciones" -> {
+                                    //
+                                }
                                 else -> { }
                             }
                         },

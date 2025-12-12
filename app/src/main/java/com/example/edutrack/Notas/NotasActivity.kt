@@ -57,7 +57,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Inicio.CircularActionButton
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.DataSnapshot
@@ -95,6 +97,12 @@ class NotasActivity : ComponentActivity() {
             }
         }
     }
+}
+@Preview
+@Composable
+fun NotasScreenPreview() {
+    NotasScreen("", "Asignatura", "Trimestre", 3, {})
+
 }
 
 @Composable
@@ -140,9 +148,12 @@ fun NotasScreen(
     Scaffold { inner ->
         Column(
             modifier = Modifier
+                .background(brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                ))
                 .padding(inner)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+
         ) {
             GradientMenuNotas(
                 onBack = onBack,
@@ -217,11 +228,7 @@ private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () 
             modifier = Modifier
                 .fillMaxWidth()
                 .height(screenHeight * 0.051f)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )
-                ),
+               ,
         )
         Row(
             modifier = Modifier
@@ -230,29 +237,15 @@ private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () 
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CircleIcon(Icons.Default.ArrowBack, "Volver", onBack)
-            CircleIcon(Icons.Default.Add, "Agregar", onAdd)
-            CircleIcon(Icons.Default.Percent, "Porcentajes", onInfo)
-            CircleIcon(Icons.Default.Info, "Info", onInfo)
+            CircularActionButton(Icons.Default.ArrowBack, "Volver", onBack, screenHeight)
+            CircularActionButton(Icons.Default.Add, "Agregar", onAdd, screenHeight)
+            CircularActionButton(Icons.Default.Percent, "Porcentajes", onInfo, screenHeight)
+            CircularActionButton(Icons.Default.Info, "Info", onInfo,screenHeight)
         }
     }
 }
 
-@Composable
-private fun CircleIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(CircleShape)
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shadowElevation = 4.dp
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.primary)
-        }
-    }
-}
+
 
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double, screenHeight: androidx.compose.ui.unit.Dp) {
@@ -262,6 +255,11 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
             .padding(horizontal = screenHeight * 0.025f, vertical = screenHeight * 0.02f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = nombre,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
         Box(
             modifier = Modifier
                 .size(screenHeight * 0.22f)

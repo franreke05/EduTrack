@@ -1,32 +1,27 @@
 package com.example.edutrack.Registro.Registros
 
 import android.content.Context
-import android.content.Intent
-import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Divider
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -43,14 +38,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
-import com.example.edutrack.Registro.signup.RegistrarUsuarioActivity
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -72,34 +64,20 @@ fun LoginScreen(
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
-    val manualEmail = remember { mutableStateOf("") }
-    val manualPassword = remember { mutableStateOf("") }
-    val manualLoading = remember { mutableStateOf(false) }
-    val googleAuthDisabled = remember { true } // Deshabilitado temporalmente
-    val webClientId = remember { context.getString(R.string.default_web_client_id) }
-    val resolvedWebClientId = remember(webClientId) {
-        webClientId
-            .takeIf { it.isNotBlank() }
-            ?.takeUnless { it.contains("REPLACE_WITH_WEB_CLIENT_ID", ignoreCase = true) }
-    }
-    val googleSignInClient = remember(resolvedWebClientId, googleAuthDisabled) {
-        if (googleAuthDisabled) null else resolvedWebClientId?.let { GoogleSignIn.getClient(context, googleSignInOptions(it)) }
-    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, googleSignInOptions(context)) }
 
-    val launcher =
-        if (googleAuthDisabled) null
-        else rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                firebaseAuthWithGoogle(auth, account?.idToken, context, loading) { user ->
-                    onLoginSuccess(user.uid)
-                }
-            } catch (e: ApiException) {
-                loading.value = false
-                Toast.makeText(context, "No se pudo iniciar sesion con Google.", Toast.LENGTH_LONG).show()
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            firebaseAuthWithGoogle(auth, account?.idToken, context, loading) { user ->
+                onLoginSuccess(user.uid)
             }
+        } catch (e: ApiException) {
+            loading.value = false
+            Toast.makeText(context, "No se pudo iniciar sesión con Google.", Toast.LENGTH_LONG).show()
         }
+    }
 
     val isLoading = isLoadingOverride ?: loading.value
 
@@ -109,101 +87,54 @@ fun LoginScreen(
             isLoading = isLoading,
             onGoogleSignIn = {
                 if (loading.value) return@LoginContent
-                if (googleAuthDisabled) {
-                    Toast.makeText(context, "Autenticacion con Google deshabilitada temporalmente.", Toast.LENGTH_LONG).show()
-                    return@LoginContent
-                }
-                if (googleSignInClient == null) {
-                    Toast.makeText(context, "Configura el ID de cliente web de Firebase antes de iniciar sesion.", Toast.LENGTH_LONG).show()
-                    return@LoginContent
-                }
                 loading.value = true
-                launcher?.launch(googleSignInClient.signInIntent)
-            },
-            onRegister = {
-                val intent = Intent(context, RegistrarUsuarioActivity::class.java)
-                context.startActivity(intent)
-            },
-            manualEmail = manualEmail.value,
-            manualPassword = manualPassword.value,
-            onManualEmailChange = { manualEmail.value = it },
-            onManualPasswordChange = { manualPassword.value = it },
-            manualLoading = manualLoading.value,
-            onManualLogin = {
-                val email = manualEmail.value.trim()
-                val pass = manualPassword.value.trim()
-                when {
-                    email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches() ->
-                        Toast.makeText(context, "Introduce un email valido.", Toast.LENGTH_LONG).show()
-                    pass.isEmpty() ->
-                        Toast.makeText(context, "Introduce tu contrasena.", Toast.LENGTH_LONG).show()
-                    else -> loginWithEmail(
-                        auth = auth,
-                        email = email,
-                        password = pass,
-                        context = context,
-                        loading = manualLoading
-                    ) { user ->
-                        onLoginSuccess(user.uid)
-                    }
-                }
+                launcher.launch(googleSignInClient.signInIntent)
             }
         )
     }
 }
 
 @Composable
-private fun LoginContent(
-    modifier: Modifier,
-    isLoading: Boolean,
-    onGoogleSignIn: () -> Unit,
-    onRegister: () -> Unit,
-    manualEmail: String,
-    manualPassword: String,
-    onManualEmailChange: (String) -> Unit,
-    onManualPasswordChange: (String) -> Unit,
-    manualLoading: Boolean,
-    onManualLogin: () -> Unit
-) {
+private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn: () -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF2196F3), Color(0xFF6A00FF))
-                )
-            ),
+            .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(screenHeight * 0.06f))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight * 0.051f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                    )
+                ),
+        )
+
+        Spacer(modifier = Modifier.height(screenHeight * 0.12f))
 
         Text(
             text = "EduTrack",
             style = MaterialTheme.typography.headlineLarge,
-            color = Color.White,
-            modifier = Modifier.padding(bottom = screenHeight * 0.01f)
-        )
-
-        Text(
-            text = "Tu estudio, sin friccion",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = screenHeight * 0.014f)
         )
 
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .wrapContentHeight()
-                .clip(RoundedCornerShape(screenHeight * 0.03f))
-                .shadow(screenHeight * 0.03f),
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.92f)),
-            border = CardDefaults.outlinedCardBorder()
+                .clip(RoundedCornerShape(screenHeight * 0.02f))
+                .shadow(screenHeight * 0.02f),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
-                modifier = Modifier.padding(screenHeight * 0.025f),
+                modifier = Modifier.padding(screenHeight * 0.02f),
                 verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -213,7 +144,7 @@ private fun LoginContent(
                     modifier = Modifier.size(screenHeight * 0.15f)
                 )
                 Text(
-                    text = "Autenticate con Google para continuar",
+                    text = "Autentícate con Google para continuar",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -227,123 +158,47 @@ private fun LoginContent(
             onClick = { onGoogleSignIn() },
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .height(54.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007AFF)),
+                .height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             enabled = !isLoading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(24.dp)
                 )
             } else {
-                Text("Continuar con Google", color = Color.White)
+                Text("Continuar con Google", color = MaterialTheme.colorScheme.onPrimary)
             }
-        }
-
-        Button(
-            onClick = onRegister,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(50.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0x1A007AFF)),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-        ) {
-            Text("Registrarse", color = Color(0xFF007AFF))
         }
 
         Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
         Text(
-            text = "Usamos tu cuenta de Google para autenticacion segura.\nSe enviara un correo de verificacion si tu email no esta verificado.",
+            text = "Usamos tu cuenta de Google para autenticación segura.\nSe enviará un correo de verificación si tu email no está verificado.",
             textAlign = TextAlign.Center,
-            color = Color.White.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth(0.9f)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Divider(color = Color.White.copy(alpha = 0.2f), modifier = Modifier.fillMaxWidth(0.9f))
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.9f),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Inicia sesión con tu email",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                OutlinedTextField(
-                    value = manualEmail,
-                    onValueChange = onManualEmailChange,
-                    label = { Text("Email") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
-                OutlinedTextField(
-                    value = manualPassword,
-                    onValueChange = onManualPasswordChange,
-                    label = { Text("Password") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                )
-                Button(
-                    onClick = onManualLogin,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    enabled = !manualLoading
-                ) {
-                    if (manualLoading) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    } else {
-                        Text("Iniciar sesión", color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(screenHeight * 0.18f))
 
         Text(
-            text = "Tus datos se guardaran en tu cuenta y podras recuperarlos en cualquier dispositivo.",
+            text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
             textAlign = TextAlign.Center,
-            color = Color.White.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth(0.9f)
         )
     }
 }
 
-private fun googleSignInOptions(webClientId: String): GoogleSignInOptions {
-    // Autenticacion con Google deshabilitada: devolvemos opciones minimas sin token.
+private fun googleSignInOptions(context: Context): GoogleSignInOptions {
     return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(context.getString(R.string.default_web_client_id))
         .requestEmail()
         .build()
 }
@@ -355,30 +210,23 @@ private fun firebaseAuthWithGoogle(
     loading: MutableState<Boolean>,
     onSuccess: (FirebaseUser) -> Unit
 ) {
-    // Autenticacion con Google deshabilitada temporalmente.
-    loading.value = false
-    Toast.makeText(context, "Autenticacion con Google deshabilitada temporalmente.", Toast.LENGTH_LONG).show()
-}
+    if (idToken.isNullOrEmpty()) {
+        loading.value = false
+        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG).show()
+        return
+    }
 
-private fun loginWithEmail(
-    auth: FirebaseAuth,
-    email: String,
-    password: String,
-    context: Context,
-    loading: MutableState<Boolean>,
-    onSuccess: (FirebaseUser) -> Unit
-) {
-    loading.value = true
-    auth.signInWithEmailAndPassword(email, password)
+    val credential = GoogleAuthProvider.getCredential(idToken, null)
+    auth.signInWithCredential(credential)
         .addOnCompleteListener { task ->
             loading.value = false
             if (task.isSuccessful) {
                 val user = auth.currentUser
                 persistUserInDatabase(user, context)
+                sendVerificationEmailIfNeeded(user)
                 if (user != null) onSuccess(user)
             } else {
-                val reason = task.exception?.localizedMessage ?: "intenta de nuevo"
-                Toast.makeText(context, "No se pudo iniciar sesion: $reason", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
             }
         }
 }
@@ -402,18 +250,10 @@ private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {
     }
 }
 
-private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context) {
+private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
     val currentUser = user ?: return
     if (!currentUser.isEmailVerified) {
         currentUser.sendEmailVerification()
-            .addOnCompleteListener { task ->
-                val message = if (task.isSuccessful) {
-                    "Hemos reenviado un correo de verificacion a ${currentUser.email}"
-                } else {
-                    "No se pudo enviar el correo de verificacion. Intenta mas tarde."
-                }
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-            }
     }
 }
 

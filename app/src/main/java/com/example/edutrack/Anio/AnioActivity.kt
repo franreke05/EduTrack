@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
@@ -49,13 +52,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
@@ -113,6 +120,8 @@ fun AnioScreen(
     var showAsignaturaDialog by remember { mutableStateOf(false) }
     val maxAsignaturas = anio.numero_asignaturas ?: 0
     val actuales = anio.lista_asignaturas?.size ?: 0
+    var screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    var screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val anioLleno = actuales >= maxAsignaturas
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
@@ -125,18 +134,11 @@ fun AnioScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(brush = Brush.verticalGradient(
+                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+            ))
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                    )
-                )
-        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,14 +158,12 @@ fun AnioScreen(
                 showSearch = !showSearch
                 if (!showSearch) searchQuery = ""
             }
-            CircleAction(icon = Icons.Default.Person, content = "Perfil") { }
-            CircleAction(icon = Icons.Default.MoreVert, content = "Nueva asignatura") {
-                if (anioLleno) {
-                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
-                } else {
-                    showAsignaturaDialog = true
-                }
+            var navController = rememberNavController()
+            CircleAction(icon = Icons.Default.Person, content = "Perfil") {
+                // Se viaja al perfil del usuario
+                navController.navigate("perfil")
             }
+
         }
 
         if (showSearch) {
@@ -180,41 +180,54 @@ fun AnioScreen(
 
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = screenHeight * 0.04f, vertical = screenHeight * 0.04f)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
-                    .height(56.dp)
+                    .height(screenHeight * 0.15f)
                     .aspectRatio(1.5f)
                     .border(
                         width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(screenHeight * 0.02f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = toRoman(pageIndex + 1),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (anioLleno) Color.Red else MaterialTheme.colorScheme.primary,
+                    fontSize = 64.sp
+
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {   }) {
+
+                    Icon(Icons.Default.FilterList,
+                        modifier = Modifier.size(screenHeight * 0.04f),
+                        contentDescription = "filtar asignaturas")
+                }
                 Text(
                     anio.nombre ?: "",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center
+
                 )
                 IconButton(onClick = { showDescriptionDialog = true }) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Mostrar Descripción")
+
+                    Icon(Icons.Default.KeyboardArrowDown,
+                        modifier = Modifier.size(screenHeight * 0.04f),
+                        contentDescription = "Mostrar Descripción")
                 }
+
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -347,17 +360,33 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
 
 @Composable
 fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content: String, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .size(56.dp)
-            .clip(CircleShape)
-            .clickable(enabled = enabled) { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shadowElevation = 4.dp
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Icon(icon, contentDescription = content, tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(screenHeight * 0.07f)
+                .shadow(elevation = screenHeight * 0.01f, shape = CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = content,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(screenHeight * 0.045f)
+            )
         }
+        Text(
+            text = content,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(screenHeight * 0.09f)
+        )
     }
 }
 
@@ -365,13 +394,13 @@ fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content:
 @Composable
 fun AnioScreenPreview() {
     EduTrackTheme {
-        val mockAsignaturas = List(3) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
+        val mockAsignaturas = List(20) { Asignatura(id = "$it", nombre = "Asignatura ${it + 1}") }
         val mockAnio = com.example.edutrack.dataclass.Anio(
             id = "1",
             nombre = "Año 2023-2024",
             descripcion = "Descripción de prueba",
             lista_asignaturas = mockAsignaturas.associateBy { it.id ?: it.nombre ?: it.toString() },
-            numero_asignaturas = 3
+            numero_asignaturas = 20
         )
         AnioScreen(anio = mockAnio, pageIndex = 0)
     }
