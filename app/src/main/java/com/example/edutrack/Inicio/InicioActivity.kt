@@ -25,8 +25,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
@@ -59,6 +61,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -98,6 +101,9 @@ fun CuerpoInicio(
 
     val aniosFromFirebase by rememberAniosState(userId)
     var displayedAnios by remember { mutableStateOf<List<Anio>>(emptyList()) }
+    val selectedAnios = remember { mutableStateMapOf<String, Anio>() }
+    val porcentajes = remember { mutableStateMapOf<String, String>() }
+    var mediaConjunta by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(aniosFromFirebase) {
         displayedAnios = aniosFromFirebase
@@ -359,6 +365,46 @@ fun formatearFecha(timeInMillis: Long): String {
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     formatter.timeZone = TimeZone.getTimeZone("UTC")
     return formatter.format(Date(timeInMillis))
+}
+
+fun calcularMediaAnio(anio: Anio): Double? {
+    val asignaturas = anio.lista_asignaturas?.values ?: return null
+    var sumaPonderada = 0.0
+    var sumaPesos = 0.0
+
+    asignaturas.forEach { asignatura ->
+        val mediaAsignatura = asignatura.media ?: return@forEach
+        val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
+        sumaPonderada += mediaAsignatura * peso
+        sumaPesos += peso
+    }
+
+    if (sumaPesos <= 0.0) return null
+    return sumaPonderada / sumaPesos
+}
+
+fun formatMedia(media: Double): String =
+    String.format(Locale.getDefault(), "%.2f", media)
+
+fun calcularMediaConjunta(
+    seleccionados: Map<String, Anio>,
+    porcentajes: Map<String, String>
+): Double? {
+    var acumulado = 0.0
+    var pesoTotal = 0.0
+
+    seleccionados.values.forEach { anio ->
+        val id = anio.id ?: return@forEach
+        val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
+        val mediaAnio = calcularMediaAnio(anio) ?: return@forEach
+
+        if (peso > 0) {
+            acumulado += mediaAnio * peso
+            pesoTotal += peso
+        }
+    }
+
+    return if (pesoTotal > 0) acumulado / pesoTotal else null
 }
 
 @Composable
