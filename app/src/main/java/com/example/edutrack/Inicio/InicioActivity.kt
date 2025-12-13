@@ -154,6 +154,20 @@ fun CuerpoInicio(
                 contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
             ) {
                 itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                anioToDelete = anio
+                                showDeleteDialog = true
+                                false
+                            } else true
+
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
+                contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
+            ) {
+                itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
                     val mediaAnio = calcularMediaAnio(anio)
                     val isSelected = anio.id?.let { selectedAnios.containsKey(it) } == true
                     val dismissState = rememberSwipeToDismissBoxState(
@@ -304,7 +318,38 @@ fun CuerpoInicio(
                                 }
                             }
                         }
+                    )
 
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        modifier = Modifier.fillMaxWidth(),
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true,
+                        backgroundContent = {
+                            val color = when (dismissState.targetValue) {
+                                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                else -> Color.Transparent
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(screenHeight * 0.08f)
+                                    .background(color)
+                                    .padding(horizontal = screenWidth * 0.05f),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Eliminar",
+                                    tint = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.size(screenHeight * 0.04f)
+                                )
+                            }
+                        }
+                    ) {
+                        AnioCard(anio, index + 1, screenHeight, screenWidth) {
+                            onAnioSelected(anio.id)
                         Button(
                             onClick = {
                                 mediaConjunta = calcularMediaConjunta(selectedAnios, porcentajes)
@@ -360,6 +405,9 @@ fun CuerpoInicio(
 }
 
 @Composable
+fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
 fun AnioCard(
     anio: Anio,
     index: Int,
@@ -390,6 +438,19 @@ fun AnioCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f)
         ) {
+            Surface(
+                modifier = Modifier.size(screenHeight * 0.06f),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 0.dp
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = toRoman(index),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             Column(
                 modifier = Modifier.width(screenWidth * 0.18f),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -444,6 +505,7 @@ fun AnioCard(
 @Composable
 fun GreetingPreview() {
     EduTrackTheme {
+        CuerpoInicio(userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
 
         AnioCard( anio = Anio(), index = 1, screenHeight = 500.dp, screenWidth = 500.dp, mediaAnio = 1.0, isSelected = false, function = {})
     }
