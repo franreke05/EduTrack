@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -52,6 +51,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -64,9 +64,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -109,67 +106,89 @@ fun CuerpoInicio(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
 
-    Column(modifier = modifier.fillMaxSize()
-        .background( brush = Brush.verticalGradient(
-            colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-        ))) {
-
-        AnimationSearch(
-            initialAnios = aniosFromFirebase,
-            onAniosFiltered = { filteredList ->
-                displayedAnios = filteredList
-            },
-            screenHeight = screenHeight,
-            screenWidth = screenWidth,
-            onCrearAnio = onCrearAnio,
-            onPerfil = onPerfil
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f, fill = false),
-            contentPadding = PaddingValues(bottom = screenHeight * 0.02f)
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.04f),
+            verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f)
         ) {
-            itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { value ->
-                        if (value == SwipeToDismissBoxValue.EndToStart) {
-                            anioToDelete = anio
-                            showDeleteDialog = true
-                            false
-                        } else true
-                    }
+            Text(
+                text = "Tus años académicos",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = screenHeight * 0.01f)
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 2.dp,
+                shadowElevation = 2.dp,
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                AnimationSearch(
+                    initialAnios = aniosFromFirebase,
+                    onAniosFiltered = { filteredList ->
+                        displayedAnios = filteredList
+                    },
+                    screenHeight = screenHeight,
+                    screenWidth = screenWidth,
+                    onCrearAnio = onCrearAnio,
+                    onPerfil = onPerfil
                 )
+            }
 
-                SwipeToDismissBox(
-                    state = dismissState,
-                    modifier = Modifier.fillMaxWidth(),
-                    enableDismissFromStartToEnd = false,
-                    enableDismissFromEndToStart = true,
-                    backgroundContent = {
-                        val color = when (dismissState.targetValue) {
-                            SwipeToDismissBoxValue.EndToStart -> Color.Red.copy(alpha = 0.8f)
-                            else -> Color.Transparent
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
+                contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
+            ) {
+                itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                anioToDelete = anio
+                                showDeleteDialog = true
+                                false
+                            } else true
                         }
+                    )
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(screenHeight * 0.08f)
-                                .background(color)
-                                .padding(horizontal = screenWidth * 0.05f),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default. Delete,
-                                contentDescription = "Eliminar",
-                                tint = Color.White,
-                                modifier = Modifier.size(screenHeight * 0.04f)
-                            )
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        modifier = Modifier.fillMaxWidth(),
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true,
+                        backgroundContent = {
+                            val color = when (dismissState.targetValue) {
+                                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                else -> Color.Transparent
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(screenHeight * 0.08f)
+                                    .background(color)
+                                    .padding(horizontal = screenWidth * 0.05f),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Eliminar",
+                                    tint = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.size(screenHeight * 0.04f)
+                                )
+                            }
                         }
-                    }
-                ) {
-                    AnioCard(anio, index + 1, screenHeight, screenWidth) {
-                        onAnioSelected(anio.id)
+                    ) {
+                        AnioCard(anio, index + 1, screenHeight, screenWidth) {
+                            onAnioSelected(anio.id)
+                        }
                     }
                 }
             }
@@ -179,7 +198,7 @@ fun CuerpoInicio(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Confirmar EliminaciÇün") },
+            title = { Text("Confirmar eliminación") },
             text = { Text("¿Estás seguro de que quieres eliminar el año '${anioToDelete?.nombre}'?") },
             confirmButton = {
                 Button(
@@ -193,13 +212,13 @@ fun CuerpoInicio(
                         showDeleteDialog = false
                         anioToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Eliminar", color = Color.White)
+                    Text("Eliminar", color = MaterialTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
-                Button(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancelar")
                 }
             }
@@ -208,45 +227,54 @@ fun CuerpoInicio(
 }
 
 @Composable
-fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function : () -> Unit) {
+fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.01f),
-        elevation = CardDefaults.cardElevation(defaultElevation = screenHeight * 0.01f),
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = MaterialTheme.shapes.large,
         onClick = function,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,) // Added shadow
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            modifier = Modifier.padding(screenHeight * 0.02f),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.02f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(screenHeight * 0.06f)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
-                contentAlignment = Alignment.Center
+            Surface(
+                modifier = Modifier.size(screenHeight * 0.06f),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 0.dp
             ) {
-                Text(
-                    text = toRoman(index),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = toRoman(index),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(screenWidth * 0.04f))
-            Column(modifier = Modifier.weight(0.55f).padding(start = screenWidth * 0.02f)) {
-                anio.nombre?.let { Text(text = it, style = MaterialTheme.typography.titleLarge) }
-                anio.descripcion?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
-                anio.numero_asignaturas?.let { Text(text = "Número de asignaturas: $it", style = MaterialTheme.typography.bodyMedium) }
-            }
+
             Column(
-                modifier = Modifier.width(screenWidth * 0.04f).weight(0.35f).padding(end = screenWidth * 0.02f),
+                modifier = Modifier.weight(0.6f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                anio.nombre?.let { Text(text = it, style = MaterialTheme.typography.titleMedium) }
+                anio.descripcion?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                anio.numero_asignaturas?.let { Text(text = "Número de asignaturas: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+
+            Column(
+                modifier = Modifier.weight(0.4f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                Text(text = "Fecha Inicio", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Fecha inicio", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 anio.fechaInicio?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
-                Text(text = "Fecha Fin", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Fecha fin", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 anio.fechaFin?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
             }
         }
@@ -257,31 +285,34 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
 @Composable
 fun GreetingPreview() {
     EduTrackTheme {
-            CuerpoInicio( userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
+        CuerpoInicio(userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
     }
 }
 
 @Composable
-fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp ) {
+fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
     ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(screenHeight * 0.07f)
-                .shadow(elevation = screenHeight * 0.01f, shape = CircleShape)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-
+        Surface(
+            modifier = Modifier.size(screenHeight * 0.07f),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
+            shadowElevation = 3.dp
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(screenHeight * 0.045f)
-            )
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(screenHeight * 0.045f)
+                )
+            }
         }
         Text(
             text = label,
@@ -411,6 +442,8 @@ fun AnimationSearch(
     var showFilterMenu by remember { mutableStateOf(false) }
     var selectedSortOption by remember { mutableStateOf("Fecha Reciente") }
 
+    val horizontalPadding = screenWidth * 0.04f
+
     val sortOptions = listOf("Fecha Reciente", "Último a primero", "Por nombre", "Por cantidad de asignaturas")
     val actions = listOf(
         "Perfil" to Icons.Default.Person,
@@ -449,13 +482,13 @@ fun AnimationSearch(
         transitionSpec = {
             fadeIn(animationSpec = tween(300)) with fadeOut(animationSpec = tween(300))
         },
-        modifier = Modifier.padding(vertical = screenHeight * 0.02f)
+        modifier = Modifier.padding(horizontal = horizontalPadding, vertical = screenHeight * 0.02f)
     ) { isExpanded ->
         if (!isExpanded) {
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f),
-                contentPadding = PaddingValues(horizontal = screenWidth * 0.04f)
+                contentPadding = PaddingValues(horizontal = screenWidth * 0.02f, vertical = screenHeight * 0.02f)
             ) {
                 items(actions) { (label, icon) ->
                     CircularActionButton(
@@ -480,7 +513,7 @@ fun AnimationSearch(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = screenWidth * 0.04f),
+                    .padding(vertical = screenHeight * 0.01f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.02f)
             ) {
