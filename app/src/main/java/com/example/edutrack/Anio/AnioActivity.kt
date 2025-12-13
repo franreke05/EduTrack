@@ -1,35 +1,28 @@
 package com.example.edutrack.Anio
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,22 +45,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.compose.rememberNavController
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
-import com.example.edutrack.Inicio.CircularActionButton
 import com.example.edutrack.Notas.anioId
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -133,118 +119,140 @@ fun AnioScreen(
     val asignaturasFiltradas = if (showSearch && searchQuery.isNotBlank()) {
         asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
     } else asignaturasBase
+    val spacing = 16.dp
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-            ))
-    ) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircleAction(icon = Icons.Default.ArrowBack, content = "Volver") { onBack() }
-            CircleAction(icon = Icons.Default.Add, content = "Añadir", enabled = !anioLleno) {
-                if (anioLleno) {
-                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
-                } else {
-                    showAsignaturaDialog = true
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(anio.nombre ?: "Año escolar") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        if (anioLleno) {
+                            Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                        } else {
+                            showAsignaturaDialog = true
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Añadir asignatura",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = {
+                        showSearch = !showSearch
+                        if (!showSearch) searchQuery = ""
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar asignatura",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
-            }
-            CircleAction(icon = Icons.Default.Search, content = "Buscar") {
-                showSearch = !showSearch
-                if (!showSearch) searchQuery = ""
-            }
-            var navController = rememberNavController()
-            CircleAction(icon = Icons.Default.Person, content = "Perfil") {
-                // Se viaja al perfil del usuario
-                navController.navigate("perfil")
-            }
-
-
-
-        }
-
-        if (showSearch) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Buscar asignatura") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                singleLine = true
             )
         }
-
-        Column(
-            modifier = Modifier
-                .padding(horizontal = screenHeight * 0.04f, vertical = screenHeight * 0.04f)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
+    ) { innerPadding ->
+        Surface(modifier = modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .height(screenHeight * 0.15f)
-                    .aspectRatio(1.5f)
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(screenHeight * 0.02f)
-                    ),
-                contentAlignment = Alignment.Center
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .padding(horizontal = spacing, vertical = spacing)
             ) {
-                Text(
-                    text = toRoman(pageIndex + 1),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = if (anioLleno) Color.Red else MaterialTheme.colorScheme.primary,
-                    fontSize = 64.sp
-
-                )
-            }
-
-            Spacer(modifier = Modifier.height(screenHeight * 0.02f))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {   }) {
-
-                    Icon(Icons.Default.FilterList,
-                        modifier = Modifier.size(screenHeight * 0.04f),
-                        contentDescription = "filtar asignaturas")
-                }
-                Text(
-                    anio.nombre ?: "",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center
-
-                )
-                IconButton(onClick = { showDescriptionDialog = true }) {
-
-                    Icon(Icons.Default.KeyboardArrowDown,
-                        modifier = Modifier.size(screenHeight * 0.04f),
-                        contentDescription = "Mostrar Descripción")
+                if (showSearch) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Buscar asignatura") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = spacing),
+                        singleLine = true
+                    )
                 }
 
-            }
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = spacing),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(spacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(spacing)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .height(screenHeight * 0.15f)
+                                .aspectRatio(1.2f)
+                                .border(
+                                    width = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(screenHeight * 0.02f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = toRoman(pageIndex + 1),
+                                style = MaterialTheme.typography.displaySmall,
+                                color = if (anioLleno) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(onClick = { showDescriptionDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Ver descripción",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                text = anio.nombre ?: "",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center
+                            )
+                            IconButton(onClick = { /* Filtro reservado */ }) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "Filtrar asignaturas",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                itemsIndexed(asignaturasFiltradas) { index, asignatura ->
-                    AsignaturaCard(index + 1, asignatura) { onOpenNotas(asignatura)
-                        anioId = anio.id.toString()
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(asignaturasFiltradas) { index, asignatura ->
+                        AsignaturaCard(index + 1, asignatura) {
+                            onOpenNotas(asignatura)
+                            anioId = anio.id.toString()
+                        }
                     }
                 }
             }
@@ -365,37 +373,6 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
     )
 }
 
-@Composable
-fun CircleAction(icon: androidx.compose.ui.graphics.vector.ImageVector, content: String, enabled: Boolean = true, onClick: () -> Unit) {
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(screenHeight * 0.07f)
-                .shadow(elevation = screenHeight * 0.01f, shape = CircleShape)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = content,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(screenHeight * 0.045f)
-            )
-        }
-        Text(
-            text = content,
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(screenHeight * 0.09f)
-        )
-    }
-}
 
 @Preview(showBackground = true)
 @Composable

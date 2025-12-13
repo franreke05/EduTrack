@@ -5,10 +5,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -27,12 +24,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,18 +46,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.edutrack.Anio.CircleAction
-import com.example.edutrack.Inicio.CircularActionButton
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -102,13 +93,6 @@ class NotasActivity : ComponentActivity() {
 }
 @Preview
 @Composable
-fun NotasScreenPreview() {
-    NotasScreen("", "Asignatura", "Trimestre", 3, {})
-
-}
-var idAsignatura: String = ""
-var anioId: String = ""
-@Composable
 fun NotasScreen(
     asignaturaId: String,
     asignaturaNombre: String,
@@ -121,9 +105,8 @@ fun NotasScreen(
     val showDialog = remember { mutableStateOf(false) }
     val notaEnEdicion = remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
+    var showDeleteAsignatura by remember { mutableStateOf(false) }
     idAsignatura = asignaturaId
-
-
 
     DisposableEffect(asignaturaId) {
         val notasRef = Firebase.database.reference
@@ -151,45 +134,70 @@ fun NotasScreen(
     val promedio = calcularPromedio(notasState.value)
     val porcentajeTotal = notasState.value.sumOf { it.porcentaje ?: 0.0 }
 
-    Scaffold { inner ->
-        Column(
-            modifier = Modifier
-                .background(brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                ))
-                .padding(inner)
-                .fillMaxSize()
-
-        ) {
-            GradientMenuNotas(
-                onBack = onBack,
-                onAdd = { notaEnEdicion.value = null; showDialog.value = true },
-                onInfo = {
-                    Toast.makeText(context, "Gestiona notas con porcentaje por $tipoPeriodo.", Toast.LENGTH_LONG).show()
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(asignaturaNombre) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                    }
                 },
-
-
-            )
-
-            EncabezadoNotas(
-                nombre = asignaturaNombre,
-                promedio = promedio,
-                porcentajeTotal = porcentajeTotal,
-                screenHeight = screenHeight
-            )
-
-            ListaNotasPorPeriodo(
-                notas = notasState.value,
-                numeroPeriodos = numeroPeriodos,
-                tipoPeriodo = tipoPeriodo,
-                onEditar = { nota ->
-                    notaEnEdicion.value = nota
-                    showDialog.value = true
-                },
-                onEliminar = { nota ->
-                    showDeleteConfirm.value = nota
+                actions = {
+                    IconButton(onClick = {
+                        notaEnEdicion.value = null
+                        showDialog.value = true
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Añadir nota")
+                    }
+                    IconButton(onClick = {
+                        Toast.makeText(
+                            context,
+                            "Gestiona notas con porcentaje por $tipoPeriodo.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }) {
+                        Icon(Icons.Default.Info, contentDescription = "Información")
+                    }
+                    IconButton(onClick = { showDeleteAsignatura = true }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Eliminar asignatura",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             )
+        }
+    ) { inner ->
+        Surface(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .padding(inner)
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                EncabezadoNotas(
+                    nombre = asignaturaNombre,
+                    promedio = promedio,
+                    porcentajeTotal = porcentajeTotal,
+                    screenHeight = screenHeight
+                )
+
+                ListaNotasPorPeriodo(
+                    notas = notasState.value,
+                    numeroPeriodos = numeroPeriodos,
+                    tipoPeriodo = tipoPeriodo,
+                    onEditar = { nota ->
+                        notaEnEdicion.value = nota
+                        showDialog.value = true
+                    },
+                    onEliminar = { nota ->
+                        showDeleteConfirm.value = nota
+                    }
+                )
+            }
         }
     }
 
@@ -225,78 +233,72 @@ fun NotasScreen(
             text = { Text("¿Seguro que deseas eliminar ${nota.nombre}?") }
         )
     }
-}
 
-@Composable
-private fun GradientMenuNotas(onBack: () -> Unit, onAdd: () -> Unit, onInfo: () -> Unit, ) {
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
-    Column {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.051f)
-               ,
+    if (showDeleteAsignatura) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAsignatura = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        borrarAsignaturaCompleta(asignaturaId = asignaturaId, anioId = anioId)
+                        showDeleteAsignatura = false
+                        onBack()
+                    }
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAsignatura = false }) { Text("Cancelar") }
+            },
+            title = { Text("Eliminar asignatura") },
+            text = { Text("¿Deseas eliminar toda la asignatura y sus notas?") }
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = screenWidth * 0.05f, vertical = screenHeight * 0.015f),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircularActionButton(Icons.Default.ArrowBack, "Volver", onBack, screenHeight)
-            CircularActionButton(Icons.Default.Add, "Agregar", onAdd, screenHeight)
-            CircularActionButton(Icons.Default.Info, "Info", onInfo,screenHeight)
-            CircleAction( Icons.Default.Delete,"Delete") {
-                borrarAsignaturaCompleta(asignaturaId =idAsignatura, anioId = anioId )
-                onBack()
-            }
-        }
     }
 }
 
-
-
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double, screenHeight: androidx.compose.ui.unit.Dp) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = screenHeight * 0.025f, vertical = screenHeight * 0.02f),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(8.dp)
     ) {
-        Text(
-            text = nombre,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Box(
+        Column(
             modifier = Modifier
-                .size(screenHeight * 0.22f)
-                .shadow(12.dp, RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = abreviarNombre(nombre),
-                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold)
+                text = nombre,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
-        }
-        Spacer(modifier = Modifier.height(screenHeight * 0.015f))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Media", style = MaterialTheme.typography.labelMedium)
-                Text(text = String.format("%.2f", promedio), style = MaterialTheme.typography.headlineMedium)
+            Box(
+                modifier = Modifier
+                    .size(screenHeight * 0.2f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = abreviarNombre(nombre),
+                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
+                )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Porcentaje usado", style = MaterialTheme.typography.labelMedium)
-                Text(text = String.format("%.0f%%", porcentajeTotal), style = MaterialTheme.typography.headlineMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Media", style = MaterialTheme.typography.labelMedium)
+                    Text(text = String.format("%.2f", promedio), style = MaterialTheme.typography.titleMedium)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Porcentaje usado", style = MaterialTheme.typography.labelMedium)
+                    Text(text = String.format("%.0f%%", porcentajeTotal), style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
     }
@@ -314,24 +316,26 @@ private fun ListaNotasPorPeriodo(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         (1..numeroPeriodos).forEach { periodo ->
             item {
-                Text(
-                    text = "$tipoPeriodo $periodo",
-                    style = MaterialTheme.typography.titleMedium,
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(vertical = 8.dp, horizontal = 12.dp),
-                    color = Color.White
-                )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Text(
+                        text = "$tipoPeriodo $periodo",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp, horizontal = 12.dp)
+                    )
+                }
             }
             val lista = grouped[periodo].orEmpty()
             items(lista) { nota ->
