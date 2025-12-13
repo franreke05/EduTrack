@@ -5,9 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -32,9 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -45,7 +43,6 @@ import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
@@ -98,94 +95,98 @@ fun LoginScreen(
 private fun LoginContent(modifier: Modifier, isLoading: Boolean, onGoogleSignIn: () -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
-            )),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-
-
-        Spacer(modifier = Modifier.height(screenHeight * 0.12f))
-
-        Text(
-            text = "EduTrack",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = screenHeight * 0.014f)
-        )
-
-        Card(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .wrapContentHeight()
-                .clip(RoundedCornerShape(screenHeight * 0.02f))
-                .shadow(screenHeight * 0.02f),
-
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = screenHeight * 0.08f),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(screenHeight * 0.02f),
-                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Image(
+                painter = painterResource(id = R.drawable.agendita),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(screenHeight * 0.16f)
+                    .padding(bottom = screenHeight * 0.02f)
+                    .clip(CircleShape)
+            )
+
+            Text(
+                text = "EduTrack",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = screenHeight * 0.04f)
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = MaterialTheme.shapes.extraLarge
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.agendita),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(screenHeight * 0.15f)
-                )
-                Text(
-                    text = "Autentícate con Google para continuar",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Autentícate con Google para continuar",
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = "Usamos tu cuenta de Google para autenticación segura. Se enviará un correo de verificación si tu email no está verificado.",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                        onClick = { onGoogleSignIn() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text("Continuar con Google")
+                        }
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(screenHeight * 0.06f))
+
+            Text(
+                text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
-
-        Spacer(modifier = Modifier.height(screenHeight * 0.03f))
-
-        Button(
-            onClick = { onGoogleSignIn() },
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            enabled = !isLoading
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text("Continuar con Google", color = MaterialTheme.colorScheme.onPrimary)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(screenHeight * 0.02f))
-
-        Text(
-            text = "Usamos tu cuenta de Google para autenticación segura.\nSe enviará un correo de verificación si tu email no está verificado.",
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth(0.9f)
-        )
-
-        Spacer(modifier = Modifier.height(screenHeight * 0.18f))
-
-        Text(
-            text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.fillMaxWidth(0.9f)
-        )
     }
 }
 
