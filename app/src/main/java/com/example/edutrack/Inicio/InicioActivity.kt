@@ -25,8 +25,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
@@ -59,6 +61,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -98,6 +101,9 @@ fun CuerpoInicio(
 
     val aniosFromFirebase by rememberAniosState(userId)
     var displayedAnios by remember { mutableStateOf<List<Anio>>(emptyList()) }
+    val selectedAnios = remember { mutableStateMapOf<String, Anio>() }
+    val porcentajes = remember { mutableStateMapOf<String, String>() }
+    var mediaConjunta by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(aniosFromFirebase) {
         displayedAnios = aniosFromFirebase
@@ -155,6 +161,162 @@ fun CuerpoInicio(
                                 showDeleteDialog = true
                                 false
                             } else true
+
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
+                contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
+            ) {
+                itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
+                    val mediaAnio = calcularMediaAnio(anio)
+                    val isSelected = anio.id?.let { selectedAnios.containsKey(it) } == true
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            when (value) {
+                                SwipeToDismissBoxValue.StartToEnd -> {
+                                    anio.id?.let { id ->
+                                        if (isSelected) {
+                                            selectedAnios.remove(id)
+                                            porcentajes.remove(id)
+                                        } else {
+                                            selectedAnios[id] = anio
+                                            porcentajes.putIfAbsent(id, "")
+                                        }
+                                        mediaConjunta = null
+                                    }
+                                    false
+                                }
+                                SwipeToDismissBoxValue.EndToStart -> {
+                                    anioToDelete = anio
+                                    showDeleteDialog = true
+                                    false
+                                }
+                                else -> false
+                            }
+                        }
+                    )
+
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        modifier = Modifier.fillMaxWidth(),
+                        enableDismissFromStartToEnd = true,
+                        enableDismissFromEndToStart = true,
+                        backgroundContent = {
+                            val color = when (dismissState.targetValue) {
+                                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                else -> Color.Transparent
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(screenHeight * 0.08f)
+                                    .background(color)
+                                    .padding(horizontal = screenWidth * 0.05f),
+                                contentAlignment = when (dismissState.targetValue) {
+                                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                                    else -> Alignment.CenterEnd
+                                }
+                            ) {
+                                when (dismissState.targetValue) {
+                                    SwipeToDismissBoxValue.StartToEnd -> {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Seleccionar",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(screenHeight * 0.04f)
+                                        )
+                                    }
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Eliminar",
+                                            tint = MaterialTheme.colorScheme.onError,
+                                            modifier = Modifier.size(screenHeight * 0.04f)
+                                        )
+                                    }
+                                    else -> { }
+                                }
+                            }
+                        }
+                    ) {
+                        AnioCard(
+                            anio = anio,
+                            index = index + 1,
+                            screenHeight = screenHeight,
+                            screenWidth = screenWidth,
+                            mediaAnio = mediaAnio,
+                            isSelected = isSelected
+                        ) {
+                            onAnioSelected(anio.id)
+                        }
+                    }
+                }
+            }
+
+            if (selectedAnios.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 3.dp,
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.02f),
+                        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f)
+                    ) {
+                        Text(
+                            text = "Años seleccionados",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        selectedAnios.values.forEach { anioSeleccionado ->
+                            val id = anioSeleccionado.id ?: return@forEach
+                            val textoPorcentaje = porcentajes[id] ?: ""
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.02f)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(anioSeleccionado.nombre ?: "Sin nombre", style = MaterialTheme.typography.bodyLarge)
+                                    calcularMediaAnio(anioSeleccionado)?.let { media ->
+                                        Text(
+                                            text = "Media: ${formatMedia(media)}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = textoPorcentaje,
+                                    onValueChange = { nuevo ->
+                                        if (nuevo.length <= 3 && nuevo.all { it.isDigit() }) {
+                                            porcentajes[id] = nuevo
+                                            mediaConjunta = null
+                                        }
+                                    },
+                                    modifier = Modifier.width(screenWidth * 0.45f),
+                                    singleLine = true,
+                                    label = { Text("Porcentaje") },
+                                    placeholder = { Text("0-100") },
+                                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    suffix = { Text("%") }
+                                )
+                                TextButton(
+                                    onClick = {
+                                        selectedAnios.remove(id)
+                                        porcentajes.remove(id)
+                                        mediaConjunta = null
+                                    }
+                                ) {
+                                    Text("Quitar")
+                                }
+                            }
                         }
                     )
 
@@ -188,6 +350,22 @@ fun CuerpoInicio(
                     ) {
                         AnioCard(anio, index + 1, screenHeight, screenWidth) {
                             onAnioSelected(anio.id)
+                        Button(
+                            onClick = {
+                                mediaConjunta = calcularMediaConjunta(selectedAnios, porcentajes)
+                            },
+                            modifier = Modifier.align(Alignment.End),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Mostrar media en conjunto")
+                        }
+
+                        mediaConjunta?.let { resultado ->
+                            Text(
+                                text = "Media ponderada: ${formatMedia(resultado)}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
@@ -230,6 +408,23 @@ fun CuerpoInicio(
 fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+fun AnioCard(
+    anio: Anio,
+    index: Int,
+    screenHeight: Dp,
+    screenWidth: Dp,
+    mediaAnio: Double?,
+    isSelected: Boolean,
+    function: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = if (isSelected) 1.5.dp else 0.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                shape = MaterialTheme.shapes.large
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         shape = MaterialTheme.shapes.large,
         onClick = function,
@@ -256,6 +451,31 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
+            Column(
+                modifier = Modifier.width(screenWidth * 0.18f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(screenHeight * 0.06f),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 0.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = toRoman(index),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                Text(
+                    text = mediaAnio?.let { "Media: ${formatMedia(it)}" } ?: "Media: --",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
             }
 
             Column(
@@ -286,6 +506,8 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function
 fun GreetingPreview() {
     EduTrackTheme {
         CuerpoInicio(userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
+
+        AnioCard( anio = Anio(), index = 1, screenHeight = 500.dp, screenWidth = 500.dp, mediaAnio = 1.0, isSelected = false, function = {})
     }
 }
 
@@ -359,6 +581,46 @@ fun formatearFecha(timeInMillis: Long): String {
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     formatter.timeZone = TimeZone.getTimeZone("UTC")
     return formatter.format(Date(timeInMillis))
+}
+
+fun calcularMediaAnio(anio: Anio): Double? {
+    val asignaturas = anio.lista_asignaturas?.values ?: return null
+    var sumaPonderada = 0.0
+    var sumaPesos = 0.0
+
+    asignaturas.forEach { asignatura ->
+        val mediaAsignatura = asignatura.media ?: return@forEach
+        val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
+        sumaPonderada += mediaAsignatura * peso
+        sumaPesos += peso
+    }
+
+    if (sumaPesos <= 0.0) return null
+    return sumaPonderada / sumaPesos
+}
+
+fun formatMedia(media: Double): String =
+    String.format(Locale.getDefault(), "%.2f", media)
+
+fun calcularMediaConjunta(
+    seleccionados: Map<String, Anio>,
+    porcentajes: Map<String, String>
+): Double? {
+    var acumulado = 0.0
+    var pesoTotal = 0.0
+
+    seleccionados.values.forEach { anio ->
+        val id = anio.id ?: return@forEach
+        val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
+        val mediaAnio = calcularMediaAnio(anio) ?: return@forEach
+
+        if (peso > 0) {
+            acumulado += mediaAnio * peso
+            pesoTotal += peso
+        }
+    }
+
+    return if (pesoTotal > 0) acumulado / pesoTotal else null
 }
 
 @Composable
