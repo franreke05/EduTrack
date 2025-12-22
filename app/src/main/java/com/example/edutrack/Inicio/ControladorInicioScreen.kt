@@ -1,5 +1,15 @@
 package com.example.edutrack.Inicio
 
+import com.example.edutrack.dataclass.Anio
+import com.example.edutrack.dataclass.Asignatura
+import com.google.firebase.database.DataSnapshot
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import kotlin.collections.forEach
+import kotlin.times
+
 /**
  * Convierte números a romanos.
  */
@@ -36,4 +46,81 @@ fun comprobarCampos(num: String, nombretxt: String, fechaInicio: String, fechaFi
         }
     }
     return comprobado
+}
+fun formatearFecha(timeInMillis: Long): String {
+    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    formatter.timeZone = TimeZone.getTimeZone("UTC")
+    return formatter.format(Date(timeInMillis))
+}
+
+fun calcularMediaAnio(anio: Anio): Double? {
+    val asignaturas = anio.lista_asignaturas?.values ?: return null
+    var sumaPonderada = 0.0
+    var sumaPesos = 0.0
+
+    asignaturas.forEach { asignatura ->
+        val mediaAsignatura = asignatura.media ?: return@forEach
+        val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
+        sumaPonderada += mediaAsignatura * peso
+        sumaPesos += peso
+    }
+
+    if (sumaPesos <= 0.0) return null
+    return sumaPonderada / sumaPesos
+}
+
+fun formatMedia(media: Double): String =
+    String.format(Locale.getDefault(), "%.2f", media)
+
+fun calcularMediaConjunta(
+    seleccionados: Map<String, Anio>,
+    porcentajes: Map<String, String>
+): Double? {
+    var acumulado = 0.0
+    var pesoTotal = 0.0
+
+    seleccionados.values.forEach { anio ->
+        val id = anio.id ?: return@forEach
+        val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
+        val mediaAnio = calcularMediaAnio(anio) ?: return@forEach
+
+        if (peso > 0) {
+            acumulado += mediaAnio * peso
+            pesoTotal += peso
+        }
+    }
+
+    return if (pesoTotal > 0) acumulado / pesoTotal else null
+}
+fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
+    val id = snapshot.child("id").getValue(String::class.java)
+    val nombre = snapshot.child("nombre").getValue(String::class.java)
+    val descripcion = snapshot.child("descripcion").getValue(String::class.java)
+    val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
+    val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
+    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
+    val idUser = snapshot.child("id_user").getValue(String::class.java)
+
+    val asignaturasMap = snapshot.child("lista_asignaturas")
+        .children
+        .mapNotNull { child ->
+            child.getValue(Asignatura::class.java)?.let { asignatura ->
+                (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+            }
+        }
+        .toMap()
+        .takeIf { it.isNotEmpty() }
+
+    if (nombre == null && descripcion == null && fechaInicio == null && fechaFin == null) return null
+
+    return Anio(
+        id = id,
+        nombre = nombre,
+        descripcion = descripcion,
+        fechaInicio = fechaInicio,
+        fechaFin = fechaFin,
+        numero_asignaturas = numeroAsignaturas,
+        lista_asignaturas = asignaturasMap,
+        id_user = idUser
+    )
 }

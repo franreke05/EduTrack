@@ -71,9 +71,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
@@ -91,7 +88,6 @@ fun LoginScreen(
     val googleSignInClient = remember { GoogleSignIn.getClient(context, googleSignInOptions(context)) }
     var authMode by remember { mutableStateOf(AuthMode.Login) }
     var email by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -116,59 +112,38 @@ fun LoginScreen(
             isLoading = isLoading,
             authMode = authMode,
             email = email,
-            username = username,
             password = password,
             passwordVisible = passwordVisible,
             onEmailChange = { email = it },
-            onUsernameChange = { username = it },
             onPasswordChange = { password = it },
             onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
             onSubmit = {
                 if (loading.value) return@LoginContent
                 if (email.isBlank() || password.isBlank()) {
-                    Toast.makeText(context, "Completa el correo/usuario y la contraseña.", Toast.LENGTH_LONG).show()
-                    return@LoginContent
-                }
-                if (authMode == AuthMode.Register && username.isBlank()) {
-                    Toast.makeText(context, "Completa el usuario.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Completa el correo y la contraseña.", Toast.LENGTH_LONG).show()
                     return@LoginContent
                 }
                 loading.value = true
                 if (authMode == AuthMode.Login) {
-                    val loginInput = email.trim()
-                    val signInWithEmail: (String) -> Unit = { resolvedEmail ->
-                        auth.signInWithEmailAndPassword(resolvedEmail, password)
-                            .addOnCompleteListener { task ->
-                                loading.value = false
-                                if (task.isSuccessful) {
-                                    auth.currentUser?.let { user ->
-                                        persistUserInDatabase(user, context)
-                                        onLoginSuccess(user.uid)
-                                    }
-                                } else {
-                                    Toast.makeText(context, "Credenciales inválidas o usuario no registrado.", Toast.LENGTH_LONG).show()
+                    auth.signInWithEmailAndPassword(email.trim(), password)
+                        .addOnCompleteListener { task ->
+                            loading.value = false
+                            if (task.isSuccessful) {
+                                auth.currentUser?.let { user ->
+                                    persistUserInDatabase(user, context)
+                                    onLoginSuccess(user.uid)
                                 }
-                            }
-                    }
-                    if (loginInput.contains("@")) {
-                        signInWithEmail(loginInput)
-                    } else {
-                        resolveEmailForUsername(loginInput) { resolvedEmail ->
-                            if (resolvedEmail == null) {
-                                loading.value = false
-                                Toast.makeText(context, "Usuario no encontrado.", Toast.LENGTH_LONG).show()
                             } else {
-                                signInWithEmail(resolvedEmail)
+                                Toast.makeText(context, "Credenciales inválidas o usuario no registrado.", Toast.LENGTH_LONG).show()
                             }
                         }
-                    }
                 } else {
                     auth.createUserWithEmailAndPassword(email.trim(), password)
                         .addOnCompleteListener { task ->
                             loading.value = false
                             if (task.isSuccessful) {
                                 auth.currentUser?.let { user ->
-                                    persistUserInDatabase(user, context, username.trim())
+                                    persistUserInDatabase(user, context)
                                     sendVerificationEmailIfNeeded(user)
                                     onLoginSuccess(user.uid)
                                 }
@@ -196,11 +171,9 @@ private fun LoginContent(
     isLoading: Boolean,
     authMode: AuthMode,
     email: String,
-    username: String,
     password: String,
     passwordVisible: Boolean,
     onEmailChange: (String) -> Unit,
-    onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onSubmit: () -> Unit,
@@ -328,8 +301,8 @@ private fun LoginContent(
                         value = email,
                         onValueChange = onEmailChange,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = "Correo o usuario") },
-                        placeholder = { Text(text = "correo@ejemplo.com o usuario") },
+                        label = { Text(text = "Correo electrónico") },
+                        placeholder = { Text(text = "correo@ejemplo.com") },
                         singleLine = true,
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -341,26 +314,6 @@ private fun LoginContent(
                         ),
                         keyboardOptions = KeyboardOptions(autoCorrect = false)
                     )
-
-                    if (authMode == AuthMode.Register) {
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = onUsernameChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = "Usuario") },
-                            placeholder = { Text(text = "Tu usuario") },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                cursorColor = MaterialTheme.colorScheme.primary
-                            ),
-                            keyboardOptions = KeyboardOptions(autoCorrect = false)
-                        )
-                    }
 
                     OutlinedTextField(
                         value = password,
@@ -574,17 +527,14 @@ private fun firebaseAuthWithGoogle(
         }
 }
 
-private fun persistUserInDatabase(user: FirebaseUser?, context: Context, username: String? = null) {
+private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {
     val currentUser = user ?: return
     val dbRef = Firebase.database.reference
     val userRef = dbRef.child("Edutrack").child("Usuario").child(currentUser.uid)
 
     userRef.get().addOnSuccessListener { snapshot ->
         if (!snapshot.exists()) {
-            val nombreCalculado = username?.takeIf { it.isNotBlank() }
-                ?: currentUser.displayName
-                ?: currentUser.email?.substringBefore("@")
-                ?: "Usuario"
+            val nombreCalculado = currentUser.displayName ?: currentUser.email?.substringBefore("@") ?: "Usuario"
             val usuario = Usuario(
                 id = currentUser.uid,
                 nombre = nombreCalculado,
@@ -603,22 +553,6 @@ private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
     }
 }
 
-private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
-    val usersRef = Firebase.database.reference.child("Edutrack").child("Usuario")
-    usersRef.orderByChild("nombre").equalTo(username)
-        .addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val userSnapshot = snapshot.children.firstOrNull()
-                val email = userSnapshot?.child("email")?.getValue(String::class.java)
-                onResolved(email)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                onResolved(null)
-            }
-        })
-}
-
 @Composable
 @Preview
 fun LoginScreenPreview() {
@@ -628,11 +562,9 @@ fun LoginScreenPreview() {
             isLoading = false,
             authMode = AuthMode.Login,
             email = "",
-            username = "",
             password = "",
             passwordVisible = false,
             onEmailChange = {},
-            onUsernameChange = {},
             onPasswordChange = {},
             onTogglePasswordVisibility = {},
             onSubmit = {},

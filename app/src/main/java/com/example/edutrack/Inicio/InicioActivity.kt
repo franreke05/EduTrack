@@ -87,6 +87,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoInicio(
@@ -98,19 +100,19 @@ fun CuerpoInicio(
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
     val aniosFromFirebase by rememberAniosState(userId)
     var displayedAnios by remember { mutableStateOf<List<Anio>>(emptyList()) }
     val selectedAnios = remember { mutableStateMapOf<String, Anio>() }
     val porcentajes = remember { mutableStateMapOf<String, String>() }
     var mediaConjunta by remember { mutableStateOf<Double?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var anioToDelete by remember { mutableStateOf<Anio?>(null) }
 
     LaunchedEffect(aniosFromFirebase) {
         displayedAnios = aniosFromFirebase
     }
 
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var anioToDelete by remember { mutableStateOf<Anio?>(null) }
+
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -147,20 +149,6 @@ fun CuerpoInicio(
                     onPerfil = onPerfil
                 )
             }
-
-            LazyColumn(
-                modifier = Modifier.weight(1f, fill = false),
-                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
-                contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
-            ) {
-                itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = { value ->
-                            if (value == SwipeToDismissBoxValue.EndToStart) {
-                                anioToDelete = anio
-                                showDeleteDialog = true
-                                false
-                            } else true
 
             LazyColumn(
                 modifier = Modifier.weight(1f, fill = false),
@@ -318,38 +306,7 @@ fun CuerpoInicio(
                                 }
                             }
                         }
-                    )
 
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        modifier = Modifier.fillMaxWidth(),
-                        enableDismissFromStartToEnd = false,
-                        enableDismissFromEndToStart = true,
-                        backgroundContent = {
-                            val color = when (dismissState.targetValue) {
-                                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
-                                else -> Color.Transparent
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(screenHeight * 0.08f)
-                                    .background(color)
-                                    .padding(horizontal = screenWidth * 0.05f),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Eliminar",
-                                    tint = MaterialTheme.colorScheme.onError,
-                                    modifier = Modifier.size(screenHeight * 0.04f)
-                                )
-                            }
-                        }
-                    ) {
-                        AnioCard(anio, index + 1, screenHeight, screenWidth) {
-                            onAnioSelected(anio.id)
                         Button(
                             onClick = {
                                 mediaConjunta = calcularMediaConjunta(selectedAnios, porcentajes)
@@ -405,18 +362,7 @@ fun CuerpoInicio(
 }
 
 @Composable
-fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, function: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-fun AnioCard(
-    anio: Anio,
-    index: Int,
-    screenHeight: Dp,
-    screenWidth: Dp,
-    mediaAnio: Double?,
-    isSelected: Boolean,
-    function: () -> Unit
-) {
+fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAnio: Double?, isSelected: Boolean, function: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -438,19 +384,6 @@ fun AnioCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f)
         ) {
-            Surface(
-                modifier = Modifier.size(screenHeight * 0.06f),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                tonalElevation = 0.dp
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = toRoman(index),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
             Column(
                 modifier = Modifier.width(screenWidth * 0.18f),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -501,21 +434,12 @@ fun AnioCard(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    EduTrackTheme {
-        CuerpoInicio(userId = "", onAnioSelected = {}, onCrearAnio = {}, onPerfil = {}, modifier = Modifier)
-
-        AnioCard( anio = Anio(), index = 1, screenHeight = 500.dp, screenWidth = 500.dp, mediaAnio = 1.0, isSelected = false, function = {})
-    }
-}
 
 @Composable
 fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.01f)
+        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f)
     ) {
         Surface(
             modifier = Modifier.size(screenHeight * 0.07f),
@@ -577,51 +501,6 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
     }
 }
 
-fun formatearFecha(timeInMillis: Long): String {
-    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    formatter.timeZone = TimeZone.getTimeZone("UTC")
-    return formatter.format(Date(timeInMillis))
-}
-
-fun calcularMediaAnio(anio: Anio): Double? {
-    val asignaturas = anio.lista_asignaturas?.values ?: return null
-    var sumaPonderada = 0.0
-    var sumaPesos = 0.0
-
-    asignaturas.forEach { asignatura ->
-        val mediaAsignatura = asignatura.media ?: return@forEach
-        val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
-        sumaPonderada += mediaAsignatura * peso
-        sumaPesos += peso
-    }
-
-    if (sumaPesos <= 0.0) return null
-    return sumaPonderada / sumaPesos
-}
-
-fun formatMedia(media: Double): String =
-    String.format(Locale.getDefault(), "%.2f", media)
-
-fun calcularMediaConjunta(
-    seleccionados: Map<String, Anio>,
-    porcentajes: Map<String, String>
-): Double? {
-    var acumulado = 0.0
-    var pesoTotal = 0.0
-
-    seleccionados.values.forEach { anio ->
-        val id = anio.id ?: return@forEach
-        val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
-        val mediaAnio = calcularMediaAnio(anio) ?: return@forEach
-
-        if (peso > 0) {
-            acumulado += mediaAnio * peso
-            pesoTotal += peso
-        }
-    }
-
-    return if (pesoTotal > 0) acumulado / pesoTotal else null
-}
 
 @Composable
 fun rememberAniosState(id_user: String?): State<List<Anio>> {
@@ -655,38 +534,6 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
     return aniosState
 }
 
-private fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
-    val id = snapshot.child("id").getValue(String::class.java)
-    val nombre = snapshot.child("nombre").getValue(String::class.java)
-    val descripcion = snapshot.child("descripcion").getValue(String::class.java)
-    val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
-    val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
-    val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
-    val idUser = snapshot.child("id_user").getValue(String::class.java)
-
-    val asignaturasMap = snapshot.child("lista_asignaturas")
-        .children
-        .mapNotNull { child ->
-            child.getValue(Asignatura::class.java)?.let { asignatura ->
-                (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
-            }
-        }
-        .toMap()
-        .takeIf { it.isNotEmpty() }
-
-    if (nombre == null && descripcion == null && fechaInicio == null && fechaFin == null) return null
-
-    return Anio(
-        id = id,
-        nombre = nombre,
-        descripcion = descripcion,
-        fechaInicio = fechaInicio,
-        fechaFin = fechaFin,
-        numero_asignaturas = numeroAsignaturas,
-        lista_asignaturas = asignaturasMap,
-        id_user = idUser
-    )
-}
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -711,7 +558,6 @@ fun AnimationSearch(
         "Perfil" to Icons.Default.Person,
         "Buscar" to Icons.Default.Search,
         "Añadir" to Icons.Default.Add,
-        "Opciones" to Icons.Default.MoreVert
     )
 
     LaunchedEffect(searchQuery, selectedSortOption, initialAnios) {
@@ -748,9 +594,8 @@ fun AnimationSearch(
     ) { isExpanded ->
         if (!isExpanded) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f),
-                contentPadding = PaddingValues(horizontal = screenWidth * 0.02f, vertical = screenHeight * 0.02f)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = screenHeight * 0.045f),
+                horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
             ) {
                 items(actions) { (label, icon) ->
                     CircularActionButton(
@@ -761,9 +606,6 @@ fun AnimationSearch(
                                 "Buscar" -> isSearchExpanded = true
                                 "Añadir" -> onCrearAnio()
                                 "Perfil" -> onPerfil()
-                                "Opciones" -> {
-                                    //
-                                }
                                 else -> { }
                             }
                         },

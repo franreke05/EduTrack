@@ -75,7 +75,7 @@ fun CreacionAnioScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            db_ref = FirebaseDatabase.getInstance().getReference("Anios")
+                            db_ref = FirebaseDatabase.getInstance().getReference("Edutrack")
                             if (comprobarCampos(numero_asignaturas, nombre, fechaInicio, fechaFin)) {
                                 val anio = Anio(
                                     db_ref.push().key,
@@ -87,6 +87,7 @@ fun CreacionAnioScreen(
                                     id_user = userId
                                 )
                                 CrearAnio(anio)
+
                                 onFinish()
                             }
                         }
