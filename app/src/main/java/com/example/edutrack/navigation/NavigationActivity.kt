@@ -22,7 +22,7 @@ import com.example.edutrack.data.isLoggedFlow
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
 import com.example.edutrack.data.userIdFlow
-import com.example.edutrack.Registro.e.LoginScreen
+import com.example.edutrack.Registro.e.RegisteerScreen
 import com.example.edutrack.Anio.AnioRoute
 import com.example.edutrack.Inicio.CreacionAnioScreen
 import kotlinx.coroutines.launch
@@ -65,9 +65,9 @@ class NavigationActivity : ComponentActivity() {
                         )
                     }
                     composable("login") {
-                        LoginScreen(
+                        RegisteerScreen(
                             isLoadingOverride = null,
-                            onLoginSuccess = { uid ->
+                            onAuthSuccess = { uid ->
                                 scope.launch { context.setUserSession(uid) }
                                 navController.navigate("inicio") {
                                     popUpTo("login") { inclusive = true }
