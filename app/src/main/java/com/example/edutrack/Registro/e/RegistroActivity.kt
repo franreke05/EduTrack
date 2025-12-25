@@ -1,4 +1,4 @@
-package com.example.edutrack.Registro.Registros
+package com.example.edutrack.Registro.e
 
 import android.content.Context
 import android.widget.Toast
@@ -9,8 +9,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,12 +22,12 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,15 +57,12 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
-import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -71,6 +70,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
@@ -88,6 +90,7 @@ fun LoginScreen(
     val googleSignInClient = remember { GoogleSignIn.getClient(context, googleSignInOptions(context)) }
     var authMode by remember { mutableStateOf(AuthMode.Login) }
     var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -112,38 +115,59 @@ fun LoginScreen(
             isLoading = isLoading,
             authMode = authMode,
             email = email,
+            username = username,
             password = password,
             passwordVisible = passwordVisible,
             onEmailChange = { email = it },
+            onUsernameChange = { username = it },
             onPasswordChange = { password = it },
             onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
             onSubmit = {
                 if (loading.value) return@LoginContent
                 if (email.isBlank() || password.isBlank()) {
-                    Toast.makeText(context, "Completa el correo y la contraseña.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Completa el correo/usuario y la contraseña.", Toast.LENGTH_LONG).show()
+                    return@LoginContent
+                }
+                if (authMode == AuthMode.Register && username.isBlank()) {
+                    Toast.makeText(context, "Completa el usuario.", Toast.LENGTH_LONG).show()
                     return@LoginContent
                 }
                 loading.value = true
                 if (authMode == AuthMode.Login) {
-                    auth.signInWithEmailAndPassword(email.trim(), password)
-                        .addOnCompleteListener { task ->
-                            loading.value = false
-                            if (task.isSuccessful) {
-                                auth.currentUser?.let { user ->
-                                    persistUserInDatabase(user, context)
-                                    onLoginSuccess(user.uid)
+                    val loginInput = email.trim()
+                    val signInWithEmail: (String) -> Unit = { resolvedEmail ->
+                        auth.signInWithEmailAndPassword(resolvedEmail, password)
+                            .addOnCompleteListener { task ->
+                                loading.value = false
+                                if (task.isSuccessful) {
+                                    auth.currentUser?.let { user ->
+                                        persistUserInDatabase(user, context)
+                                        onLoginSuccess(user.uid)
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Credenciales inválidas o usuario no registrado.", Toast.LENGTH_LONG).show()
                                 }
+                            }
+                    }
+                    if (loginInput.contains("@")) {
+                        signInWithEmail(loginInput)
+                    } else {
+                        resolveEmailForUsername(loginInput) { resolvedEmail ->
+                            if (resolvedEmail == null) {
+                                loading.value = false
+                                Toast.makeText(context, "Usuario no encontrado.", Toast.LENGTH_LONG).show()
                             } else {
-                                Toast.makeText(context, "Credenciales inválidas o usuario no registrado.", Toast.LENGTH_LONG).show()
+                                signInWithEmail(resolvedEmail)
                             }
                         }
+                    }
                 } else {
                     auth.createUserWithEmailAndPassword(email.trim(), password)
                         .addOnCompleteListener { task ->
                             loading.value = false
                             if (task.isSuccessful) {
                                 auth.currentUser?.let { user ->
-                                    persistUserInDatabase(user, context)
+                                    persistUserInDatabase(user, context, username.trim())
                                     sendVerificationEmailIfNeeded(user)
                                     onLoginSuccess(user.uid)
                                 }
@@ -171,9 +195,11 @@ private fun LoginContent(
     isLoading: Boolean,
     authMode: AuthMode,
     email: String,
+    username: String,
     password: String,
     passwordVisible: Boolean,
     onEmailChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onSubmit: () -> Unit,
@@ -245,7 +271,10 @@ private fun LoginContent(
                             contentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         shape = MaterialTheme.shapes.extraLarge,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                        ),
                         enabled = !isLoading,
                     ) {
                         if (isLoading) {
@@ -268,7 +297,10 @@ private fun LoginContent(
                                         modifier = Modifier.size(32.dp),
                                         color = Color.Transparent,
                                         shape = CircleShape,
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                        border = BorderStroke(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        )
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
@@ -301,8 +333,8 @@ private fun LoginContent(
                         value = email,
                         onValueChange = onEmailChange,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = "Correo electrónico") },
-                        placeholder = { Text(text = "correo@ejemplo.com") },
+                        label = { Text(text = "Correo o usuario") },
+                        placeholder = { Text(text = "correo@ejemplo.com o usuario") },
                         singleLine = true,
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -314,6 +346,26 @@ private fun LoginContent(
                         ),
                         keyboardOptions = KeyboardOptions(autoCorrect = false)
                     )
+
+                    if (authMode == AuthMode.Register) {
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = onUsernameChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(text = "Usuario") },
+                            placeholder = { Text(text = "Tu usuario") },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
+                            keyboardOptions = KeyboardOptions(autoCorrect = false)
+                        )
+                    }
 
                     OutlinedTextField(
                         value = password,
@@ -397,179 +449,184 @@ private fun LoginContent(
                     )
                 }
             }
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = screenHeight * 0.08f),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.agendita),
-                contentDescription = "Logo",
-                modifier = Modifier
-                    .size(screenHeight * 0.16f)
-                    .padding(bottom = screenHeight * 0.02f)
-                    .clip(CircleShape)
-            )
-
-            Text(
-                text = "EduTrack",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = screenHeight * 0.04f)
-            )
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                shape = MaterialTheme.shapes.extraLarge
+            Surface(
+                modifier = modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = screenHeight * 0.08f),
+                    verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "Autentícate con Google para continuar",
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.fillMaxWidth()
+                    Image(
+                        painter = painterResource(id = R.drawable.agendita),
+                        contentDescription = "Logo",
+                        modifier = Modifier
+                            .size(screenHeight * 0.16f)
+                            .padding(bottom = screenHeight * 0.02f)
+                            .clip(CircleShape)
                     )
 
                     Text(
-                        text = "Usamos tu cuenta de Google para autenticación segura. Se enviará un correo de verificación si tu email no está verificado.",
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.fillMaxWidth()
+                        text = "EduTrack",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = screenHeight * 0.04f)
                     )
 
-                    Button(
-                        onClick = { onGoogleSignIn() },
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        enabled = !isLoading
+                            .wrapContentHeight(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
+                        Column(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Autentícate con Google para continuar",
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        } else {
-                            Text("Continuar con Google")
+
+                            Text(
+                                text = "Usamos tu cuenta de Google para autenticación segura. Se enviará un correo de verificación si tu email no está verificado.",
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Button(
+                                onClick = { onGoogleSignIn() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                shape = MaterialTheme.shapes.extraLarge,
+                                enabled = !isLoading
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Text("Continuar con Google")
+                                }
+                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.06f))
+
+                    Text(
+                        text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(screenHeight * 0.06f))
-
-            Text(
-                text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo.",
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
 
-private fun googleSignInOptions(context: Context): GoogleSignInOptions {
-    return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.default_web_client_id))
-        .requestEmail()
-        .build()
-}
+        private fun persistUserInDatabase(
+            user: FirebaseUser?,
+            context: Context,
+            username: String? = null
+        ) {
+            val currentUser = user ?: return
+            val dbRef = Firebase.database.reference
+            val userRef = dbRef.child("Edutrack").child("Usuario").child(currentUser.uid)
 
-private fun firebaseAuthWithGoogle(
-    auth: FirebaseAuth,
-    idToken: String?,
-    context: Context,
-    loading: MutableState<Boolean>,
-    onSuccess: (FirebaseUser) -> Unit
-) {
-    if (idToken.isNullOrEmpty()) {
-        loading.value = false
-        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG).show()
-        return
-    }
-
-    val credential = GoogleAuthProvider.getCredential(idToken, null)
-    auth.signInWithCredential(credential)
-        .addOnCompleteListener { task ->
-            loading.value = false
-            if (task.isSuccessful) {
-                val user = auth.currentUser
-                persistUserInDatabase(user, context)
-                sendVerificationEmailIfNeeded(user)
-                if (user != null) onSuccess(user)
-            } else {
-                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
+            userRef.get().addOnSuccessListener { snapshot ->
+                if (!snapshot.exists()) {
+                    val nombreCalculado = username?.takeIf { it.isNotBlank() }
+                        ?: currentUser.displayName
+                        ?: currentUser.email?.substringBefore("@")
+                        ?: "Usuario"
+                    val usuario = Usuario(
+                        id = currentUser.uid,
+                        nombre = nombreCalculado,
+                        email = currentUser.email ?: "",
+                        password = null
+                    )
+                    userRef.setValue(usuario)
+                }
             }
         }
-}
 
-private fun persistUserInDatabase(user: FirebaseUser?, context: Context) {
-    val currentUser = user ?: return
-    val dbRef = Firebase.database.reference
-    val userRef = dbRef.child("Edutrack").child("Usuario").child(currentUser.uid)
-
-    userRef.get().addOnSuccessListener { snapshot ->
-        if (!snapshot.exists()) {
-            val nombreCalculado = currentUser.displayName ?: currentUser.email?.substringBefore("@") ?: "Usuario"
-            val usuario = Usuario(
-                id = currentUser.uid,
-                nombre = nombreCalculado,
-                email = currentUser.email ?: "",
-                password = null
-            )
-            userRef.setValue(usuario)
+        private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
+            val currentUser = user ?: return
+            if (!currentUser.isEmailVerified) {
+                currentUser.sendEmailVerification()
+            }
         }
-    }
-}
 
-private fun sendVerificationEmailIfNeeded(user: FirebaseUser?) {
-    val currentUser = user ?: return
-    if (!currentUser.isEmailVerified) {
-        currentUser.sendEmailVerification()
-    }
-}
+        private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
+            val usersRef = Firebase.database.reference.child("Edutrack").child("Usuario")
+            usersRef.orderByChild("nombre").equalTo(username)
+                .addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val userSnapshot = snapshot.children.firstOrNull()
+                        val email = userSnapshot?.child("email")?.getValue(String::class.java)
+                        onResolved(email)
+                    }
 
-@Composable
-@Preview
-fun LoginScreenPreview() {
-    EduTrackTheme {
-        LoginContent(
-            modifier = Modifier,
-            isLoading = false,
-            authMode = AuthMode.Login,
-            email = "",
-            password = "",
-            passwordVisible = false,
-            onEmailChange = {},
-            onPasswordChange = {},
-            onTogglePasswordVisibility = {},
-            onSubmit = {},
-            onGoogleSignIn = {},
-            onToggleMode = {}
-        )
+                    override fun onCancelled(error: DatabaseError) {
+                        onResolved(null)
+                    }
+                })
+        }
+    private fun googleSignInOptions(context: Context): GoogleSignInOptions {
+        return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
     }
-}
+
+    private fun firebaseAuthWithGoogle(
+        auth: FirebaseAuth,
+        idToken: String?,
+        context: Context,
+        loading: MutableState<Boolean>,
+        onSuccess: (FirebaseUser) -> Unit
+    ) {
+        if (idToken.isNullOrEmpty()) {
+            loading.value = false
+            Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG)
+                .show()
+            return
+        }
+
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                loading.value = false
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    com.example.edutrack.Registro.e.persistUserInDatabase(user, context)
+                    com.example.edutrack.Registro.e.sendVerificationEmailIfNeeded(user)
+                    if (user != null) onSuccess(user)
+                } else {
+                    Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG)
+                        .show()
+                }
+            }
+    }
