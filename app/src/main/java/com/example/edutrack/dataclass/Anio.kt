@@ -1,22 +1,21 @@
 package com.example.edutrack.dataclass
 
-
+// Modelo de anio escolar.
 class Anio(
-    var id: String? = "", //Id para el año (util para funciones)
-
-    var nombre: String? = "", //Nombre del año (Lo pone el usuario)
-
-    val descripcion: String? = "", //Descripcion del año (Lo pone el usuario)
-
-    val fechaInicio: String? = "", //Fecha de inicio del año
-
-    val fechaFin: String? = "", //Fecha de fin del año
-
-    var numero_asignaturas: Int? = 0, //Numero de asignaturas que tiene el año
-
+    // Id del anio (se usa en relaciones).
+    var id: String? = "",
+    // Nombre del anio (lo define el usuario).
+    var nombre: String? = "",
+    // Descripcion del anio (lo define el usuario).
+    val descripcion: String? = "",
+    // Fecha de inicio del anio.
+    val fechaInicio: String? = "",
+    // Fecha de fin del anio.
+    val fechaFin: String? = "",
+    // Numero de asignaturas del anio.
+    var numero_asignaturas: Int? = 0,
+    // Mapa de asignaturas indexadas por id.
     var lista_asignaturas: Map<String, Asignatura>? = emptyMap(),
-    //Mapa de asignaturas que tiene el año, indexadas por id/clave
-
-    val id_user: String? = "", //Id del usuario que creo el año
+    // Id del usuario que creo el anio.
+    val id_user: String? = ""
 )
-

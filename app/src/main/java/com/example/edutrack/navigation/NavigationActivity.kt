@@ -30,7 +30,9 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import androidx.compose.runtime.LaunchedEffect
 
+// Maneja la navegacion principal y el estado de sesion.
 class NavigationActivity : ComponentActivity() {
+    // Configura el contenido Compose y las rutas de navegacion.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -41,6 +43,7 @@ class NavigationActivity : ComponentActivity() {
                 val isLogged by context.isLoggedFlow().collectAsState(initial = false)
                 val userId by context.userIdFlow().collectAsState(initial = null)
 
+                // Restaura sesion si Firebase ya tiene un usuario autenticado.
                 LaunchedEffect(Unit) {
                     val current = Firebase.auth.currentUser
                     if (current != null) {
@@ -128,8 +131,7 @@ class NavigationActivity : ComponentActivity() {
                             userId = userId,
                             onFinish = { navController.popBackStack() },
                             onLogout = {
-
-                               scope.launch { context.clearSession() }
+                                scope.launch { context.clearSession() }
                                 Firebase.auth.signOut()
                                 navController.navigate("login") {
                                     popUpTo("login") { inclusive = true }

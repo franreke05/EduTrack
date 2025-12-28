@@ -14,29 +14,37 @@ import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
 
+// Referencia global a la base de datos.
 lateinit var db_ref: DatabaseReference
 
+// Crea un usuario en Firebase y asigna un id si falta.
 fun CrearUsuario(
     usuario: Usuario,
 ){
 
     db_ref = Firebase.database.reference
-    if (usuario.id=="") {
+    if (usuario.id == "") {
         //le ponemos un id unico al usuario
-        usuario.id=db_ref.push().key.toString()
+        usuario.id = db_ref.push().key.toString()
     }
     Log.d("Usuario222", usuario.id.toString())
     db_ref.child("Edutrack").child("Usuario").child(usuario.id.toString()).setValue(usuario)
 }
-fun AgregarNota_Asignatura(asignatura: Asignatura, nota: Notas){
+
+// Agrega una nota a la asignatura indicada en Firebase.
+fun AgregarNota_Asignatura(asignatura: Asignatura, nota: Notas) {
     val db_ref = Firebase.database.reference
     db_ref.child("Edutrack").child("Asignatura").child(asignatura.id.toString()).child("Notas").child(nota.id.toString()).setValue(nota)
 }
+
+// Crea un anio y lo guarda en Firebase.
 fun CrearAnio(anio: Anio) {
     val db_ref = Firebase.database.reference
     anio.id = db_ref.child("Edutrack").child("Anio").push().key
     db_ref.child("Edutrack").child("Anio").child(anio.id.toString()).setValue(anio)
 }
+
+// Crea una asignatura y la guarda con una clave estable si tiene nombre.
 fun CrearAsignatura(asignatura: Asignatura) {
     val db_ref = Firebase.database.reference
     // Usar el nombre como clave estable para no pisar datos y evitar duplicados accidentales

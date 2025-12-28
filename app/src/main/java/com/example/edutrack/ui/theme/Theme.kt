@@ -1,6 +1,5 @@
 package com.example.edutrack.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -11,12 +10,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+// Esquema de color oscuro.
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
     tertiary = Pink80
 )
 
+// Esquema de color claro.
 private val LightColorScheme = lightColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
@@ -33,6 +34,7 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+// Tema principal de la app.
 @Composable
 fun EduTrackTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

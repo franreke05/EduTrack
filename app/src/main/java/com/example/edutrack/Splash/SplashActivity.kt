@@ -29,7 +29,9 @@ import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.delay
 
+// Activity que inicializa Firebase y muestra el splash.
 class EduTrack : ComponentActivity() {
+    // Configura el contenido inicial con el splash.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
@@ -44,6 +46,7 @@ class EduTrack : ComponentActivity() {
     }
 }
 
+// Animacion de entrada con logo y fondo degradado.
 @Composable
 fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit) {
     val scale = remember { Animatable(0.5f) }

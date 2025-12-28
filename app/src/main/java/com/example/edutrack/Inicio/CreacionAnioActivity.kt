@@ -32,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -42,6 +41,7 @@ import com.example.edutrack.db_ref
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.FirebaseDatabase
 
+// Pantalla para crear un nuevo anio escolar.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreacionAnioScreen(
@@ -56,7 +56,6 @@ fun CreacionAnioScreen(
     var mostrarDialogfin by remember { mutableStateOf(false) }
     var fechaFin by remember { mutableStateOf("") }
     var numero_asignaturas by remember { mutableStateOf("") }
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val spacing = 16.dp
 
     Scaffold(
@@ -237,6 +236,7 @@ fun CreacionAnioScreen(
     }
 }
 
+// Vista previa del formulario de creacion de anio.
 @Preview(showBackground = true)
 @Composable
 fun CrearAnioScreenPreview() {

@@ -1,17 +1,15 @@
 package com.example.edutrack.dataclass
 
-
-
-class Usuario (
-    var id: String ?= "", //id para identificar el usuario y relizar las relaciones
-    //en la base de datos
-
-    var nombre: String? = "", //Nombre que tiene puesto el usuario
-
-    var email: String? = "", //El Email asociado a la cuenta que tiene el usuario
-
-    var password: String? = "", //Contraseña asociada a la cuenta del usuario
-
-    val anio:MutableList<Anio> = mutableListOf() //Lista de años que tiene el usuario
-
-):java.io.Serializable
+// Modelo de usuario.
+class Usuario(
+    // Id para identificar al usuario y relacionarlo en la base de datos.
+    var id: String? = "",
+    // Nombre que tiene el usuario.
+    var nombre: String? = "",
+    // Email asociado a la cuenta.
+    var email: String? = "",
+    // Contrasena asociada a la cuenta.
+    var password: String? = "",
+    // Lista de anios que tiene el usuario.
+    val anio: MutableList<Anio> = mutableListOf()
+) : java.io.Serializable

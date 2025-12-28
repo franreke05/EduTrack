@@ -19,12 +19,15 @@ object SessionPrefs {
 fun Context.userIdFlow(): Flow<String?> =
     sessionDataStore.data.map { it[SessionPrefs.USER_ID] }
 
+// Indica si la sesion esta activa; por defecto es false.
 fun Context.isLoggedFlow(): Flow<Boolean> =
     sessionDataStore.data.map { it[SessionPrefs.IS_LOGGED] ?: false }
 
+// Expone el anio seleccionado en la sesion.
 fun Context.selectedAnioFlow(): Flow<String?> =
     sessionDataStore.data.map { it[SessionPrefs.SELECTED_ANIO] }
 
+// Guarda el usuario y marca la sesion como iniciada.
 suspend fun Context.setUserSession(userId: String) {
     sessionDataStore.edit {
         it[SessionPrefs.USER_ID] = userId
@@ -32,12 +35,14 @@ suspend fun Context.setUserSession(userId: String) {
     }
 }
 
+// Actualiza el anio seleccionado en la sesion.
 suspend fun Context.setSelectedAnio(anioId: String) {
     sessionDataStore.edit {
         it[SessionPrefs.SELECTED_ANIO] = anioId
     }
 }
 
+// Limpia los datos de sesion almacenados.
 suspend fun Context.clearSession() {
     sessionDataStore.edit {
         it.remove(SessionPrefs.USER_ID)

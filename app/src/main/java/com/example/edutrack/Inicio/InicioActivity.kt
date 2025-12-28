@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -71,7 +70,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.dataclass.Anio
@@ -87,8 +85,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-
-
+// Pantalla principal con listado de anios y acciones.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoInicio(
@@ -111,8 +108,6 @@ fun CuerpoInicio(
     LaunchedEffect(aniosFromFirebase) {
         displayedAnios = aniosFromFirebase
     }
-
-
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -361,6 +356,7 @@ fun CuerpoInicio(
     }
 }
 
+// Tarjeta de anio con datos y media.
 @Composable
 fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAnio: Double?, isSelected: Boolean, function: () -> Unit) {
     Card(
@@ -434,7 +430,7 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAni
     }
 }
 
-
+// Boton circular para acciones rapidas.
 @Composable
 fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
     Column(
@@ -469,6 +465,7 @@ fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, 
     }
 }
 
+// Dialogo para seleccionar fecha y devolverla formateada.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit) {
@@ -501,7 +498,7 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
     }
 }
 
-
+// Mantiene el estado de anios en tiempo real desde Firebase.
 @Composable
 fun rememberAniosState(id_user: String?): State<List<Anio>> {
 
@@ -534,7 +531,7 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
     return aniosState
 }
 
-
+// Barra de busqueda y ordenamiento para filtrar anios.
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AnimationSearch(

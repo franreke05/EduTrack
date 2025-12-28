@@ -8,15 +8,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 
-// --- Funciones Helper ---
-
-fun abbreviateName(name: String): String {
-    return name.split(" ")
-        .filter { it.isNotEmpty() }
-        .map { it.first().uppercase() }
-        .joinToString("")
-        .take(3)
-}
+// Helper: arma una abreviatura con la primera letra de cada palabra.
+fun abbreviateName(name: String): String = name.split(" ")
+    .filter { it.isNotEmpty() }
+    .map { it.first().uppercase() }
+    .joinToString("")
+    .take(3)
 
 /**
  * Contenedor que permite navegar entre elementos deslizando horizontalmente.

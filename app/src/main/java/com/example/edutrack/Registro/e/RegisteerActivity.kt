@@ -8,7 +8,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.benchmark.traceprocessor.Row
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,9 +80,12 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
+// Modos de autenticacion disponibles.
 private enum class AuthMode { Login, Register }
 
+// Activity de acceso y registro.
 class RegisteerActivity : ComponentActivity() {
+    // Configura la UI de login/registro.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -95,6 +97,7 @@ class RegisteerActivity : ComponentActivity() {
     }
 }
 
+// Pantalla principal para login o registro.
 @Composable
 fun RegisteerScreen(
     modifier: Modifier = Modifier,
@@ -222,6 +225,7 @@ fun RegisteerScreen(
     )
 }
 
+// Contenido visual del formulario de autenticacion.
 @Composable
 private fun RegisteerContent(
     modifier: Modifier,
@@ -555,6 +559,7 @@ private fun RegisteerContent(
     }
 }
 
+// Guarda o actualiza el usuario en Firebase.
 private fun persistUserInDatabase(
     user: FirebaseUser?,
     context: Context,
@@ -591,6 +596,7 @@ private fun persistUserInDatabase(
     }
 }
 
+// Envia correo de verificacion si hace falta.
 private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context) {
     val currentUser = user ?: return
     if (!currentUser.isEmailVerified) {
@@ -601,6 +607,7 @@ private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context)
     }
 }
 
+// Resuelve el email asociado a un nombre de usuario.
 private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
     val usersRef = Firebase.database.reference.child("Edutrack").child("Usuario")
     usersRef.orderByChild("nombre").equalTo(username)
@@ -617,6 +624,7 @@ private fun resolveEmailForUsername(username: String, onResolved: (String?) -> U
         })
 }
 
+// Configura Google Sign-In.
 private fun googleSignInOptions(context: Context): GoogleSignInOptions {
     return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
         .requestIdToken(context.getString(R.string.default_web_client_id))
@@ -624,6 +632,7 @@ private fun googleSignInOptions(context: Context): GoogleSignInOptions {
         .build()
 }
 
+// Autentica con Google y persiste el usuario si es valido.
 private fun firebaseAuthWithGoogle(
     auth: FirebaseAuth,
     idToken: String?,

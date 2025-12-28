@@ -2,7 +2,6 @@ package com.example.edutrack.Anio
 
 import android.widget.Toast
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -20,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
@@ -62,6 +59,7 @@ import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
+// Ruta de entrada: carga el anio seleccionado y muestra un indicador mientras falta data.
 @Composable
 fun AnioRoute(
     userId: String?,
@@ -78,6 +76,7 @@ fun AnioRoute(
     }
 }
 
+// Envuelve la pantalla del anio con navegacion por deslizamiento entre anios.
 @Composable
 fun AnioScreenWrapper(userId: String?, initialAnioId: String?) {
     val anios by rememberAniosState(userId)
@@ -98,6 +97,7 @@ fun AnioScreenWrapper(userId: String?, initialAnioId: String?) {
     }
 }
 
+// Pantalla principal del anio: header, busqueda y grilla de asignaturas.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnioScreen(
@@ -111,8 +111,7 @@ fun AnioScreen(
     var showAsignaturaDialog by remember { mutableStateOf(false) }
     val maxAsignaturas = anio.numero_asignaturas ?: 0
     val actuales = anio.lista_asignaturas?.size ?: 0
-    var screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    var screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val anioLleno = actuales >= maxAsignaturas
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
@@ -285,6 +284,7 @@ fun AnioScreen(
     }
 }
 
+// Tarjeta para una asignatura individual.
 @Composable
 fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
     Card(
@@ -303,6 +303,7 @@ fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
     }
 }
 
+// Recoge datos del usuario y crea una nueva asignatura.
 @Composable
 fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: Int, actuales: Int, onDismiss: () -> Unit) {
     val nombre = remember { mutableStateOf("") }
@@ -375,7 +376,7 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
     )
 }
 
-
+// Vista previa para validar el layout del anio.
 @Preview(showBackground = true)
 @Composable
 fun AnioScreenPreview() {

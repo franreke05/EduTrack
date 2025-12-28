@@ -54,6 +54,7 @@ import com.example.edutrack.borrarUsuarioCompleto
 import com.example.edutrack.ui.theme.EduTrackTheme
 import kotlinx.coroutines.launch
 
+// Pantalla de perfil con edicion basica y acciones de cuenta.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoPerfil(
@@ -316,6 +317,7 @@ fun CuerpoPerfil(
     }
 }
 
+// Vista previa de la pantalla de perfil.
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {

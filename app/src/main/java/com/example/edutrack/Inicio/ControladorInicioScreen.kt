@@ -7,12 +7,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.collections.forEach
-import kotlin.times
 
-/**
- * Convierte números a romanos.
- */
+// Convierte numeros a romanos.
 fun toRoman(num: Int): String {
     val values = listOf(1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1)
     val symbols = listOf("M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I")
@@ -27,9 +23,7 @@ fun toRoman(num: Int): String {
     return result.toString()
 }
 
-/**
- * Valida los campos para crear un año.
- */
+// Valida los campos para crear un anio.
 fun comprobarCampos(num: String, nombretxt: String, fechaInicio: String, fechaFin: String): Boolean {
     var comprobado = false
     if (num < 0.toString() || num > 21.toString()) {
@@ -47,12 +41,15 @@ fun comprobarCampos(num: String, nombretxt: String, fechaInicio: String, fechaFi
     }
     return comprobado
 }
+
+// Formatea un timestamp a "dd/MM/yyyy".
 fun formatearFecha(timeInMillis: Long): String {
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     formatter.timeZone = TimeZone.getTimeZone("UTC")
     return formatter.format(Date(timeInMillis))
 }
 
+// Calcula la media ponderada del anio segun creditos.
 fun calcularMediaAnio(anio: Anio): Double? {
     val asignaturas = anio.lista_asignaturas?.values ?: return null
     var sumaPonderada = 0.0
@@ -69,9 +66,11 @@ fun calcularMediaAnio(anio: Anio): Double? {
     return sumaPonderada / sumaPesos
 }
 
+// Formatea una media con 2 decimales.
 fun formatMedia(media: Double): String =
     String.format(Locale.getDefault(), "%.2f", media)
 
+// Calcula la media ponderada de anios seleccionados segun porcentajes.
 fun calcularMediaConjunta(
     seleccionados: Map<String, Anio>,
     porcentajes: Map<String, String>
@@ -92,6 +91,8 @@ fun calcularMediaConjunta(
 
     return if (pesoTotal > 0) acumulado / pesoTotal else null
 }
+
+// Convierte un snapshot de Firebase a un modelo Anio.
 fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
     val id = snapshot.child("id").getValue(String::class.java)
     val nombre = snapshot.child("nombre").getValue(String::class.java)

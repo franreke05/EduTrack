@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -20,6 +19,7 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
+// Mantiene el estado del usuario sincronizado con Firebase.
 @Composable
 fun rememberUsuarioState(userId: String?): State<Usuario?> {
     val usuarioState = remember { mutableStateOf<Usuario?>(null) }
@@ -46,6 +46,7 @@ fun rememberUsuarioState(userId: String?): State<Usuario?> {
     return usuarioState
 }
 
+// Campo de texto para contrasena con alternancia de visibilidad.
 @Composable
 fun PasswordTextField(
     value: String,

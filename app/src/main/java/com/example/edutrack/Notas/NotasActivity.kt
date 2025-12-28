@@ -58,7 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
 import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
@@ -70,7 +69,9 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import java.util.UUID
 
+// Activity que muestra la pantalla de notas de una asignatura.
 class NotasActivity : ComponentActivity() {
+    // Lee los parametros de la intent y abre la UI de notas.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -99,9 +100,11 @@ class NotasActivity : ComponentActivity() {
         }
     }
 }
-var idAsignatura = ""
+
+// Id del anio actual usado al borrar la asignatura completa.
 var anioId = ""
 
+// Pantalla principal para gestionar notas por periodo.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotasScreen(
@@ -117,7 +120,6 @@ fun NotasScreen(
     val notaEnEdicion = remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
     var showDeleteAsignatura by remember { mutableStateOf(false) }
-    idAsignatura = asignaturaId
 
     DisposableEffect(asignaturaId) {
         val notasRef = Firebase.database.reference
@@ -139,8 +141,6 @@ fun NotasScreen(
         notasRef.addValueEventListener(listener)
         onDispose { notasRef.removeEventListener(listener) }
     }
-
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     val promedio = calcularPromedio(notasState.value)
     val porcentajeTotal = notasState.value.sumOf { it.porcentaje ?: 0.0 }
@@ -265,6 +265,7 @@ fun NotasScreen(
     }
 }
 
+// Encabezado con promedio y porcentaje total usado.
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
@@ -328,6 +329,8 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
         }
     }
 }
+
+// Vista previa del contenido de notas.
 @Preview
 @Composable
 fun EncabezadoNotasPreview() {
@@ -342,6 +345,7 @@ fun EncabezadoNotasPreview() {
 }
 
 
+// Lista de notas agrupadas por periodo.
 @Composable
 private fun ListaNotasPorPeriodo(
     notas: List<Notas>,
@@ -385,6 +389,7 @@ private fun ListaNotasPorPeriodo(
     }
 }
 
+// Fila de nota con acciones de editar y eliminar.
 @Composable
 private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
     Card(
@@ -420,6 +425,7 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
     }
 }
 
+// Dialogo para crear o editar una nota.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotaDialog(
@@ -514,6 +520,7 @@ private fun NotaDialog(
     )
 }
 
+// Construye una nota nueva a partir de los datos del formulario.
 private fun NotaConstruida(
     base: Notas?,
     nombre: String,
@@ -534,6 +541,7 @@ private fun NotaConstruida(
     )
 }
 
+// Guarda una nota en Firebase para la asignatura.
 private fun guardarNota(asignaturaId: String, nota: Notas, onFinish: () -> Unit) {
     val notaId = nota.id ?: UUID.randomUUID().toString()
     val notaFinal = Notas(
@@ -555,6 +563,7 @@ private fun guardarNota(asignaturaId: String, nota: Notas, onFinish: () -> Unit)
         .addOnCompleteListener { onFinish() }
 }
 
+// Elimina una nota de Firebase.
 private fun eliminarNota(asignaturaId: String, nota: Notas) {
     val notaId = nota.id ?: return
     Firebase.database.reference
@@ -566,6 +575,7 @@ private fun eliminarNota(asignaturaId: String, nota: Notas) {
         .removeValue()
 }
 
+// Genera una abreviatura del nombre de la asignatura.
 private fun abreviarNombre(nombre: String): String =
     nombre.trim()
         .split(" ")
@@ -575,6 +585,7 @@ private fun abreviarNombre(nombre: String): String =
         .ifEmpty { "A" }
         .take(2)
 
+// Calcula el promedio ponderado por porcentaje.
 private fun calcularPromedio(notas: List<Notas>): Double {
     val totalPeso = notas.sumOf { it.porcentaje ?: 0.0 }
     if (totalPeso <= 0.0) return 0.0
