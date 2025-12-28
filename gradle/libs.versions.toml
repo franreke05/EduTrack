@@ -24,6 +24,7 @@ datastore = "1.1.1"
 foundation = "1.10.0"
 foundationLayout = "1.10.0"
 androidxMaterial3 = "1.4.0"
+benchmarkTraceprocessor = "1.4.1"
 
 [libraries]
 androidx-compose-bom-v20240401 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
@@ -59,6 +60,7 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 androidx-compose-material3-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "androidxMaterial3" }
+androidx-benchmark-traceprocessor = { group = "androidx.benchmark", name = "benchmark-traceprocessor", version.ref = "benchmarkTraceprocessor" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

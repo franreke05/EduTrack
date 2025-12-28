@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -56,6 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -189,7 +193,6 @@ fun NotasScreen(
                     nombre = asignaturaNombre,
                     promedio = promedio,
                     porcentajeTotal = porcentajeTotal,
-                    screenHeight = screenHeight
                 )
 
                 ListaNotasPorPeriodo(
@@ -263,7 +266,11 @@ fun NotasScreen(
 }
 
 @Composable
-private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double, screenHeight: androidx.compose.ui.unit.Dp) {
+private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double) {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -304,12 +311,36 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Porcentaje usado", style = MaterialTheme.typography.labelMedium)
-                    Text(text = String.format("%.0f%%", porcentajeTotal), style = MaterialTheme.typography.titleMedium)
+                    Row(modifier = Modifier.width(screenWidth *0.25f), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(modifier = Modifier.padding(top = screenHeight*0.015f,start = screenWidth*0.05f),
+                            text = String.format("%.0f%%", porcentajeTotal),
+                            style = MaterialTheme.typography.titleMedium)
+                        if (porcentajeTotal > 100) {
+                           IconButton(onClick = {
+                               Toast.makeText(context, "El porcentaje total supera el 100%.", Toast.LENGTH_LONG).show()
+                           }) {
+                               Icon(Icons.Default.Info, contentDescription = "Información")
+                           }
+                        }
+                    }
                 }
             }
         }
     }
 }
+@Preview
+@Composable
+fun EncabezadoNotasPreview() {
+    EduTrackTheme{
+        ListaNotasPorPeriodo(List(1) { Notas("22","22",
+            "ss", 20.0,
+            20.0,
+            "222",
+            1) },
+            3, "Trimestre", {}, {})
+    }
+}
+
 
 @Composable
 private fun ListaNotasPorPeriodo(
@@ -404,6 +435,7 @@ private fun NotaDialog(
     val porcentaje = remember { mutableStateOf((nota?.porcentaje ?: 0.0).toString()) }
     val periodo = remember { mutableStateOf(nota?.periodo ?: 1) }
     val context = LocalContext.current
+    var mostrarDialoginicio by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -411,7 +443,28 @@ private fun NotaDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = nombre.value, onValueChange = { nombre.value = it }, label = { Text("Nombre del examen") })
-                OutlinedTextField(value = fecha.value, onValueChange = { fecha.value = it }, label = { Text("Fecha") })
+                OutlinedTextField(
+                    value = fecha.value,
+                    onValueChange = { },
+                    label = { Text("Fecha de Inicio") },
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(onClick = { mostrarDialoginicio = true }) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Abrir calendario",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                )
+                if (mostrarDialoginicio) {
+                    SelectorDeFecha(
+                        onFechaSeleccionada = { fecha2 -> fecha.value = fecha2 },
+                        onDismiss = { mostrarDialoginicio = false }
+                    )
+
+                }
                 OutlinedTextField(value = notaValor.value, onValueChange = { notaValor.value = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Nota (0-10)") })
                 OutlinedTextField(value = porcentaje.value, onValueChange = { porcentaje.value = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Porcentaje (0-100)") })
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

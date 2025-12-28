@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.material3.material3)
+    implementation(libs.androidx.benchmark.traceprocessor)
     debugImplementation(libs.androidx.ui.tooling)
 
 

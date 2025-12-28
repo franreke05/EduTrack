@@ -128,9 +128,11 @@ class NavigationActivity : ComponentActivity() {
                             userId = userId,
                             onFinish = { navController.popBackStack() },
                             onLogout = {
-                                scope.launch { context.clearSession() }
+
+                               scope.launch { context.clearSession() }
+                                Firebase.auth.signOut()
                                 navController.navigate("login") {
-                                    popUpTo("inicio") { inclusive = true }
+                                    popUpTo("login") { inclusive = true }
                                 }
                             }
                         )
