@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import android.net.Uri
 import com.example.edutrack.Inicio.CuerpoInicio
 import com.example.edutrack.Notas.NotasScreen
 import com.example.edutrack.Perfil.CuerpoPerfil
@@ -98,31 +99,39 @@ class NavigationActivity : ComponentActivity() {
                             userId = userId,
                             anioId = anioId,
                             onBack = { navController.popBackStack() },
-                            onOpenNotas = { asignatura ->
+                            onOpenNotas = { asignatura, anioActualId ->
+                                val asignaturaId = Uri.encode(asignatura.id.orEmpty())
+                                val asignaturaNombre = Uri.encode(asignatura.nombre.orEmpty())
+                                val tipoPeriodo = Uri.encode(asignatura.tipo_periodo ?: "Trimestre")
+                                val numeroPeriodos = asignatura.numero_periodos ?: 3
+                                val encodedAnioId = Uri.encode(anioActualId.orEmpty())
                                 navController.navigate(
-                                    "notas/${asignatura.id}/${asignatura.nombre}/${asignatura.tipo_periodo ?: "Trimestre"}/${asignatura.numero_periodos ?: 3}"
+                                    "notas/$asignaturaId/$asignaturaNombre/$tipoPeriodo/$numeroPeriodos?anioId=$encodedAnioId"
                                 )
                             }
                         )
                     }
                     composable(
-                        route = "notas/{asignaturaId}/{asignaturaNombre}/{tipoPeriodo}/{numeroPeriodos}",
+                        route = "notas/{asignaturaId}/{asignaturaNombre}/{tipoPeriodo}/{numeroPeriodos}?anioId={anioId}",
                         arguments = listOf(
                             navArgument("asignaturaId") { type = NavType.StringType },
                             navArgument("asignaturaNombre") { type = NavType.StringType },
                             navArgument("tipoPeriodo") { type = NavType.StringType },
                             navArgument("numeroPeriodos") { type = NavType.IntType },
+                            navArgument("anioId") { type = NavType.StringType; defaultValue = "" },
                         )
                     ) { entry ->
-                        val asignaturaId = entry.arguments?.getString("asignaturaId").orEmpty()
-                        val asignaturaNombre = entry.arguments?.getString("asignaturaNombre").orEmpty()
-                        val tipoPeriodo = entry.arguments?.getString("tipoPeriodo").orEmpty()
+                        val asignaturaId = Uri.decode(entry.arguments?.getString("asignaturaId").orEmpty())
+                        val asignaturaNombre = Uri.decode(entry.arguments?.getString("asignaturaNombre").orEmpty())
+                        val tipoPeriodo = Uri.decode(entry.arguments?.getString("tipoPeriodo").orEmpty())
                         val numeroPeriodos = entry.arguments?.getInt("numeroPeriodos") ?: 3
+                        val anioId = entry.arguments?.getString("anioId")?.takeIf { it.isNotBlank() }
                         NotasScreen(
                             asignaturaId = asignaturaId,
                             asignaturaNombre = asignaturaNombre,
                             tipoPeriodo = tipoPeriodo,
                             numeroPeriodos = numeroPeriodos,
+                            anioId = anioId,
                             onBack = { navController.popBackStack() }
                         )
                     }

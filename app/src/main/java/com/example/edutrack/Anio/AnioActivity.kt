@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
-import com.example.edutrack.Notas.anioId
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.database.ktx.database
@@ -65,7 +65,7 @@ fun AnioRoute(
     userId: String?,
     anioId: String?,
     onBack: () -> Unit = {},
-    onOpenNotas: (Asignatura) -> Unit = {}
+    onOpenNotas: (Asignatura, String?) -> Unit = { _, _ -> }
 ) {
     val anios by rememberAniosState(userId)
     val anio = anios.firstOrNull { it.id == anioId }
@@ -105,7 +105,7 @@ fun AnioScreen(
     anio: com.example.edutrack.dataclass.Anio,
     pageIndex: Int,
     onBack: () -> Unit = {},
-    onOpenNotas: (Asignatura) -> Unit = {}
+    onOpenNotas: (Asignatura, String?) -> Unit = { _, _ -> }
 ) {
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showAsignaturaDialog by remember { mutableStateOf(false) }
@@ -116,10 +116,18 @@ fun AnioScreen(
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    val asignaturasBase = anio.lista_asignaturas?.values?.toList() ?: emptyList()
-    val asignaturasFiltradas = if (showSearch && searchQuery.isNotBlank()) {
-        asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
-    } else asignaturasBase
+    val asignaturasBase = remember(anio.lista_asignaturas) {
+        anio.lista_asignaturas?.values?.toList().orEmpty()
+    }
+    val asignaturasFiltradas by remember(showSearch, searchQuery, asignaturasBase) {
+        derivedStateOf {
+            if (showSearch && searchQuery.isNotBlank()) {
+                asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
+            } else {
+                asignaturasBase
+            }
+        }
+    }
     val spacing = 16.dp
 
     Scaffold(
@@ -251,8 +259,7 @@ fun AnioScreen(
                 ) {
                     itemsIndexed(asignaturasFiltradas) { index, asignatura ->
                         AsignaturaCard(index + 1, asignatura) {
-                            onOpenNotas(asignatura)
-                            anioId = anio.id.toString()
+                            onOpenNotas(asignatura, anio.id)
                         }
                     }
                 }

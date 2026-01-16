@@ -1,7 +1,7 @@
 package com.example.edutrack.dataclass
 
 // Modelo de usuario.
-class Usuario(
+data class Usuario(
     // Id para identificar al usuario y relacionarlo en la base de datos.
     var id: String? = "",
     // Nombre que tiene el usuario.

@@ -8,6 +8,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+private val DATE_REGEX = Regex("\\d{2}/\\d{2}/\\d{4}")
+
 // Convierte numeros a romanos.
 fun toRoman(num: Int): String {
     val values = listOf(1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1)
@@ -25,21 +27,15 @@ fun toRoman(num: Int): String {
 
 // Valida los campos para crear un anio.
 fun comprobarCampos(num: String, nombretxt: String, fechaInicio: String, fechaFin: String): Boolean {
-    var comprobado = false
-    if (num < 0.toString() || num > 21.toString()) {
-        if (nombretxt.isNotEmpty()) {
-            if (fechaInicio.isNotEmpty() && fechaFin.isNotEmpty()) {
-                if (fechaInicio <= fechaFin) {
-                    if (fechaInicio.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) {
-                        if (fechaFin.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) {
-                            comprobado = true
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return comprobado
+    val numeroAsignaturas = num.toIntOrNull() ?: return false
+    if (numeroAsignaturas !in 1..20) return false
+    if (nombretxt.isBlank()) return false
+    if (fechaInicio.isBlank() || fechaFin.isBlank()) return false
+    if (!fechaInicio.matches(DATE_REGEX) || !fechaFin.matches(DATE_REGEX)) return false
+
+    val inicio = parseFechaOrNull(fechaInicio) ?: return false
+    val fin = parseFechaOrNull(fechaFin) ?: return false
+    return !inicio.after(fin)
 }
 
 // Formatea un timestamp a "dd/MM/yyyy".
@@ -106,7 +102,8 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
         .children
         .mapNotNull { child ->
             child.getValue(Asignatura::class.java)?.let { asignatura ->
-                (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
+                val key = child.key ?: asignatura.id ?: asignatura.nombre
+                key?.let { it to asignatura }
             }
         }
         .toMap()
@@ -124,4 +121,14 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
         lista_asignaturas = asignaturasMap,
         id_user = idUser
     )
+}
+
+private fun parseFechaOrNull(fecha: String): Date? {
+    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    formatter.isLenient = false
+    return try {
+        formatter.parse(fecha)
+    } catch (e: Exception) {
+        null
+    }
 }

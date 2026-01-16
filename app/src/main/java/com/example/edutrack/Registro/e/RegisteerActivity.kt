@@ -1,4 +1,4 @@
-package com.example.edutrack.Registro.e
+﻿package com.example.edutrack.Registro.e
 
 import android.content.Context
 import android.os.Bundle
@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,10 +38,12 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -119,7 +120,7 @@ fun RegisteerScreen(
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
-            firebaseAuthWithGoogle(auth, account?.idToken, context, loading) { user ->
+            firebaseAuthWithGoogle(auth, account?.idToken, context, loading, authMode) { user ->
                 onAuthSuccess(user.uid)
             }
         } catch (e: ApiException) {
@@ -224,7 +225,6 @@ fun RegisteerScreen(
         }
     )
 }
-
 // Contenido visual del formulario de autenticacion.
 @Composable
 private fun RegisteerContent(
@@ -246,14 +246,19 @@ private fun RegisteerContent(
     onToggleMode: () -> Unit
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val colorScheme = MaterialTheme.colorScheme
 
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = modifier.fillMaxSize(), color = colorScheme.background) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF00BCD4), Color(0xFF3F51B5))
+                        colors = listOf(
+                            colorScheme.primaryContainer.copy(alpha = 0.95f),
+                            colorScheme.surface,
+                            colorScheme.surfaceVariant
+                        )
                     )
                 )
                 .padding(horizontal = 20.dp)
@@ -262,7 +267,7 @@ private fun RegisteerContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = screenHeight * 0.06f),
+                    .padding(top = screenHeight * 0.06f, bottom = screenHeight * 0.04f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -270,16 +275,16 @@ private fun RegisteerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                    shape = RoundedCornerShape(24.dp)
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 20.dp),
+                            .padding(horizontal = 24.dp, vertical = 22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.agendita),
@@ -292,7 +297,7 @@ private fun RegisteerContent(
                         Text(
                             text = if (authMode == AuthMode.Login) "Inicia sesión" else "Crear cuenta",
                             style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
@@ -305,30 +310,26 @@ private fun RegisteerContent(
                                 "Regístrate con tu correo electrónico para continuar."
                             },
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Button(
+                        OutlinedButton(
                             onClick = onGoogleSignIn,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            ),
                             shape = MaterialTheme.shapes.extraLarge,
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colorScheme.onSurface
                             ),
+                            border = BorderStroke(1.dp, colorScheme.outlineVariant),
                             enabled = !isLoading,
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = colorScheme.primary,
                                     strokeWidth = 2.dp,
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -342,41 +343,33 @@ private fun RegisteerContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Surface(
-                                            modifier = Modifier.size(32.dp),
-                                            color = Color.Transparent,
-                                            shape = CircleShape,
-                                            border = BorderStroke(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                            )
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = "G",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_google_logo),
+                                            contentDescription = null,
+                                            tint = Color.Unspecified,
+                                            modifier = Modifier.size(22.dp)
+                                        )
                                         Text(
-                                            text = "Continuar con Google",
+                                            text = if (authMode == AuthMode.Login) {
+                                                "Iniciar sesión con Google"
+                                            } else {
+                                                "Crear cuenta con Google"
+                                            },
                                             style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            color = colorScheme.onSurface,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                     Icon(
                                         imageVector = Icons.Filled.ArrowForward,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         }
 
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        Divider(color = colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                         OutlinedTextField(
                             value = email,
@@ -385,21 +378,26 @@ private fun RegisteerContent(
                             label = { Text(text = if (authMode == AuthMode.Login) "Correo o usuario" else "Correo electrónico") },
                             placeholder = {
                                 Text(
-                                    text = if (authMode == AuthMode.Login) "correo@ejemplo.com o usuario" else "correo@ejemplo.com"
+                                    text = if (authMode == AuthMode.Login) {
+                                        "correo@ejemplo.com o usuario"
+                                    } else {
+                                        "correo@ejemplo.com"
+                                    }
                                 )
                             },
                             singleLine = true,
                             shape = MaterialTheme.shapes.extraLarge,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                cursorColor = MaterialTheme.colorScheme.primary
+                                focusedBorderColor = colorScheme.primary,
+                                unfocusedBorderColor = colorScheme.outlineVariant,
+                                focusedContainerColor = colorScheme.surface,
+                                unfocusedContainerColor = colorScheme.surface,
+                                cursorColor = colorScheme.primary
                             ),
                             keyboardOptions = KeyboardOptions(
                                 autoCorrect = false,
-                                keyboardType = KeyboardType.Email
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
                             )
                         )
 
@@ -413,13 +411,16 @@ private fun RegisteerContent(
                                 singleLine = true,
                                 shape = MaterialTheme.shapes.extraLarge,
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    cursorColor = MaterialTheme.colorScheme.primary
+                                    focusedBorderColor = colorScheme.primary,
+                                    unfocusedBorderColor = colorScheme.outlineVariant,
+                                    focusedContainerColor = colorScheme.surface,
+                                    unfocusedContainerColor = colorScheme.surface,
+                                    cursorColor = colorScheme.primary
                                 ),
-                                keyboardOptions = KeyboardOptions(autoCorrect = false)
+                                keyboardOptions = KeyboardOptions(
+                                    autoCorrect = false,
+                                    imeAction = ImeAction.Next
+                                )
                             )
                         }
 
@@ -428,7 +429,7 @@ private fun RegisteerContent(
                             onValueChange = onPasswordChange,
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(text = "Contraseña") },
-                            placeholder = { Text(text = "••••••••") },
+                            placeholder = { Text(text = "********") },
                             singleLine = true,
                             shape = MaterialTheme.shapes.extraLarge,
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -441,13 +442,17 @@ private fun RegisteerContent(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                cursorColor = MaterialTheme.colorScheme.primary
+                                focusedBorderColor = colorScheme.primary,
+                                unfocusedBorderColor = colorScheme.outlineVariant,
+                                focusedContainerColor = colorScheme.surface,
+                                unfocusedContainerColor = colorScheme.surface,
+                                cursorColor = colorScheme.primary
                             ),
-                            keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password)
+                            keyboardOptions = KeyboardOptions(
+                                autoCorrect = false,
+                                keyboardType = KeyboardType.Password,
+                                imeAction = if (authMode == AuthMode.Register) ImeAction.Next else ImeAction.Done
+                            )
                         )
 
                         if (authMode == AuthMode.Register) {
@@ -461,13 +466,17 @@ private fun RegisteerContent(
                                 shape = MaterialTheme.shapes.extraLarge,
                                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    cursorColor = MaterialTheme.colorScheme.primary
+                                    focusedBorderColor = colorScheme.primary,
+                                    unfocusedBorderColor = colorScheme.outlineVariant,
+                                    focusedContainerColor = colorScheme.surface,
+                                    unfocusedContainerColor = colorScheme.surface,
+                                    cursorColor = colorScheme.primary
                                 ),
-                                keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password)
+                                keyboardOptions = KeyboardOptions(
+                                    autoCorrect = false,
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                )
                             )
                         }
 
@@ -476,13 +485,13 @@ private fun RegisteerContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF245D34)),
+                            shape = MaterialTheme.shapes.large,
+                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                             enabled = !isLoading
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = colorScheme.onPrimary,
                                     strokeWidth = 2.dp,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -490,7 +499,7 @@ private fun RegisteerContent(
                                 Text(
                                     text = if (authMode == AuthMode.Login) "Iniciar sesión" else "Crear cuenta",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = colorScheme.onPrimary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -504,17 +513,15 @@ private fun RegisteerContent(
                             Text(
                                 text = if (authMode == AuthMode.Login) "¿No tienes cuenta?" else "¿Ya tienes cuenta?",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = if (authMode == AuthMode.Login) "Regístrate aquí" else "Inicia sesión",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .clip(MaterialTheme.shapes.extraSmall)
-                                    .clickable { onToggleMode() }
-                            )
+                            TextButton(onClick = onToggleMode, enabled = !isLoading) {
+                                Text(
+                                    text = if (authMode == AuthMode.Login) "Regístrate aquí" else "Inicia sesión",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
@@ -523,7 +530,7 @@ private fun RegisteerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
@@ -535,20 +542,20 @@ private fun RegisteerContent(
                         Text(
                             text = "EduTrack",
                             style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo. Te enviaremos un correo de verificación cuando registres una nueva cuenta.",
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        Divider(color = colorScheme.outlineVariant.copy(alpha = 0.4f))
                         Text(
                             text = "Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -558,6 +565,7 @@ private fun RegisteerContent(
         }
     }
 }
+
 
 // Guarda o actualiza el usuario en Firebase.
 private fun persistUserInDatabase(
@@ -607,6 +615,7 @@ private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context)
     }
 }
 
+
 // Resuelve el email asociado a un nombre de usuario.
 private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
     val usersRef = Firebase.database.reference.child("Edutrack").child("Usuario")
@@ -638,6 +647,7 @@ private fun firebaseAuthWithGoogle(
     idToken: String?,
     context: Context,
     loading: MutableState<Boolean>,
+    authMode: AuthMode,
     onSuccess: (FirebaseUser) -> Unit
 ) {
     if (idToken.isNullOrEmpty()) {
@@ -652,9 +662,16 @@ private fun firebaseAuthWithGoogle(
         .addOnCompleteListener { task ->
             loading.value = false
             if (task.isSuccessful) {
+                val isNewUser = task.result?.additionalUserInfo?.isNewUser == true
                 val user = auth.currentUser
                 persistUserInDatabase(user, context)
                 sendVerificationEmailIfNeeded(user, context)
+                val message = when {
+                    isNewUser -> "Cuenta creada con Google."
+                    authMode == AuthMode.Register -> "Esta cuenta ya existe. Iniciando sesión."
+                    else -> "Sesión iniciada con Google."
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 if (user != null) onSuccess(user)
             } else {
                 Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG)
@@ -662,3 +679,4 @@ private fun firebaseAuthWithGoogle(
             }
         }
 }
+

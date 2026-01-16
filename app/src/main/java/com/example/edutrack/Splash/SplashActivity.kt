@@ -51,7 +51,7 @@ class EduTrack : ComponentActivity() {
 fun SplashScreen(modifier: Modifier = Modifier, onFinished: () -> Unit) {
     val scale = remember { Animatable(0.5f) }
 
-    LaunchedEffect(true) {
+    LaunchedEffect(Unit) {
         scale.animateTo(
             targetValue = 1.2f,
             animationSpec = tween(

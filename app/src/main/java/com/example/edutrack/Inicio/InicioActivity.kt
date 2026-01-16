@@ -503,7 +503,7 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
 fun rememberAniosState(id_user: String?): State<List<Anio>> {
 
     val aniosState = remember { mutableStateOf<List<Anio>>(emptyList()) }
-    val dbRef = Firebase.database.reference.child("Edutrack").child("Anio")
+    val dbRef = remember { Firebase.database.reference.child("Edutrack").child("Anio") }
 
     DisposableEffect(id_user) {
 
@@ -511,19 +511,18 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
             aniosState.value = emptyList()
             onDispose {}
         } else {
+            val query = dbRef.orderByChild("id_user").equalTo(id_user)
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val aniosList = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
-                        .filter { it.id_user == id_user }
-                    aniosState.value = aniosList
+                    aniosState.value = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
                 }
 
                 override fun onCancelled(error: DatabaseError) { }
             }
-            dbRef.addValueEventListener(valueEventListener)
+            query.addValueEventListener(valueEventListener)
 
             onDispose {
-                dbRef.removeEventListener(valueEventListener)
+                query.removeEventListener(valueEventListener)
             }
         }
     }
@@ -547,15 +546,24 @@ fun AnimationSearch(
     var searchQuery by remember { mutableStateOf("") }
     var showFilterMenu by remember { mutableStateOf(false) }
     var selectedSortOption by remember { mutableStateOf("Fecha Reciente") }
+    val dateParser = remember {
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+    }
 
     val horizontalPadding = screenWidth * 0.04f
 
-    val sortOptions = listOf("Fecha Reciente", "Último a primero", "Por nombre", "Por cantidad de asignaturas")
-    val actions = listOf(
-        "Perfil" to Icons.Default.Person,
-        "Buscar" to Icons.Default.Search,
-        "Añadir" to Icons.Default.Add,
-    )
+    val sortOptions = remember {
+        listOf("Fecha Reciente", "Último a primero", "Por nombre", "Por cantidad de asignaturas")
+    }
+    val actions = remember {
+        listOf(
+            "Perfil" to Icons.Default.Person,
+            "Buscar" to Icons.Default.Search,
+            "Añadir" to Icons.Default.Add,
+        )
+    }
 
     LaunchedEffect(searchQuery, selectedSortOption, initialAnios) {
         val filteredList =
@@ -568,7 +576,7 @@ fun AnimationSearch(
         val sortedList = when (selectedSortOption) {
             "Fecha Reciente" -> filteredList.sortedByDescending {
                 try {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(it.fechaInicio ?: "")
+                    dateParser.parse(it.fechaInicio ?: "")
                 } catch (e: Exception) {
                     null
                 }

@@ -37,9 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.CrearAnio
 import com.example.edutrack.dataclass.Anio
-import com.example.edutrack.db_ref
 import com.example.edutrack.ui.theme.EduTrackTheme
-import com.google.firebase.database.FirebaseDatabase
 
 // Pantalla para crear un nuevo anio escolar.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,15 +72,14 @@ fun CreacionAnioScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            db_ref = FirebaseDatabase.getInstance().getReference("Edutrack")
                             if (comprobarCampos(numero_asignaturas, nombre, fechaInicio, fechaFin)) {
+                                val numeroAsignaturas = numero_asignaturas.toIntOrNull() ?: 0
                                 val anio = Anio(
-                                    db_ref.push().key,
                                     nombre = nombre,
                                     descripcion = descripcion,
                                     fechaInicio = fechaInicio,
                                     fechaFin = fechaFin,
-                                    numero_asignaturas.toInt(),
+                                    numeroAsignaturas,
                                     id_user = userId
                                 )
                                 CrearAnio(anio)

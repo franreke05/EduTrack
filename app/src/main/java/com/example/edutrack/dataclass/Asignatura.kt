@@ -1,7 +1,7 @@
 package com.example.edutrack.dataclass
 
 // Modelo de asignatura.
-class Asignatura(
+data class Asignatura(
     // Id de la asignatura del anio.
     var id: String? = "",
     // Nombre de la asignatura (lo define el usuario).

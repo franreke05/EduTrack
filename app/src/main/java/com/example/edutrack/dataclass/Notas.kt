@@ -1,7 +1,7 @@
 package com.example.edutrack.dataclass
 
 // Modelo de nota.
-class Notas(
+data class Notas(
     // Id para identificar la nota.
     var id: String? = "",
     // Id de la asignatura a la que pertenece.

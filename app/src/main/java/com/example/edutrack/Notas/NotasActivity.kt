@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ class NotasActivity : ComponentActivity() {
         val asignaturaNombre = intent.getStringExtra("ASIGNATURA_NOMBRE") ?: "Asignatura"
         val tipoPeriodo = intent.getStringExtra("TIPO_PERIODO") ?: "Trimestre"
         val numeroPeriodos = intent.getIntExtra("NUMERO_PERIODOS", 3)
+        val anioId = intent.getStringExtra("ANIO_ID")
 
         if (asignaturaId.isEmpty()) {
             Toast.makeText(this, "Asignatura no encontrada.", Toast.LENGTH_LONG).show()
@@ -94,15 +96,13 @@ class NotasActivity : ComponentActivity() {
                     asignaturaNombre = asignaturaNombre,
                     tipoPeriodo = tipoPeriodo,
                     numeroPeriodos = numeroPeriodos,
+                    anioId = anioId,
                     onBack = { finish() }
                 )
             }
         }
     }
 }
-
-// Id del anio actual usado al borrar la asignatura completa.
-var anioId = ""
 
 // Pantalla principal para gestionar notas por periodo.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,6 +112,7 @@ fun NotasScreen(
     asignaturaNombre: String,
     tipoPeriodo: String,
     numeroPeriodos: Int,
+    anioId: String?,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -142,8 +143,12 @@ fun NotasScreen(
         onDispose { notasRef.removeEventListener(listener) }
     }
 
-    val promedio = calcularPromedio(notasState.value)
-    val porcentajeTotal = notasState.value.sumOf { it.porcentaje ?: 0.0 }
+    val promedio by remember(notasState.value) {
+        derivedStateOf { calcularPromedio(notasState.value) }
+    }
+    val porcentajeTotal by remember(notasState.value) {
+        derivedStateOf { notasState.value.sumOf { it.porcentaje ?: 0.0 } }
+    }
 
     Scaffold(
         topBar = {
@@ -380,7 +385,7 @@ private fun ListaNotasPorPeriodo(
                 }
             }
             val lista = grouped[periodo].orEmpty()
-            items(lista) { nota ->
+            items(lista, key = { it.id ?: it.hashCode() }) { nota ->
                 NotaRow(nota, onEditar = { onEditar(nota) }, onEliminar = { onEliminar(nota) })
                 Divider()
             }

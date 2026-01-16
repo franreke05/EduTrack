@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-val Context.sessionDataStore by preferencesDataStore(name = "session_prefs")
+private const val SESSION_PREFS = "session_prefs"
+
+val Context.sessionDataStore by preferencesDataStore(name = SESSION_PREFS)
 
 object SessionPrefs {
     val USER_ID = stringPreferencesKey("user_id")
@@ -17,15 +20,15 @@ object SessionPrefs {
 }
 
 fun Context.userIdFlow(): Flow<String?> =
-    sessionDataStore.data.map { it[SessionPrefs.USER_ID] }
+    sessionDataStore.data.map { it[SessionPrefs.USER_ID] }.distinctUntilChanged()
 
 // Indica si la sesion esta activa; por defecto es false.
 fun Context.isLoggedFlow(): Flow<Boolean> =
-    sessionDataStore.data.map { it[SessionPrefs.IS_LOGGED] ?: false }
+    sessionDataStore.data.map { it[SessionPrefs.IS_LOGGED] ?: false }.distinctUntilChanged()
 
 // Expone el anio seleccionado en la sesion.
 fun Context.selectedAnioFlow(): Flow<String?> =
-    sessionDataStore.data.map { it[SessionPrefs.SELECTED_ANIO] }
+    sessionDataStore.data.map { it[SessionPrefs.SELECTED_ANIO] }.distinctUntilChanged()
 
 // Guarda el usuario y marca la sesion como iniciada.
 suspend fun Context.setUserSession(userId: String) {

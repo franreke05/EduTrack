@@ -1,7 +1,7 @@
 package com.example.edutrack.dataclass
 
 // Modelo de anio escolar.
-class Anio(
+data class Anio(
     // Id del anio (se usa en relaciones).
     var id: String? = "",
     // Nombre del anio (lo define el usuario).

@@ -10,51 +10,51 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
 
-// Referencia global a la base de datos.
-lateinit var db_ref: DatabaseReference
+private const val ROOT_NODE = "Edutrack"
+
+private fun rootRef() = Firebase.database.reference.child(ROOT_NODE)
 
 // Crea un usuario en Firebase y asigna un id si falta.
 fun CrearUsuario(
     usuario: Usuario,
 ){
 
-    db_ref = Firebase.database.reference
-    if (usuario.id == "") {
-        //le ponemos un id unico al usuario
-        usuario.id = db_ref.push().key.toString()
-    }
-    Log.d("Usuario222", usuario.id.toString())
-    db_ref.child("Edutrack").child("Usuario").child(usuario.id.toString()).setValue(usuario)
+    val dbRoot = rootRef()
+    val userId = usuario.id?.takeIf { it.isNotBlank() } ?: dbRoot.child("Usuario").push().key
+    if (userId.isNullOrBlank()) return
+    // Le ponemos un id unico al usuario si falta.
+    usuario.id = userId
+    Log.d("Usuario", "Creando usuario con id $userId")
+    dbRoot.child("Usuario").child(userId).setValue(usuario)
 }
 
 // Agrega una nota a la asignatura indicada en Firebase.
 fun AgregarNota_Asignatura(asignatura: Asignatura, nota: Notas) {
-    val db_ref = Firebase.database.reference
-    db_ref.child("Edutrack").child("Asignatura").child(asignatura.id.toString()).child("Notas").child(nota.id.toString()).setValue(nota)
+    val asignaturaId = asignatura.id?.takeIf { it.isNotBlank() } ?: return
+    val notaId = nota.id?.takeIf { it.isNotBlank() } ?: return
+    rootRef().child("Asignatura").child(asignaturaId).child("Notas").child(notaId).setValue(nota)
 }
 
 // Crea un anio y lo guarda en Firebase.
 fun CrearAnio(anio: Anio) {
-    val db_ref = Firebase.database.reference
-    anio.id = db_ref.child("Edutrack").child("Anio").push().key
-    db_ref.child("Edutrack").child("Anio").child(anio.id.toString()).setValue(anio)
+    val dbRoot = rootRef()
+    val anioId = anio.id?.takeIf { it.isNotBlank() } ?: dbRoot.child("Anio").push().key
+    if (anioId.isNullOrBlank()) return
+    anio.id = anioId
+    dbRoot.child("Anio").child(anioId).setValue(anio)
 }
 
 // Crea una asignatura y la guarda con una clave estable si tiene nombre.
 fun CrearAsignatura(asignatura: Asignatura) {
-    val db_ref = Firebase.database.reference
+    val dbRoot = rootRef()
     // Usar el nombre como clave estable para no pisar datos y evitar duplicados accidentales
-    val keyFromName = asignatura.nombre
-        ?.lowercase()
-        ?.replace("\\s+".toRegex(), "_")
-        ?.replace("[^a-z0-9_\\-]".toRegex(), "")
-    val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else db_ref.child("Edutrack").child("Asignatura").push().key
+    val keyFromName = asignatura.nombre?.let(::normalizarClave)
+    val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else dbRoot.child("Asignatura").push().key
     asignatura.id = finalKey
-    db_ref.child("Edutrack").child("Asignatura").child(finalKey ?: "asignatura").setValue(asignatura)
+    dbRoot.child("Asignatura").child(finalKey ?: "asignatura").setValue(asignatura)
 }
 
 /**
@@ -70,7 +70,7 @@ fun borrarAsignaturaCompleta(
         return
     }
 
-    val dbRoot = Firebase.database.reference.child("Edutrack")
+    val dbRoot = rootRef()
     val asignaturaRef = dbRoot.child("Asignatura").child(asignaturaId)
 
     // Al borrar el nodo de Asignatura desaparecen tambien sus notas hijas.
@@ -112,7 +112,7 @@ fun EditarUsuario(userId: String, updates: Map<String, Any>, onResult: (Boolean)
         onResult(false)
         return
     }
-    Firebase.database.reference.child("Edutrack").child("Usuario").child(userId)
+    rootRef().child("Usuario").child(userId)
         .updateChildren(updates)
         .addOnSuccessListener {
             Log.d("FirebaseEdit", "Usuario $userId actualizado.")
@@ -137,14 +137,15 @@ fun borrarUsuarioCompleto(context: Context, userId: String, onFinish: () -> Unit
         return
     }
 
-    val dbRoot = Firebase.database.reference.child("Edutrack")
+    val dbRoot = rootRef()
     val authUser = Firebase.auth.currentUser
 
     // NOTA: Esta función borra Años y el Usuario. Para un borrado completo,
     // se necesitaría saber cómo se relacionan las Asignaturas y las Notas para borrarlas también.
 
     // 1. Borrar todos los años asociados al usuario
-    dbRoot.child("Anio").orderByChild("id_user").equalTo(userId).addListenerForSingleValueEvent(object : ValueEventListener {
+    dbRoot.child("Anio").orderByChild("id_user").equalTo(userId)
+        .addListenerForSingleValueEvent(object : ValueEventListener {
         override fun onDataChange(snapshot: DataSnapshot) {
             snapshot.children.forEach { it.ref.removeValue() }
             Log.d("FirebaseCleanup", "Años del usuario $userId eliminados.")
@@ -170,5 +171,12 @@ fun borrarUsuarioCompleto(context: Context, userId: String, onFinish: () -> Unit
             Log.e("FirebaseCleanup", "Error buscando años para eliminar.", error.toException())
             onFinish()
         }
-    })
+        })
 }
+
+private fun normalizarClave(nombre: String): String =
+    nombre
+        .trim()
+        .lowercase()
+        .replace("\\s+".toRegex(), "_")
+        .replace("[^a-z0-9_\\-]".toRegex(), "")
