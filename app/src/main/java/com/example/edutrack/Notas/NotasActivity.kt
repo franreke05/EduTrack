@@ -117,6 +117,7 @@ fun NotasScreen(
 ) {
     val context = LocalContext.current
     val notasState = remember { mutableStateOf<List<Notas>>(emptyList()) }
+    var notasLoaded by remember { mutableStateOf(false) }
     val showDialog = remember { mutableStateOf(false) }
     val notaEnEdicion = remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
@@ -133,6 +134,7 @@ fun NotasScreen(
             override fun onDataChange(snapshot: DataSnapshot) {
                 val lista = snapshot.children.mapNotNull { it.getValue(Notas::class.java) }
                 notasState.value = lista
+                notasLoaded = true
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -148,6 +150,18 @@ fun NotasScreen(
     }
     val porcentajeTotal by remember(notasState.value) {
         derivedStateOf { notasState.value.sumOf { it.porcentaje ?: 0.0 } }
+    }
+    val resumenNotas by remember(notasState.value) {
+        derivedStateOf { calcularResumenNotas(notasState.value) }
+    }
+    var ultimoResumen by remember { mutableStateOf<ResumenNotas?>(null) }
+
+    DisposableEffect(resumenNotas, notasLoaded, asignaturaId, anioId) {
+        if (notasLoaded && ultimoResumen != resumenNotas) {
+            ultimoResumen = resumenNotas
+            actualizarMediaAsignatura(asignaturaId, anioId, resumenNotas)
+        }
+        onDispose { }
     }
 
     Scaffold(
@@ -596,4 +610,33 @@ private fun calcularPromedio(notas: List<Notas>): Double {
     if (totalPeso <= 0.0) return 0.0
     val ponderado = notas.sumOf { (it.nota ?: 0.0) * (it.porcentaje ?: 0.0) }
     return ponderado / totalPeso
+}
+
+private data class ResumenNotas(val media: Double?, val totalNotas: Int)
+
+private fun calcularResumenNotas(notas: List<Notas>): ResumenNotas {
+    if (notas.isEmpty()) {
+        return ResumenNotas(media = null, totalNotas = 0)
+    }
+    val totalPeso = notas.sumOf { it.porcentaje ?: 0.0 }
+    if (totalPeso <= 0.0) {
+        return ResumenNotas(media = null, totalNotas = notas.size)
+    }
+    val ponderado = notas.sumOf { (it.nota ?: 0.0) * (it.porcentaje ?: 0.0) }
+    return ResumenNotas(media = ponderado / totalPeso, totalNotas = notas.size)
+}
+
+private fun actualizarMediaAsignatura(asignaturaId: String, anioId: String?, resumen: ResumenNotas) {
+    if (asignaturaId.isBlank()) return
+    val rootRef = Firebase.database.reference.child("Edutrack")
+    val asignaturaRef = rootRef.child("Asignatura").child(asignaturaId)
+
+    asignaturaRef.child("media").setValue(resumen.media)
+    asignaturaRef.child("numero_notas").setValue(resumen.totalNotas)
+
+    if (!anioId.isNullOrBlank()) {
+        val anioRef = rootRef.child("Anio").child(anioId).child("lista_asignaturas").child(asignaturaId)
+        anioRef.child("media").setValue(resumen.media)
+        anioRef.child("numero_notas").setValue(resumen.totalNotas)
+    }
 }

@@ -14,6 +14,8 @@ data class Asignatura(
     val lista_notas: MutableList<Notas>? = mutableListOf(),
     // Media de la asignatura.
     val media: Double? = 0.0,
+    // Numero de notas registradas en la asignatura.
+    val numero_notas: Int? = 0,
     // Id del usuario al que pertenece.
     val id_usuario: String? = "",
     // Id del anio al que pertenece.
