@@ -306,6 +306,14 @@ fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
         ) {
             Text(text = "$index", style = MaterialTheme.typography.titleLarge)
             Text(text = abbreviateName(asignatura.nombre ?: ""), style = MaterialTheme.typography.bodyMedium)
+            val creditos = asignatura.creditos ?: 0
+            if (creditos > 0) {
+                Text(
+                    text = "$creditos cr",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
