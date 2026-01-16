@@ -50,6 +50,11 @@ fun CrearAnio(anio: Anio) {
 // Crea una asignatura y la guarda con una clave estable si tiene nombre.
 fun CrearAsignatura(asignatura: Asignatura) {
     val dbRoot = rootRef()
+    val creditos = asignatura.creditos ?: 0
+    if (creditos <= 0) {
+        Log.e("CrearAsignatura", "Creditos invalidos para la asignatura ${asignatura.nombre}")
+        return
+    }
     // Usar el nombre como clave estable para no pisar datos y evitar duplicados accidentales
     val keyFromName = asignatura.nombre?.let(::normalizarClave)
     val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else dbRoot.child("Asignatura").push().key

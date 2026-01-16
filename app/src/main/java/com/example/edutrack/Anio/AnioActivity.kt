@@ -353,10 +353,14 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
                     return@TextButton
                 }
                 if (actuales >= maxAsignaturas) {
-                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Limite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
+                if (creditosInt <= 0) {
+                    Toast.makeText(context, "Ingresa creditos validos.", Toast.LENGTH_SHORT).show()
+                    return@TextButton
+                }
                 val numeroPeriodos = if (tipo.value == "Cuatrimestre") 4 else 3
                 val asignatura = Asignatura(
                     nombre = nombre.value,
