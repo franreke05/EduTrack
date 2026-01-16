@@ -19,7 +19,9 @@ import com.example.edutrack.Perfil.CuerpoPerfil
 import com.example.edutrack.Splash.SplashScreen
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.example.edutrack.data.clearSession
+import com.example.edutrack.data.darkModeFlow
 import com.example.edutrack.data.isLoggedFlow
+import com.example.edutrack.data.setDarkMode
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
 import com.example.edutrack.data.userIdFlow
@@ -37,21 +39,22 @@ class NavigationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            EduTrackTheme {
-                val navController = rememberNavController()
-                val context = LocalContext.current
-                val scope = rememberCoroutineScope()
-                val isLogged by context.isLoggedFlow().collectAsState(initial = false)
-                val userId by context.userIdFlow().collectAsState(initial = null)
+            val navController = rememberNavController()
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val isLogged by context.isLoggedFlow().collectAsState(initial = false)
+            val userId by context.userIdFlow().collectAsState(initial = null)
+            val isDarkMode by context.darkModeFlow().collectAsState(initial = false)
 
-                // Restaura sesion si Firebase ya tiene un usuario autenticado.
-                LaunchedEffect(Unit) {
-                    val current = Firebase.auth.currentUser
-                    if (current != null) {
-                        context.setUserSession(current.uid)
-                    }
+            // Restaura sesion si Firebase ya tiene un usuario autenticado.
+            LaunchedEffect(Unit) {
+                val current = Firebase.auth.currentUser
+                if (current != null) {
+                    context.setUserSession(current.uid)
                 }
+            }
 
+            EduTrackTheme(darkTheme = isDarkMode) {
                 NavHost(
                     navController = navController,
                     startDestination = "splash"
@@ -138,6 +141,10 @@ class NavigationActivity : ComponentActivity() {
                     composable("perfil") {
                         CuerpoPerfil(
                             userId = userId,
+                            isDarkMode = isDarkMode,
+                            onToggleDarkMode = {
+                                scope.launch { context.setDarkMode(!isDarkMode) }
+                            },
                             onFinish = { navController.popBackStack() },
                             onLogout = {
                                 scope.launch { context.clearSession() }

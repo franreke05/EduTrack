@@ -61,6 +61,8 @@ import kotlinx.coroutines.launch
 fun CuerpoPerfil(
     modifier: Modifier = Modifier,
     userId: String? = null,
+    isDarkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {},
     onFinish: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
@@ -254,6 +256,15 @@ fun CuerpoPerfil(
 
                     item {
                         Spacer(modifier = Modifier.height(verticalPadding))
+                        OutlinedButton(
+                            onClick = onToggleDarkMode,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (isDarkMode) "Cambiar a modo claro" else "Cambiar a modo oscuro"
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
                             onClick = { showDeleteDialog = true },
                             modifier = Modifier.fillMaxWidth(),

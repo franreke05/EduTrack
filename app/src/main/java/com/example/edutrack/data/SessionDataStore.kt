@@ -17,6 +17,7 @@ object SessionPrefs {
     val USER_ID = stringPreferencesKey("user_id")
     val IS_LOGGED = booleanPreferencesKey("is_logged")
     val SELECTED_ANIO = stringPreferencesKey("selected_anio")
+    val DARK_MODE = booleanPreferencesKey("dark_mode")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
@@ -30,6 +31,9 @@ fun Context.isLoggedFlow(): Flow<Boolean> =
 fun Context.selectedAnioFlow(): Flow<String?> =
     sessionDataStore.data.map { it[SessionPrefs.SELECTED_ANIO] }.distinctUntilChanged()
 
+fun Context.darkModeFlow(): Flow<Boolean> =
+    sessionDataStore.data.map { it[SessionPrefs.DARK_MODE] ?: false }.distinctUntilChanged()
+
 // Guarda el usuario y marca la sesion como iniciada.
 suspend fun Context.setUserSession(userId: String) {
     sessionDataStore.edit {
@@ -42,6 +46,12 @@ suspend fun Context.setUserSession(userId: String) {
 suspend fun Context.setSelectedAnio(anioId: String) {
     sessionDataStore.edit {
         it[SessionPrefs.SELECTED_ANIO] = anioId
+    }
+}
+
+suspend fun Context.setDarkMode(enabled: Boolean) {
+    sessionDataStore.edit {
+        it[SessionPrefs.DARK_MODE] = enabled
     }
 }
 
