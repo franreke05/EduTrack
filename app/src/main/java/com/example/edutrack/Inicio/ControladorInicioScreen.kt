@@ -45,25 +45,26 @@ fun formatearFecha(timeInMillis: Long): String {
     return formatter.format(Date(timeInMillis))
 }
 
-// Calcula la media del anio ponderando por creditos y dividiendo entre el numero total de asignaturas.
+// Calcula la media del anio ponderando por creditos y dividiendo entre la suma total de creditos.
 fun calcularMediaAnio(anio: Anio): Double? {
     val asignaturas = anio.lista_asignaturas?.values.orEmpty()
     val totalNotas = asignaturas.sumOf { it.numero_notas ?: 0 }
     if (totalNotas <= 0) return null
 
-    val totalAsignaturas = (anio.numero_asignaturas ?: 0).takeIf { it > 0 }
-        ?: asignaturas.size
-    if (totalAsignaturas <= 0) return null
+    var sumaPonderada = 0.0
+    var sumaCreditos = 0.0
 
-    val sumaPonderada = asignaturas.sumOf { asignatura ->
-        val notasAsignatura = asignatura.numero_notas ?: 0
-        if (notasAsignatura <= 0) return@sumOf 0.0
-        val media = asignatura.media ?: 0.0
+    asignaturas.forEach { asignatura ->
         val creditos = asignatura.creditos ?: 0
-        media * creditos
+        if (creditos <= 0) return@forEach
+        sumaCreditos += creditos
+        if ((asignatura.numero_notas ?: 0) <= 0) return@forEach
+        val media = asignatura.media ?: 0.0
+        sumaPonderada += media * creditos
     }
 
-    return sumaPonderada / totalAsignaturas
+    if (sumaCreditos <= 0.0) return null
+    return sumaPonderada / sumaCreditos
 }
 
 // Formatea una media con 2 decimales.
