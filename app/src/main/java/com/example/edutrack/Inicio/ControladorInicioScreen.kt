@@ -45,28 +45,25 @@ fun formatearFecha(timeInMillis: Long): String {
     return formatter.format(Date(timeInMillis))
 }
 
-// Calcula la media ponderada del anio segun creditos y numero de asignaturas.
+// Calcula la media del anio ponderando por creditos y dividiendo entre el numero total de asignaturas.
 fun calcularMediaAnio(anio: Anio): Double? {
-    val asignaturas = anio.lista_asignaturas?.values ?: return null
-    val asignaturasConNotas = asignaturas.filter { (it.numero_notas ?: 0) > 0 && it.media != null }
-    if (asignaturasConNotas.isEmpty()) return null
+    val asignaturas = anio.lista_asignaturas?.values.orEmpty()
+    val totalNotas = asignaturas.sumOf { it.numero_notas ?: 0 }
+    if (totalNotas <= 0) return null
 
-    val tieneCreditos = asignaturasConNotas.any { (it.creditos ?: 0) > 0 }
-    return if (tieneCreditos) {
-        val sumaPonderada = asignaturasConNotas.sumOf { asignatura ->
-            val peso = asignatura.creditos?.takeIf { it > 0 }?.toDouble() ?: 1.0
-            (asignatura.media ?: 0.0) * peso
-        }
-        val sumaPesos = asignaturasConNotas.sumOf { asignatura ->
-            asignatura.creditos?.takeIf { it > 0 }?.toDouble() ?: 1.0
-        }
-        sumaPonderada / sumaPesos
-    } else {
-        val totalAsignaturas = maxOf(anio.numero_asignaturas ?: 0, asignaturasConNotas.size)
-            .takeIf { it > 0 } ?: return null
-        val sumaMedia = asignaturasConNotas.sumOf { it.media ?: 0.0 }
-        sumaMedia / totalAsignaturas
+    val totalAsignaturas = (anio.numero_asignaturas ?: 0).takeIf { it > 0 }
+        ?: asignaturas.size
+    if (totalAsignaturas <= 0) return null
+
+    val sumaPonderada = asignaturas.sumOf { asignatura ->
+        val notasAsignatura = asignatura.numero_notas ?: 0
+        if (notasAsignatura <= 0) return@sumOf 0.0
+        val media = asignatura.media ?: 0.0
+        val creditos = asignatura.creditos ?: 0
+        media * creditos
     }
+
+    return sumaPonderada / totalAsignaturas
 }
 
 // Formatea una media con 2 decimales.
