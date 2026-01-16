@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.EditarUsuario
+import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.borrarUsuarioCompleto
 import com.example.edutrack.ui.theme.EduTrackTheme
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ fun CuerpoPerfil(
 ) {
     val context = LocalContext.current
     val usuario by rememberUsuarioState(userId)
+    val anios by rememberAniosState(userId)
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -222,7 +224,6 @@ fun CuerpoPerfil(
                                 .padding(bottom = 8.dp)
                         )
                     }
-                    val anios = usuario?.anio ?: emptyList()
                     if (anios.isNotEmpty()) {
                         items(anios) {
                             Card(
