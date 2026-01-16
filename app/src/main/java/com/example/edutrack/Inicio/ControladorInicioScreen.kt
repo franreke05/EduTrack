@@ -45,25 +45,28 @@ fun formatearFecha(timeInMillis: Long): String {
     return formatter.format(Date(timeInMillis))
 }
 
-// Calcula la media ponderada del anio segun creditos.
+// Calcula la media ponderada del anio segun creditos y numero de asignaturas.
 fun calcularMediaAnio(anio: Anio): Double? {
     val asignaturas = anio.lista_asignaturas?.values ?: return null
-    var sumaPonderada = 0.0
-    var sumaPesos = 0.0
-    var asignaturasConNotas = 0
+    val asignaturasConNotas = asignaturas.filter { (it.numero_notas ?: 0) > 0 && it.media != null }
+    if (asignaturasConNotas.isEmpty()) return null
 
-    asignaturas.forEach { asignatura ->
-        val totalNotas = asignatura.numero_notas ?: 0
-        if (totalNotas <= 0) return@forEach
-        val mediaAsignatura = asignatura.media ?: return@forEach
-        val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
-        sumaPonderada += mediaAsignatura * peso
-        sumaPesos += peso
-        asignaturasConNotas += 1
+    val tieneCreditos = asignaturasConNotas.any { (it.creditos ?: 0) > 0 }
+    return if (tieneCreditos) {
+        val sumaPonderada = asignaturasConNotas.sumOf { asignatura ->
+            val peso = asignatura.creditos?.takeIf { it > 0 }?.toDouble() ?: 1.0
+            (asignatura.media ?: 0.0) * peso
+        }
+        val sumaPesos = asignaturasConNotas.sumOf { asignatura ->
+            asignatura.creditos?.takeIf { it > 0 }?.toDouble() ?: 1.0
+        }
+        sumaPonderada / sumaPesos
+    } else {
+        val totalAsignaturas = maxOf(anio.numero_asignaturas ?: 0, asignaturasConNotas.size)
+            .takeIf { it > 0 } ?: return null
+        val sumaMedia = asignaturasConNotas.sumOf { it.media ?: 0.0 }
+        sumaMedia / totalAsignaturas
     }
-
-    if (asignaturasConNotas == 0 || sumaPesos <= 0.0) return null
-    return sumaPonderada / sumaPesos
 }
 
 // Formatea una media con 2 decimales.
