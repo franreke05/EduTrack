@@ -79,7 +79,7 @@ fun CreacionAnioScreen(
                                     descripcion = descripcion,
                                     fechaInicio = fechaInicio,
                                     fechaFin = fechaFin,
-                                    numeroAsignaturas,
+                                    numero_asignaturas = numeroAsignaturas,
                                     id_user = userId
                                 )
                                 CrearAnio(anio)
