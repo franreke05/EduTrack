@@ -82,9 +82,9 @@ fun calcularMediaConjunta(
     seleccionados.values.forEach { anio ->
         val id = anio.id ?: return@forEach
         val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
-        val mediaAnio = calcularMediaAnio(anio) ?: return@forEach
 
         if (peso > 0) {
+            val mediaAnio = calcularMediaAnio(anio) ?: 0.0
             acumulado += mediaAnio * peso
             pesoTotal += peso
         }
