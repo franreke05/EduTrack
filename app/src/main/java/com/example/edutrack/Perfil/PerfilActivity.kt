@@ -280,14 +280,22 @@ fun CuerpoPerfil(
                             onClick = {
                                 onLogout()
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
-                            Text("Cerrar Sesión")
+                            Text(
+                                text = "Cerrar Sesion",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
+
                         Spacer(modifier = Modifier.height(verticalPadding))
                     }
                 }
@@ -316,7 +324,7 @@ fun CuerpoPerfil(
                             contentColor = MaterialTheme.colorScheme.onError
                         )
                     ) {
-                        Text("Sí, eliminar todo")
+                        Text("Si, eliminar todo")
                     }
                 },
                 dismissButton = {
