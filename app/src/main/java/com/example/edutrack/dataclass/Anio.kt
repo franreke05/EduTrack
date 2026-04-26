@@ -17,5 +17,8 @@ class Anio(
     // Mapa de asignaturas indexadas por id.
     var lista_asignaturas: Map<String, Asignatura>? = emptyMap(),
     // Id del usuario que creo el anio.
-    val id_user: String? = ""
+    val id_user: String? = "",
+    val ownerId: String? = id_user,
+    val createdAt: Long? = 0L,
+    val updatedAt: Long? = 0L
 )

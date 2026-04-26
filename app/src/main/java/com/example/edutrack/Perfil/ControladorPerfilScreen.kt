@@ -13,6 +13,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.edutrack.dataclass.Usuario
+import com.example.edutrack.dataclass.UserPreferences
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -29,10 +30,15 @@ fun rememberUsuarioState(userId: String?): State<Usuario?> {
             usuarioState.value = null
             onDispose { }
         } else {
-            val userRef = Firebase.database.reference.child("Edutrack").child("Usuario").child(userId)
+            val userRef = Firebase.database.reference.child("users").child(userId)
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    usuarioState.value = snapshot.getValue(Usuario::class.java)
+                    val profile = snapshot.child("profile").getValue(Usuario::class.java)
+                    val preferences = snapshot.child("settings").child("preferences").getValue(UserPreferences::class.java)
+                    usuarioState.value = profile?.apply {
+                        id = id?.takeIf { it.isNotBlank() } ?: userId
+                        this.preferences = preferences ?: this.preferences
+                    }
                 }
 
                 override fun onCancelled(error: DatabaseError) {

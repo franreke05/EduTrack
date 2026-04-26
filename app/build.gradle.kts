@@ -12,11 +12,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.edutrack"
-        minSdk = 34
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        applicationId = "com.edutrack.app"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 2
+        versionName = "0.2.0-beta01"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -42,6 +42,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -57,6 +58,7 @@ dependencies {
     // Core & Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
 
     // Compose Platform (BOM)
@@ -83,11 +85,20 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Firebase
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.database.ktx)
     implementation(libs.play.services.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // Monetization
+    implementation(libs.billing.ktx)
+    implementation(libs.play.services.ads)
 
     // Coil (Image Loading)
     implementation(libs.coil.compose)

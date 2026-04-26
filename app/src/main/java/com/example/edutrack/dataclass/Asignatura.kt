@@ -21,5 +21,18 @@ class Asignatura(
     // Tipo de periodo: "Trimestre" (3) o "Cuatrimestre" (4).
     val tipo_periodo: String? = "Trimestre",
     // Numero de periodos configurado.
-    val numero_periodos: Int? = 3
+    val numero_periodos: Int? = 3,
+    val ownerId: String? = id_usuario,
+    val yearId: String? = id_anio,
+    val subjectId: String? = id,
+    val name: String? = nombre,
+    val description: String? = descripcion,
+    val credits: Int? = creditos,
+    val periodType: String? = tipo_periodo,
+    val totalPeriods: Int? = numero_periodos,
+    val average: Double? = media,
+    val noteCount: Int? = lista_notas?.size ?: 0,
+    val usedPercentage: Double? = lista_notas?.sumOf { it.porcentaje ?: 0.0 } ?: 0.0,
+    val createdAt: Long? = 0L,
+    val updatedAt: Long? = 0L
 ) : java.io.Serializable

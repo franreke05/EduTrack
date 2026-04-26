@@ -15,5 +15,14 @@ class Notas(
     // Fecha del examen.
     val fecha: String? = "",
     // Trimestre o cuatrimestre al que pertenece la nota.
-    val periodo: Int? = 1
+    val periodo: Int? = 1,
+    val ownerId: String? = "",
+    val yearId: String? = "",
+    val subjectId: String? = id_asignatura,
+    val name: String? = nombre,
+    val grade: Double? = nota,
+    val percentage: Double? = porcentaje,
+    val period: Int? = periodo,
+    val createdAt: Long? = 0L,
+    val updatedAt: Long? = 0L
 )

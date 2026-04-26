@@ -8,8 +8,20 @@ class Usuario(
     var nombre: String? = "",
     // Email asociado a la cuenta.
     var email: String? = "",
-    // Contrasena asociada a la cuenta.
-    var password: String? = "",
+    var photoUrl: String? = "",
+    var preferences: UserPreferences? = UserPreferences(),
+    var createdAt: Long? = 0L,
+    var updatedAt: Long? = 0L,
+    var lastLoginAt: Long? = 0L,
     // Lista de anios que tiene el usuario.
     val anio: MutableList<Anio> = mutableListOf()
+) : java.io.Serializable
+
+data class UserPreferences(
+    val accentColor: String? = "blue",
+    val avatarStyle: String? = "initials",
+    val visualTheme: String? = "system",
+    val advancedTheme: String? = null,
+    val coverStyle: String? = null,
+    val badge: String? = null
 ) : java.io.Serializable

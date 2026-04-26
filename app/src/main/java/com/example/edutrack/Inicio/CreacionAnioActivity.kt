@@ -36,10 +36,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.CrearAnio
+import com.example.edutrack.core.FreemiumLimits
 import com.example.edutrack.dataclass.Anio
-import com.example.edutrack.db_ref
+import com.example.edutrack.ui.components.LimitReachedDialog
 import com.example.edutrack.ui.theme.EduTrackTheme
-import com.google.firebase.database.FirebaseDatabase
 
 // Pantalla para crear un nuevo anio escolar.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +47,10 @@ import com.google.firebase.database.FirebaseDatabase
 fun CreacionAnioScreen(
     modifier: Modifier = Modifier,
     onFinish: () -> Unit = {},
-    userId: String? = null
+    userId: String? = null,
+    isPremium: Boolean = false,
+    currentCourseCount: Int = 0,
+    onPremiumRequested: () -> Unit = {}
 ) {
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
@@ -56,6 +59,9 @@ fun CreacionAnioScreen(
     var mostrarDialogfin by remember { mutableStateOf(false) }
     var fechaFin by remember { mutableStateOf("") }
     var numero_asignaturas by remember { mutableStateOf("") }
+    var showLimit by remember { mutableStateOf(false) }
+    val currentCourses by rememberAniosState(userId)
+    val effectiveCourseCount = maxOf(currentCourseCount, currentCourses.size)
     val spacing = 16.dp
 
     Scaffold(
@@ -74,16 +80,20 @@ fun CreacionAnioScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            db_ref = FirebaseDatabase.getInstance().getReference("Edutrack")
+                            if (!isPremium && effectiveCourseCount >= FreemiumLimits.MAX_FREE_COURSES) {
+                                showLimit = true
+                                return@IconButton
+                            }
                             if (comprobarCampos(numero_asignaturas, nombre, fechaInicio, fechaFin)) {
                                 val anio = Anio(
-                                    db_ref.push().key,
+                                    id = null,
                                     nombre = nombre,
                                     descripcion = descripcion,
                                     fechaInicio = fechaInicio,
                                     fechaFin = fechaFin,
                                     numero_asignaturas.toInt(),
-                                    id_user = userId
+                                    id_user = userId,
+                                    ownerId = userId
                                 )
                                 CrearAnio(anio)
 
@@ -233,6 +243,18 @@ fun CreacionAnioScreen(
                 }
             }
         }
+    }
+
+    if (showLimit) {
+        LimitReachedDialog(
+            title = "Límite de cursos",
+            message = "La versión gratis permite hasta ${FreemiumLimits.MAX_FREE_COURSES} cursos.",
+            onDismiss = { showLimit = false },
+            onUnlockPremium = {
+                showLimit = false
+                onPremiumRequested()
+            }
+        )
     }
 }
 

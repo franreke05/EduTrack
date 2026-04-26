@@ -1,6 +1,7 @@
 package com.example.edutrack.Anio
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,18 +54,24 @@ import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
+import com.example.edutrack.core.FreemiumLimits
 import com.example.edutrack.Notas.anioId
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.ui.components.EdutrackCard
+import com.example.edutrack.ui.components.EmptyState
+import com.example.edutrack.ui.components.LimitReachedDialog
+import com.example.edutrack.ui.components.MetricPill
+import com.example.edutrack.ui.components.ProfessionalTopBar
 import com.example.edutrack.ui.theme.EduTrackTheme
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
 
 // Ruta de entrada: carga el anio seleccionado y muestra un indicador mientras falta data.
 @Composable
 fun AnioRoute(
     userId: String?,
     anioId: String?,
+    isPremium: Boolean = false,
     onBack: () -> Unit = {},
+    onPremiumRequested: () -> Unit = {},
     onOpenNotas: (Asignatura) -> Unit = {}
 ) {
     val anios by rememberAniosState(userId)
@@ -72,7 +79,14 @@ fun AnioRoute(
     if (anio == null) {
         CircularProgressIndicator()
     } else {
-        AnioScreen(anio = anio, pageIndex = anios.indexOf(anio), onBack = onBack, onOpenNotas = onOpenNotas)
+        AnioScreen(
+            anio = anio,
+            pageIndex = anios.indexOf(anio),
+            isPremium = isPremium,
+            onBack = onBack,
+            onPremiumRequested = onPremiumRequested,
+            onOpenNotas = onOpenNotas
+        )
     }
 }
 
@@ -104,7 +118,9 @@ fun AnioScreen(
     modifier: Modifier = Modifier,
     anio: com.example.edutrack.dataclass.Anio,
     pageIndex: Int,
+    isPremium: Boolean = false,
     onBack: () -> Unit = {},
+    onPremiumRequested: () -> Unit = {},
     onOpenNotas: (Asignatura) -> Unit = {}
 ) {
     var showDescriptionDialog by remember { mutableStateOf(false) }
@@ -116,6 +132,7 @@ fun AnioScreen(
     val context = LocalContext.current
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showLimitDialog by remember { mutableStateOf(false) }
     val asignaturasBase = anio.lista_asignaturas?.values?.toList() ?: emptyList()
     val asignaturasFiltradas = if (showSearch && searchQuery.isNotBlank()) {
         asignaturasBase.filter { it.nombre?.contains(searchQuery, ignoreCase = true) == true }
@@ -124,8 +141,8 @@ fun AnioScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(anio.nombre ?: "Año escolar") },
+            ProfessionalTopBar(
+                title = anio.nombre ?: "Año escolar",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -138,7 +155,7 @@ fun AnioScreen(
                 actions = {
                     IconButton(onClick = {
                         if (anioLleno) {
-                            Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                            showLimitDialog = true
                         } else {
                             showAsignaturaDialog = true
                         }
@@ -182,35 +199,32 @@ fun AnioScreen(
                     )
                 }
 
-                Card(
+                EdutrackCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = spacing),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(8.dp)
+                    elevated = true
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(spacing),
+                            .fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(spacing)
                     ) {
                         Box(
                             modifier = Modifier
-                                .height(screenHeight * 0.15f)
-                                .aspectRatio(1.2f)
-                                .border(
-                                    width = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(screenHeight * 0.02f)
+                                .height(92.dp)
+                                .aspectRatio(1.45f)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(22.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = toRoman(pageIndex + 1),
                                 style = MaterialTheme.typography.displaySmall,
-                                color = if (anioLleno) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                color = if (anioLleno) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
 
@@ -241,18 +255,32 @@ fun AnioScreen(
                                 )
                             }
                         }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            MetricPill("Asignaturas", "$actuales / $maxAsignaturas", modifier = Modifier.weight(1f))
+                            MetricPill("Periodo", asignaturasBase.firstOrNull()?.tipo_periodo ?: "Sin definir", modifier = Modifier.weight(1f))
+                        }
                     }
                 }
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    itemsIndexed(asignaturasFiltradas) { index, asignatura ->
-                        AsignaturaCard(index + 1, asignatura) {
-                            onOpenNotas(asignatura)
-                            anioId = anio.id.toString()
+                if (asignaturasFiltradas.isEmpty()) {
+                    EmptyState(
+                        title = "Añade tu primera asignatura",
+                        message = "Crea una asignatura para empezar a registrar notas."
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(asignaturasFiltradas) { index, asignatura ->
+                            AsignaturaCard(index + 1, asignatura) {
+                                onOpenNotas(asignatura)
+                                anioId = anio.id.toString()
+                            }
                         }
                     }
                 }
@@ -279,7 +307,21 @@ fun AnioScreen(
             idUsuario = anio.id_user,
             maxAsignaturas = maxAsignaturas,
             actuales = actuales,
+            isPremium = isPremium,
+            onLimitReached = { showLimitDialog = true },
             onDismiss = { showAsignaturaDialog = false }
+        )
+    }
+
+    if (showLimitDialog) {
+        LimitReachedDialog(
+            title = "Límite de asignaturas",
+            message = "La versión gratis permite 8 asignaturas por curso trimestral o 9 si trabajas por cuatrimestres. Premium desbloquea asignaturas ilimitadas.",
+            onDismiss = { showLimitDialog = false },
+            onUnlockPremium = {
+                showLimitDialog = false
+                onPremiumRequested()
+            }
         )
     }
 }
@@ -290,22 +332,49 @@ fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
     Card(
         modifier = Modifier.aspectRatio(1f),
         onClick = onClick,
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "$index", style = MaterialTheme.typography.titleLarge)
-            Text(text = abbreviateName(asignatura.nombre ?: ""), style = MaterialTheme.typography.bodyMedium)
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Text(
+                    text = abbreviateName(asignatura.nombre ?: ""),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
+                )
+            }
+            Text(
+                text = asignatura.nombre ?: "Asignatura $index",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
         }
     }
 }
 
 // Recoge datos del usuario y crea una nueva asignatura.
 @Composable
-fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: Int, actuales: Int, onDismiss: () -> Unit) {
+fun CrearAsignaturaDialog(
+    anioId: String?,
+    idUsuario: String?,
+    maxAsignaturas: Int,
+    actuales: Int,
+    isPremium: Boolean = false,
+    onLimitReached: () -> Unit = {},
+    onDismiss: () -> Unit
+) {
     val nombre = remember { mutableStateOf("") }
     val descripcion = remember { mutableStateOf("") }
     val creditos = remember { mutableStateOf("") }
@@ -345,8 +414,9 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
                     Toast.makeText(context, "Completa el nombre de la asignatura", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
-                if (actuales >= maxAsignaturas) {
-                    Toast.makeText(context, "Límite de asignaturas alcanzado", Toast.LENGTH_SHORT).show()
+                val freeLimit = FreemiumLimits.maxSubjectsForPeriodType(tipo.value)
+                if ((!isPremium && actuales >= freeLimit) || actuales >= maxAsignaturas) {
+                    onLimitReached()
                     return@TextButton
                 }
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
@@ -358,17 +428,13 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
                     id_usuario = idUsuario,
                     id_anio = anioId,
                     tipo_periodo = tipo.value,
-                    numero_periodos = numeroPeriodos
+                    numero_periodos = numeroPeriodos,
+                    ownerId = idUsuario,
+                    yearId = anioId,
+                    periodType = tipo.value,
+                    totalPeriods = numeroPeriodos
                 )
                 CrearAsignatura(asignatura)
-                val asignaturaIdFinal = asignatura.id ?: return@TextButton
-                Firebase.database.reference
-                    .child("Edutrack")
-                    .child("Anio")
-                    .child(anioId)
-                    .child("lista_asignaturas")
-                    .child(asignaturaIdFinal)
-                    .setValue(asignatura)
                 onDismiss()
             }) { Text("Crear") }
         },

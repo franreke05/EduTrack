@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">EduTrack</string>
-    <string name="title_activity_splash_screen">EduTrack</string>
-    <string name="title_activity_splash_screem">EduTrack</string>
+    <string name="app_name">Edutrack</string>
+    <string name="title_activity_splash_screen">Edutrack</string>
+    <string name="title_activity_splash_screem">Edutrack</string>
     <string name="title_activity_registeer">RegisteerActivity</string>
-    <string name="title_activity_edu_track">EduTrack</string>
+    <string name="title_activity_edu_track">Edutrack</string>
     <string name="title_activity_inicio">InicioActivity</string>
     <string name="title_activity_navigation">NavigationActivity</string>
     <string name="title_activity_anio">AnioActivity</string>

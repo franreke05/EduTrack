@@ -14,6 +14,8 @@ object SessionPrefs {
     val USER_ID = stringPreferencesKey("user_id")
     val IS_LOGGED = booleanPreferencesKey("is_logged")
     val SELECTED_ANIO = stringPreferencesKey("selected_anio")
+    val IS_PREMIUM = booleanPreferencesKey("is_premium")
+    val REWARDED_SIMULATOR_UNTIL = stringPreferencesKey("rewarded_simulator_until")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
@@ -26,6 +28,24 @@ fun Context.isLoggedFlow(): Flow<Boolean> =
 // Expone el anio seleccionado en la sesion.
 fun Context.selectedAnioFlow(): Flow<String?> =
     sessionDataStore.data.map { it[SessionPrefs.SELECTED_ANIO] }
+
+fun Context.isPremiumFlow(): Flow<Boolean> =
+    sessionDataStore.data.map { it[SessionPrefs.IS_PREMIUM] ?: false }
+
+suspend fun Context.setPremiumEntitlement(isPremium: Boolean) {
+    sessionDataStore.edit {
+        it[SessionPrefs.IS_PREMIUM] = isPremium
+    }
+}
+
+fun Context.rewardedSimulatorUntilFlow(): Flow<Long> =
+    sessionDataStore.data.map { it[SessionPrefs.REWARDED_SIMULATOR_UNTIL]?.toLongOrNull() ?: 0L }
+
+suspend fun Context.unlockSimulatorFor24Hours() {
+    sessionDataStore.edit {
+        it[SessionPrefs.REWARDED_SIMULATOR_UNTIL] = (System.currentTimeMillis() + 24 * 60 * 60 * 1000L).toString()
+    }
+}
 
 // Guarda el usuario y marca la sesion como iniciada.
 suspend fun Context.setUserSession(userId: String) {
@@ -48,5 +68,7 @@ suspend fun Context.clearSession() {
         it.remove(SessionPrefs.USER_ID)
         it.remove(SessionPrefs.IS_LOGGED)
         it.remove(SessionPrefs.SELECTED_ANIO)
+        it.remove(SessionPrefs.IS_PREMIUM)
+        it.remove(SessionPrefs.REWARDED_SIMULATOR_UNTIL)
     }
 }

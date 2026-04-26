@@ -28,12 +28,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -72,8 +76,19 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.core.FreemiumLimits
+import com.example.edutrack.data.firebase.FirebasePaths
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.ui.components.AdBannerContainer
+import com.example.edutrack.ui.components.EdutrackCard
+import com.example.edutrack.ui.components.EmptyState
+import com.example.edutrack.ui.components.HeroPanel
+import com.example.edutrack.ui.components.LimitReachedDialog
+import com.example.edutrack.ui.components.MetricPill
+import com.example.edutrack.ui.components.PremiumBadge
+import com.example.edutrack.ui.components.QuickActionChip
+import com.example.edutrack.ui.components.SectionHeader
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.Firebase
 import com.google.firebase.database.DataSnapshot
@@ -93,7 +108,11 @@ fun CuerpoInicio(
     userId: String?,
     onAnioSelected: (String?) -> Unit = {},
     onCrearAnio: () -> Unit = {},
-    onPerfil: () -> Unit = {}
+    onPerfil: () -> Unit = {},
+    onGroups: () -> Unit = {},
+    onStats: () -> Unit = {},
+    isPremium: Boolean = false,
+    onPremiumRequested: () -> Unit = {}
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
@@ -104,6 +123,14 @@ fun CuerpoInicio(
     var mediaConjunta by remember { mutableStateOf<Double?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
+    var showCourseLimit by remember { mutableStateOf(false) }
+    val createCourseAction = {
+        if (!isPremium && aniosFromFirebase.size >= FreemiumLimits.MAX_FREE_COURSES) {
+            showCourseLimit = true
+        } else {
+            onCrearAnio()
+        }
+    }
 
     LaunchedEffect(aniosFromFirebase) {
         displayedAnios = aniosFromFirebase
@@ -119,20 +146,32 @@ fun CuerpoInicio(
                 .padding(horizontal = screenWidth * 0.04f, vertical = screenHeight * 0.04f),
             verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f)
         ) {
-            Text(
-                text = "Tus años académicos",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = screenHeight * 0.01f)
+            HeroPanel(
+                title = "Panel académico",
+                subtitle = if (isPremium) "Tu progreso, cursos y grupos en un solo espacio." else "Organiza tus cursos con una experiencia ligera. Premium elimina anuncios y desbloquea más capacidad.",
+                icon = Icons.Default.School,
+                trailing = {
+                    if (isPremium) {
+                        PremiumBadge()
+                    } else {
+                        QuickActionChip(
+                            text = "Premium",
+                            icon = Icons.Default.WorkspacePremium,
+                            onClick = onPremiumRequested
+                        )
+                    }
+                }
             )
 
-            Surface(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 2.dp,
-                shadowElevation = 2.dp,
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surface
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                MetricPill("Cursos", aniosFromFirebase.size.toString(), modifier = Modifier.weight(1f))
+                MetricPill("Límite gratis", if (isPremium) "∞" else "${FreemiumLimits.MAX_FREE_COURSES}", modifier = Modifier.weight(1f))
+            }
+
+            EdutrackCard(modifier = Modifier.fillMaxWidth()) {
                 AnimationSearch(
                     initialAnios = aniosFromFirebase,
                     onAniosFiltered = { filteredList ->
@@ -140,17 +179,29 @@ fun CuerpoInicio(
                     },
                     screenHeight = screenHeight,
                     screenWidth = screenWidth,
-                    onCrearAnio = onCrearAnio,
-                    onPerfil = onPerfil
+                    onCrearAnio = createCourseAction,
+                    onPerfil = onPerfil,
+                    onGroups = onGroups,
+                    onStats = onStats
                 )
             }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f, fill = false),
-                verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
-                contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
-            ) {
-                itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
+            if (displayedAnios.isEmpty()) {
+                EmptyState(
+                    title = "Crea tu primer curso",
+                    message = "Añade un curso para empezar a organizar asignaturas y notas.",
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(screenHeight * 0.015f),
+                    contentPadding = PaddingValues(bottom = screenHeight * 0.04f)
+                ) {
+                    item {
+                        SectionHeader(title = "Cursos")
+                    }
+                    itemsIndexed(displayedAnios, key = { _, anio -> anio.id ?: anio.hashCode().toString() }) { index, anio ->
                     val mediaAnio = calcularMediaAnio(anio)
                     val isSelected = anio.id?.let { selectedAnios.containsKey(it) } == true
                     val dismissState = rememberSwipeToDismissBoxState(
@@ -234,6 +285,7 @@ fun CuerpoInicio(
                         ) {
                             onAnioSelected(anio.id)
                         }
+                    }
                     }
                 }
             }
@@ -322,6 +374,8 @@ fun CuerpoInicio(
                     }
                 }
             }
+
+            AdBannerContainer(isPremium = isPremium)
         }
     }
 
@@ -335,8 +389,11 @@ fun CuerpoInicio(
                     onClick = {
                         anioToDelete?.id?.let { anioId ->
                             if (anioId.isNotEmpty()) {
-                                Firebase.database.reference.child("Edutrack").child("Anio").child(anioId)
-                                    .removeValue()
+                                userId?.let { uid ->
+                                    FirebasePaths.root.updateChildren(
+                                        mapOf<String, Any?>("users/$uid/years/$anioId" to null)
+                                    )
+                                }
                             }
                         }
                         showDeleteDialog = false
@@ -354,6 +411,18 @@ fun CuerpoInicio(
             }
         )
     }
+
+    if (showCourseLimit) {
+        LimitReachedDialog(
+            title = "Límite de cursos",
+            message = "La versión gratis permite hasta ${FreemiumLimits.MAX_FREE_COURSES} cursos. Premium desbloquea cursos ilimitados y elimina anuncios.",
+            onDismiss = { showCourseLimit = false },
+            onUnlockPremium = {
+                showCourseLimit = false
+                onPremiumRequested()
+            }
+        )
+    }
 }
 
 // Tarjeta de anio con datos y media.
@@ -365,10 +434,10 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAni
             .border(
                 width = if (isSelected) 1.5.dp else 0.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.extraLarge
             ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         onClick = function,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -386,8 +455,8 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAni
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Surface(
-                    modifier = Modifier.size(screenHeight * 0.06f),
-                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.size(50.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
                     tonalElevation = 0.dp
                 ) {
@@ -413,7 +482,7 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAni
             ) {
                 anio.nombre?.let { Text(text = it, style = MaterialTheme.typography.titleMedium) }
                 anio.descripcion?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                anio.numero_asignaturas?.let { Text(text = "Número de asignaturas: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                anio.numero_asignaturas?.let { Text(text = "Asignaturas: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
 
             Column(
@@ -435,14 +504,14 @@ fun AnioCard(anio: Anio, index: Int, screenHeight: Dp, screenWidth: Dp, mediaAni
 fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, screenHeight: Dp) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(screenHeight * 0.02f)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Surface(
-            modifier = Modifier.size(screenHeight * 0.07f),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp,
-            shadowElevation = 3.dp
+            modifier = Modifier.size(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
         ) {
             IconButton(
                 onClick = onClick,
@@ -452,7 +521,7 @@ fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, 
                     imageVector = icon,
                     contentDescription = label,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(screenHeight * 0.045f)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -460,7 +529,7 @@ fun CircularActionButton(icon: ImageVector, label: String, onClick: () -> Unit, 
             text = label,
             style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(screenHeight * 0.09f)
+            modifier = Modifier.width(72.dp)
         )
     }
 }
@@ -503,27 +572,26 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
 fun rememberAniosState(id_user: String?): State<List<Anio>> {
 
     val aniosState = remember { mutableStateOf<List<Anio>>(emptyList()) }
-    val dbRef = Firebase.database.reference.child("Edutrack").child("Anio")
-
     DisposableEffect(id_user) {
 
         if (id_user.isNullOrEmpty()) {
             aniosState.value = emptyList()
             onDispose {}
         } else {
+            val query = FirebasePaths.years(id_user)
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val aniosList = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
-                        .filter { it.id_user == id_user }
+                        .filter { (it.ownerId ?: it.id_user) == id_user }
                     aniosState.value = aniosList
                 }
 
                 override fun onCancelled(error: DatabaseError) { }
             }
-            dbRef.addValueEventListener(valueEventListener)
+            query.addValueEventListener(valueEventListener)
 
             onDispose {
-                dbRef.removeEventListener(valueEventListener)
+                query.removeEventListener(valueEventListener)
             }
         }
     }
@@ -540,7 +608,9 @@ fun AnimationSearch(
     screenHeight: Dp,
     screenWidth: Dp,
     onCrearAnio: () -> Unit,
-    onPerfil: () -> Unit
+    onPerfil: () -> Unit,
+    onGroups: () -> Unit,
+    onStats: () -> Unit
 ) {
 
     var isSearchExpanded by remember { mutableStateOf(false) }
@@ -554,6 +624,8 @@ fun AnimationSearch(
     val actions = listOf(
         "Perfil" to Icons.Default.Person,
         "Buscar" to Icons.Default.Search,
+        "Grupos" to Icons.Default.Groups,
+        "Stats" to Icons.Default.Analytics,
         "Añadir" to Icons.Default.Add,
     )
 
@@ -591,7 +663,7 @@ fun AnimationSearch(
     ) { isExpanded ->
         if (!isExpanded) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = screenHeight * 0.045f),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
             ) {
                 items(actions) { (label, icon) ->
@@ -603,6 +675,8 @@ fun AnimationSearch(
                                 "Buscar" -> isSearchExpanded = true
                                 "Añadir" -> onCrearAnio()
                                 "Perfil" -> onPerfil()
+                                "Grupos" -> onGroups()
+                                "Stats" -> onStats()
                                 else -> { }
                             }
                         },

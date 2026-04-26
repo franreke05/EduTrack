@@ -1,0 +1,113 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+
+        "profile": {
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['id', 'nombre', 'email']) && newData.child('id').val() == $uid && newData.child('nombre').isString() && newData.child('email').isString() && !newData.child('password').exists() && !newData.child('premium').exists() && !newData.child('isPremium').exists()"
+        },
+
+        "settings": {
+          ".write": "auth != null && auth.uid == $uid"
+        },
+
+        "premiumCache": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": false
+        },
+
+        "years": {
+          ".indexOn": ["createdAt", "updatedAt", "nombre"],
+          "$yearId": {
+            ".write": "auth != null && auth.uid == $uid",
+            ".validate": "!newData.exists() || (newData.hasChildren(['id', 'ownerId', 'nombre']) && newData.child('id').val() == $yearId && newData.child('ownerId').val() == $uid && newData.child('nombre').isString() && (!newData.child('numero_asignaturas').exists() || (newData.child('numero_asignaturas').isNumber() && newData.child('numero_asignaturas').val() >= 1 && newData.child('numero_asignaturas').val() <= 20)))",
+
+            "subjects": {
+              ".indexOn": ["name", "createdAt", "updatedAt"],
+              "$subjectId": {
+                ".write": "auth != null && auth.uid == $uid",
+                ".validate": "!newData.exists() || (newData.hasChildren(['id', 'ownerId', 'yearId', 'subjectId', 'name']) && newData.child('id').val() == $subjectId && newData.child('subjectId').val() == $subjectId && newData.child('ownerId').val() == $uid && newData.child('yearId').val() == $yearId && newData.child('name').isString() && (!newData.child('credits').exists() || (newData.child('credits').isNumber() && newData.child('credits').val() >= 0)) && (!newData.child('average').exists() || (newData.child('average').isNumber() && newData.child('average').val() >= 0 && newData.child('average').val() <= 10)) && (!newData.child('usedPercentage').exists() || (newData.child('usedPercentage').isNumber() && newData.child('usedPercentage').val() >= 0 && newData.child('usedPercentage').val() <= 100)))",
+
+                "notes": {
+                  ".indexOn": ["period", "createdAt"],
+                  "$noteId": {
+                    ".write": "auth != null && auth.uid == $uid",
+                    ".validate": "!newData.exists() || (newData.hasChildren(['id', 'ownerId', 'yearId', 'subjectId', 'name', 'grade', 'percentage', 'period']) && newData.child('id').val() == $noteId && newData.child('ownerId').val() == $uid && newData.child('yearId').val() == $yearId && newData.child('subjectId').val() == $subjectId && newData.child('name').isString() && newData.child('grade').isNumber() && newData.child('grade').val() >= 0 && newData.child('grade').val() <= 10 && newData.child('percentage').isNumber() && newData.child('percentage').val() > 0 && newData.child('percentage').val() <= 100 && newData.child('period').isNumber() && newData.child('period').val() >= 1 && newData.child('period').val() <= 12)"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "groups": {
+      ".indexOn": ["ownerId", "name", "createdAt"],
+      "$groupId": {
+        ".read": "auth != null && root.child('groupMembers').child($groupId).child(auth.uid).exists()",
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerId').val() == auth.uid && newData.child('creatorId').val() == auth.uid) || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'admin' || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'owner')",
+        ".validate": "!newData.exists() || (newData.hasChildren(['id', 'name', 'ownerId', 'creatorId', 'settings']) && newData.child('id').val() == $groupId && newData.child('ownerId').isString() && newData.child('creatorId').isString() && newData.child('name').isString())",
+
+        "settings": {
+          ".write": "auth != null && (root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'admin' || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'owner')",
+          ".validate": "newData.hasChildren(['gradePrivacy']) && newData.child('gradePrivacy').isString() && (newData.child('gradePrivacy').val() == 'private' || newData.child('gradePrivacy').val() == 'anonymous' || newData.child('gradePrivacy').val() == 'named' || newData.child('gradePrivacy').val() == 'summaryOnly')"
+        }
+      }
+    },
+
+    "groupMembers": {
+      "$groupId": {
+        ".read": "auth != null && data.child(auth.uid).exists()",
+        "$memberId": {
+          ".write": "auth != null && ((auth.uid == $memberId && !data.exists() && newData.child('role').val() == 'member' && root.child('groups').child($groupId).exists()) || (auth.uid == $memberId && !data.exists() && newData.child('role').val() == 'admin' && root.child('groups').child($groupId).child('ownerId').val() == auth.uid) || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'admin' || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'owner')",
+          ".validate": "!newData.exists() || (newData.hasChildren(['userId', 'displayName', 'role', 'joinedAt']) && newData.child('userId').val() == $memberId && newData.child('displayName').isString() && (newData.child('role').val() == 'member' || newData.child('role').val() == 'admin' || newData.child('role').val() == 'owner'))"
+        }
+      }
+    },
+
+    "userGroups": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$groupId": {
+          ".write": "auth != null && (auth.uid == $uid || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'admin' || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'owner')",
+          ".validate": "!newData.exists() || (newData.hasChildren(['groupId', 'role', 'joinedAt']) && newData.child('groupId').val() == $groupId && (newData.child('role').val() == 'member' || newData.child('role').val() == 'admin' || newData.child('role').val() == 'owner'))"
+        }
+      }
+    },
+
+    "groupMessages": {
+      "$groupId": {
+        ".read": "auth != null && root.child('groupMembers').child($groupId).child(auth.uid).exists()",
+        "$messageId": {
+          ".write": "auth != null && root.child('groupMembers').child($groupId).child(auth.uid).exists()",
+          ".validate": "!newData.exists() || (newData.hasChildren(['id', 'senderId', 'text', 'createdAt']) && newData.child('senderId').val() == auth.uid && newData.child('text').isString())"
+        }
+      }
+    },
+
+    "groupSharedSubjects": {
+      "$groupId": {
+        ".read": "auth != null && root.child('groupMembers').child($groupId).child(auth.uid).exists()",
+        "$subjectId": {
+          ".write": "auth != null && (root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'admin' || root.child('groupMembers').child($groupId).child(auth.uid).child('role').val() == 'owner')",
+          ".validate": "!newData.exists() || (newData.hasChildren(['id', 'ownerId', 'groupId', 'visibility']) && newData.child('id').val() == $subjectId && newData.child('groupId').val() == $groupId && (newData.child('visibility').val() == 'private' || newData.child('visibility').val() == 'anonymous' || newData.child('visibility').val() == 'named' || newData.child('visibility').val() == 'summaryOnly'))"
+        }
+      }
+    },
+
+    "usernames": {
+      ".indexOn": [".value"],
+      "$normalizedUsername": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.val() == auth.uid) || data.val() == auth.uid)",
+        ".validate": "!newData.exists() || (newData.isString() && $normalizedUsername.matches(/^[a-z0-9._-]{3,32}$/))"
+      }
+    }
+  }
+}

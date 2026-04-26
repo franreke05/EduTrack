@@ -25,21 +25,14 @@ fun toRoman(num: Int): String {
 
 // Valida los campos para crear un anio.
 fun comprobarCampos(num: String, nombretxt: String, fechaInicio: String, fechaFin: String): Boolean {
-    var comprobado = false
-    if (num < 0.toString() || num > 21.toString()) {
-        if (nombretxt.isNotEmpty()) {
-            if (fechaInicio.isNotEmpty() && fechaFin.isNotEmpty()) {
-                if (fechaInicio <= fechaFin) {
-                    if (fechaInicio.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) {
-                        if (fechaFin.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) {
-                            comprobado = true
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return comprobado
+    val total = num.toIntOrNull() ?: return false
+    if (total !in 1..20 || nombretxt.isBlank()) return false
+    if (!fechaInicio.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) return false
+    if (!fechaFin.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) return false
+    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val start = runCatching { formatter.parse(fechaInicio) }.getOrNull() ?: return false
+    val end = runCatching { formatter.parse(fechaFin) }.getOrNull() ?: return false
+    return !start.after(end)
 }
 
 // Formatea un timestamp a "dd/MM/yyyy".
@@ -56,7 +49,7 @@ fun calcularMediaAnio(anio: Anio): Double? {
     var sumaPesos = 0.0
 
     asignaturas.forEach { asignatura ->
-        val mediaAsignatura = asignatura.media ?: return@forEach
+        val mediaAsignatura = asignatura.average ?: asignatura.media ?: return@forEach
         val peso = asignatura.creditos?.takeIf { it > 0 } ?: 1
         sumaPonderada += mediaAsignatura * peso
         sumaPesos += peso
@@ -102,10 +95,16 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
     val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
     val idUser = snapshot.child("id_user").getValue(String::class.java)
 
-    val asignaturasMap = snapshot.child("lista_asignaturas")
+    val subjectsSnapshot = if (snapshot.child("subjects").exists()) {
+        snapshot.child("subjects")
+    } else {
+        snapshot.child("lista_asignaturas")
+    }
+    val asignaturasMap = subjectsSnapshot
         .children
         .mapNotNull { child ->
             child.getValue(Asignatura::class.java)?.let { asignatura ->
+                asignatura.id = asignatura.id?.takeIf { id -> id.isNotBlank() } ?: child.key
                 (child.key ?: asignatura.id ?: asignatura.nombre)?.let { key -> key to asignatura }
             }
         }
@@ -122,6 +121,9 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
         fechaFin = fechaFin,
         numero_asignaturas = numeroAsignaturas,
         lista_asignaturas = asignaturasMap,
-        id_user = idUser
+        id_user = idUser ?: snapshot.child("ownerId").getValue(String::class.java),
+        ownerId = snapshot.child("ownerId").getValue(String::class.java) ?: idUser,
+        createdAt = snapshot.child("createdAt").getValue(Long::class.java),
+        updatedAt = snapshot.child("updatedAt").getValue(Long::class.java)
     )
 }
