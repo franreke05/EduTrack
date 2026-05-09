@@ -59,7 +59,7 @@ fun CreacionAnioScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Nuevo Año Escolar") },
+                title = { Text("Configura cómo se evalúa tu curso") },
                 navigationIcon = {
                     IconButton(onClick = onFinish) {
                         Icon(
@@ -74,15 +74,17 @@ fun CreacionAnioScreen(
                         onClick = {
                             if (comprobarCampos(numero_asignaturas, nombre, fechaInicio, fechaFin)) {
                                 val numeroAsignaturas = numero_asignaturas.toIntOrNull() ?: 0
+                                val uid = userId
+                                    ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                    ?: return@IconButton
                                 val anio = Anio(
                                     nombre = nombre,
                                     descripcion = descripcion,
                                     fechaInicio = fechaInicio,
                                     fechaFin = fechaFin,
-                                    numero_asignaturas = numeroAsignaturas,
-                                    id_user = userId
+                                    numero_asignaturas = numeroAsignaturas
                                 )
-                                CrearAnio(anio)
+                                CrearAnio(uid, anio)
 
                                 onFinish()
                             }
@@ -109,7 +111,14 @@ fun CreacionAnioScreen(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 Text(
-                    text = "Información del Año",
+                    text = "Elige si tu curso funciona por trimestres o cuatrimestres y define cuánto vale cada periodo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "Información del curso",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth()
@@ -200,7 +209,7 @@ fun CreacionAnioScreen(
                 }
 
                 Text(
-                    text = "Numero de Asignaturas",
+                    text = "Asignaturas del curso",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth()

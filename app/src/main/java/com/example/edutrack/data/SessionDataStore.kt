@@ -18,6 +18,7 @@ object SessionPrefs {
     val IS_LOGGED = booleanPreferencesKey("is_logged")
     val SELECTED_ANIO = stringPreferencesKey("selected_anio")
     val DARK_MODE = booleanPreferencesKey("dark_mode")
+    val IS_ONBOARDED = booleanPreferencesKey("is_onboarded")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
@@ -53,6 +54,13 @@ suspend fun Context.setDarkMode(enabled: Boolean) {
     sessionDataStore.edit {
         it[SessionPrefs.DARK_MODE] = enabled
     }
+}
+
+fun Context.isOnboardedFlow(): Flow<Boolean> =
+    sessionDataStore.data.map { it[SessionPrefs.IS_ONBOARDED] ?: false }.distinctUntilChanged()
+
+suspend fun Context.setOnboarded() {
+    sessionDataStore.edit { it[SessionPrefs.IS_ONBOARDED] = true }
 }
 
 // Limpia los datos de sesion almacenados.

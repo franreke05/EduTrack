@@ -4,184 +4,234 @@ import android.content.Context
 import android.util.Log
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.dataclass.Group
+import com.example.edutrack.dataclass.GroupMember
+import com.example.edutrack.dataclass.GroupRole
+import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.dataclass.Usuario
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.database
+import java.util.UUID
 
 private const val ROOT_NODE = "Edutrack"
+const val DB_URL = "https://edutrack-5579f-default-rtdb.europe-west1.firebasedatabase.app/"
 
-private fun rootRef() = Firebase.database.reference.child(ROOT_NODE)
+private fun db() = com.google.firebase.database.FirebaseDatabase.getInstance(DB_URL).reference
 
-// Crea un usuario en Firebase y asigna un id si falta.
-fun CrearUsuario(
-    usuario: Usuario,
-){
+// Rutas centralizadas para toda la base de datos.
+fun userRef(userId: String) = db().child(ROOT_NODE).child("users").child(userId)
+fun profileRef(userId: String) = userRef(userId).child("profile")
+fun premiumCacheRef(userId: String) = userRef(userId).child("premiumCache")
+fun aniosRef(userId: String) = userRef(userId).child("anios")
+fun anioRef(userId: String, anioId: String) = aniosRef(userId).child(anioId)
+fun asignaturasRef(userId: String, anioId: String) = anioRef(userId, anioId).child("asignaturas")
+fun asignaturaRef(userId: String, anioId: String, asignaturaId: String) = asignaturasRef(userId, anioId).child(asignaturaId)
+fun notasRef(userId: String, anioId: String, asignaturaId: String) = asignaturaRef(userId, anioId, asignaturaId).child("notas")
 
-    val dbRoot = rootRef()
-    val userId = usuario.id?.takeIf { it.isNotBlank() } ?: dbRoot.child("Usuario").push().key
-    if (userId.isNullOrBlank()) return
-    // Le ponemos un id unico al usuario si falta.
-    usuario.id = userId
-    Log.d("Usuario", "Creando usuario con id $userId")
-    dbRoot.child("Usuario").child(userId).setValue(usuario)
+// Rutas de grupos (nivel raíz bajo ROOT_NODE, no bajo users/).
+fun groupsRef() = db().child(ROOT_NODE).child("groups")
+fun groupRef(groupId: String) = groupsRef().child(groupId)
+fun groupMembersRef(groupId: String) = db().child(ROOT_NODE).child("groupMembers").child(groupId)
+fun groupMemberRef(groupId: String, uid: String) = groupMembersRef(groupId).child(uid)
+fun userGroupsRef(uid: String) = db().child(ROOT_NODE).child("userGroups").child(uid)
+fun groupSharedSubjectsRef(groupId: String) = db().child(ROOT_NODE).child("groupSharedSubjects").child(groupId)
+
+fun CrearUsuario(usuario: Usuario) {
+    val userId = usuario.id?.takeIf { it.isNotBlank() } ?: return
+    Log.d("DB", "Creando perfil usuario $userId")
+    profileRef(userId).setValue(usuario)
 }
 
-// Agrega una nota a la asignatura indicada en Firebase.
-fun AgregarNota_Asignatura(asignatura: Asignatura, nota: Notas) {
-    val asignaturaId = asignatura.id?.takeIf { it.isNotBlank() } ?: return
-    val notaId = nota.id?.takeIf { it.isNotBlank() } ?: return
-    rootRef().child("Asignatura").child(asignaturaId).child("Notas").child(notaId).setValue(nota)
-}
-
-// Crea un anio y lo guarda en Firebase.
-fun CrearAnio(anio: Anio) {
-    val dbRoot = rootRef()
-    val anioId = anio.id?.takeIf { it.isNotBlank() } ?: dbRoot.child("Anio").push().key
-    if (anioId.isNullOrBlank()) return
+fun CrearAnio(userId: String, anio: Anio) {
+    val anioId = anio.id?.takeIf { it.isNotBlank() } ?: aniosRef(userId).push().key ?: return
     anio.id = anioId
-    dbRoot.child("Anio").child(anioId).setValue(anio)
+    anioRef(userId, anioId).setValue(anio)
 }
 
-// Crea una asignatura y la guarda con una clave estable si tiene nombre.
-fun CrearAsignatura(asignatura: Asignatura) {
-    val dbRoot = rootRef()
+fun CrearAsignatura(userId: String, anioId: String, asignatura: Asignatura) {
     val creditos = asignatura.creditos ?: 0
     if (creditos <= 0) {
-        Log.e("CrearAsignatura", "Creditos invalidos para la asignatura ${asignatura.nombre}")
+        Log.e("DB", "Creditos invalidos para ${asignatura.nombre}")
         return
     }
-    // Usar el nombre como clave estable para no pisar datos y evitar duplicados accidentales
-    val keyFromName = asignatura.nombre?.let(::normalizarClave)
-    val finalKey = if (!keyFromName.isNullOrBlank()) keyFromName else dbRoot.child("Asignatura").push().key
-    asignatura.id = finalKey
-    dbRoot.child("Asignatura").child(finalKey ?: "asignatura").setValue(asignatura)
+    val asignaturaId = UUID.randomUUID().toString()
+    asignatura.id = asignaturaId
+    asignaturaRef(userId, anioId, asignaturaId).setValue(asignatura)
 }
 
-/**
- * Borra una asignatura y todas sus notas, limpiando tambien la referencia dentro del anio.
- */
+fun AgregarNota(userId: String, anioId: String, asignaturaId: String, nota: Notas) {
+    val notaId = nota.id?.takeIf { it.isNotBlank() } ?: return
+    notasRef(userId, anioId, asignaturaId).child(notaId).setValue(nota)
+}
+
 fun borrarAsignaturaCompleta(
+    userId: String,
+    anioId: String,
     asignaturaId: String?,
-    anioId: String?,
     onResult: (Boolean) -> Unit = {}
 ) {
-    if (asignaturaId.isNullOrBlank()) {
-        onResult(false)
-        return
-    }
-
-    val dbRoot = rootRef()
-    val asignaturaRef = dbRoot.child("Asignatura").child(asignaturaId)
-
-    // Al borrar el nodo de Asignatura desaparecen tambien sus notas hijas.
-    asignaturaRef.removeValue().addOnCompleteListener { asignaturaTask ->
-        if (!asignaturaTask.isSuccessful) {
-            Log.e("FirebaseCleanup", "Error al borrar asignatura $asignaturaId", asignaturaTask.exception)
-            onResult(false)
-            return@addOnCompleteListener
-        }
-
-        if (anioId.isNullOrBlank()) {
-            onResult(true)
-            return@addOnCompleteListener
-        }
-
-        dbRoot.child("Anio")
-            .child(anioId)
-            .child("lista_asignaturas")
-            .child(asignaturaId)
-            .removeValue()
-            .addOnCompleteListener { anioTask ->
-                if (!anioTask.isSuccessful) {
-                    Log.e("FirebaseCleanup", "Asignatura borrada pero fallo limpiar en anio $anioId", anioTask.exception)
-                }
-                onResult(anioTask.isSuccessful)
-            }
-    }
-}
-
-/**
- * Edita los datos de un usuario en la base de datos.
- *
- * @param userId El ID del usuario a editar.
- * @param updates Un mapa con los campos a actualizar y sus nuevos valores.
- * @param onResult Callback que se llama con `true` si la operación fue exitosa, `false` en caso contrario.
- */
-fun EditarUsuario(userId: String, updates: Map<String, Any>, onResult: (Boolean) -> Unit) {
-    if (userId.isEmpty()) {
-        onResult(false)
-        return
-    }
-    rootRef().child("Usuario").child(userId)
-        .updateChildren(updates)
-        .addOnSuccessListener {
-            Log.d("FirebaseEdit", "Usuario $userId actualizado.")
-            onResult(true)
-        }
+    if (asignaturaId.isNullOrBlank()) { onResult(false); return }
+    asignaturaRef(userId, anioId, asignaturaId).removeValue()
+        .addOnSuccessListener { onResult(true) }
         .addOnFailureListener {
-            Log.e("FirebaseEdit", "Error al actualizar usuario $userId.", it)
+            Log.e("DB", "Error borrando asignatura $asignaturaId", it)
             onResult(false)
         }
 }
 
-/**
- * Borra todos los datos de un usuario de forma segura y completa.
- *
- * @param context El contexto de la aplicación para navegar.
- * @param userId El ID del usuario a eliminar.
- * @param onFinish Callback que se llama cuando todo el proceso ha terminado.
- */
-fun borrarUsuarioCompleto(context: Context, userId: String, onFinish: () -> Unit) {
-    if (userId.isEmpty()) {
-        onFinish()
-        return
-    }
+fun EditarUsuario(userId: String, updates: Map<String, Any>, onResult: (Boolean) -> Unit) {
+    if (userId.isEmpty()) { onResult(false); return }
+    profileRef(userId).updateChildren(updates)
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener {
+            Log.e("DB", "Error editando usuario $userId", it)
+            onResult(false)
+        }
+}
 
-    val dbRoot = rootRef()
+fun borrarUsuarioCompleto(context: Context, userId: String, onFinish: () -> Unit) {
+    if (userId.isEmpty()) { onFinish(); return }
     val authUser = Firebase.auth.currentUser
 
-    // NOTA: Esta función borra Años y el Usuario. Para un borrado completo,
-    // se necesitaría saber cómo se relacionan las Asignaturas y las Notas para borrarlas también.
+    // Borra todos los datos del usuario de una sola vez eliminando el nodo raiz.
+    userRef(userId).removeValue().addOnCompleteListener { task ->
+        if (task.isSuccessful) Log.d("DB", "Datos de usuario $userId eliminados.")
+        else Log.e("DB", "Error borrando datos de usuario.", task.exception)
 
-    // 1. Borrar todos los años asociados al usuario
-    dbRoot.child("Anio").orderByChild("id_user").equalTo(userId)
-        .addListenerForSingleValueEvent(object : ValueEventListener {
-        override fun onDataChange(snapshot: DataSnapshot) {
-            snapshot.children.forEach { it.ref.removeValue() }
-            Log.d("FirebaseCleanup", "Años del usuario $userId eliminados.")
-
-            // 2. Borrar al usuario de la base de datos
-            dbRoot.child("Usuario").child(userId).removeValue().addOnCompleteListener { userDbTask ->
-                if(userDbTask.isSuccessful) Log.d("FirebaseCleanup", "Nodo de usuario $userId eliminado de la DB.")
-                else Log.e("FirebaseCleanup", "Error al eliminar datos de la DB.", userDbTask.exception)
-
-                // 3. Borrar de Authentication
-                authUser?.delete()?.addOnCompleteListener { authTask ->
-                    if (authTask.isSuccessful) {
-                        Log.d("FirebaseAuth", "Usuario eliminado de Auth.")
-                    } else {
-                        Log.e("FirebaseAuth", "Error al eliminar de Auth.", authTask.exception)
-                    }
-                    onFinish()
-                }
-            }
-        }
-
-        override fun onCancelled(error: DatabaseError) {
-            Log.e("FirebaseCleanup", "Error buscando años para eliminar.", error.toException())
+        authUser?.delete()?.addOnCompleteListener { authTask ->
+            if (!authTask.isSuccessful) Log.e("DB", "Error borrando Auth.", authTask.exception)
             onFinish()
-        }
-        })
+        } ?: onFinish()
+    }
 }
 
-private fun normalizarClave(nombre: String): String =
-    nombre
-        .trim()
-        .lowercase()
-        .replace("\\s+".toRegex(), "_")
-        .replace("[^a-z0-9_\\-]".toRegex(), "")
+// Genera un código de invitación alfanumérico de 6 caracteres.
+fun generarCodigoInvitacion(): String {
+    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return (1..6).map { chars.random() }.joinToString("")
+}
+
+fun crearGrupo(
+    ownerUid: String,
+    name: String,
+    description: String,
+    isPrivate: Boolean,
+    ownerDisplayName: String,
+    ownerPhotoUrl: String? = null,
+    onResult: (groupId: String?) -> Unit
+) {
+    val groupId = groupsRef().push().key ?: run { onResult(null); return }
+    val inviteCode = generarCodigoInvitacion()
+    val now = System.currentTimeMillis()
+
+    val group = mapOf(
+        "id" to groupId,
+        "name" to name,
+        "description" to description,
+        "ownerUid" to ownerUid,
+        "createdAt" to now,
+        "inviteCode" to inviteCode,
+        "isPrivate" to isPrivate,
+        "memberCount" to 1
+    )
+    val member = mapOf(
+        "uid" to ownerUid,
+        "role" to GroupRole.OWNER.name,
+        "joinedAt" to now,
+        "displayName" to ownerDisplayName,
+        "photoUrl" to ownerPhotoUrl
+    )
+    val userGroup = mapOf(
+        "groupId" to groupId,
+        "name" to name,
+        "role" to GroupRole.OWNER.name,
+        "joinedAt" to now
+    )
+
+    val updates = mapOf(
+        "/${ROOT_NODE}/groups/$groupId" to group,
+        "/${ROOT_NODE}/groupMembers/$groupId/$ownerUid" to member,
+        "/${ROOT_NODE}/userGroups/$ownerUid/$groupId" to userGroup
+    )
+
+    db().updateChildren(updates)
+        .addOnSuccessListener { onResult(groupId) }
+        .addOnFailureListener { Log.e("DB", "Error creando grupo", it); onResult(null) }
+}
+
+fun unirseAGrupoPorCodigo(
+    uid: String,
+    inviteCode: String,
+    displayName: String,
+    photoUrl: String? = null,
+    onResult: (success: Boolean, errorMsg: String) -> Unit
+) {
+    groupsRef().orderByChild("inviteCode").equalTo(inviteCode).limitToFirst(1)
+        .get()
+        .addOnSuccessListener { snapshot ->
+            if (!snapshot.exists()) {
+                onResult(false, "Código de invitación no válido")
+                return@addOnSuccessListener
+            }
+            val groupSnap = snapshot.children.first()
+            val groupId = groupSnap.key ?: run { onResult(false, "Error interno"); return@addOnSuccessListener }
+            val groupName = groupSnap.child("name").getValue(String::class.java) ?: ""
+
+            groupMemberRef(groupId, uid).get().addOnSuccessListener { memberSnap ->
+                if (memberSnap.exists()) {
+                    onResult(false, "Ya eres miembro de este grupo")
+                    return@addOnSuccessListener
+                }
+                val now = System.currentTimeMillis()
+                val member = mapOf(
+                    "uid" to uid,
+                    "role" to GroupRole.MEMBER.name,
+                    "joinedAt" to now,
+                    "displayName" to displayName,
+                    "photoUrl" to photoUrl
+                )
+                val userGroup = mapOf(
+                    "groupId" to groupId,
+                    "name" to groupName,
+                    "role" to GroupRole.MEMBER.name,
+                    "joinedAt" to now
+                )
+                val updates = mapOf(
+                    "/${ROOT_NODE}/groupMembers/$groupId/$uid" to member,
+                    "/${ROOT_NODE}/userGroups/$uid/$groupId" to userGroup,
+                    "/${ROOT_NODE}/groups/$groupId/memberCount" to ServerValue.increment(1)
+                )
+                db().updateChildren(updates)
+                    .addOnSuccessListener { onResult(true, groupId) }
+                    .addOnFailureListener { onResult(false, "Error al unirse al grupo") }
+            }.addOnFailureListener { e -> onResult(false, "Error verificando miembro: ${e.message?.take(60)}") }
+        }
+        .addOnFailureListener { e -> onResult(false, "Error buscando grupo: ${e.message?.take(60)}") }
+}
+
+fun salirDeGrupo(uid: String, groupId: String, onResult: (Boolean) -> Unit) {
+    val updates = mapOf(
+        "/${ROOT_NODE}/groupMembers/$groupId/$uid" to null,
+        "/${ROOT_NODE}/userGroups/$uid/$groupId" to null,
+        "/${ROOT_NODE}/groups/$groupId/memberCount" to ServerValue.increment(-1)
+    )
+    db().updateChildren(updates)
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener { Log.e("DB", "Error saliendo de grupo", it); onResult(false) }
+}
+
+fun compartirAsignaturaConGrupo(
+    groupId: String,
+    subject: GroupSharedSubject,
+    onResult: (Boolean) -> Unit
+) {
+    val subjectId = subject.id ?: UUID.randomUUID().toString()
+    groupSharedSubjectsRef(groupId).child(subjectId).setValue(subject.copy(id = subjectId))
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener { Log.e("DB", "Error compartiendo asignatura", it); onResult(false) }
+}

@@ -24,19 +24,21 @@ import com.google.firebase.ktx.Firebase
 fun rememberUsuarioState(userId: String?): State<Usuario?> {
     val usuarioState = remember { mutableStateOf<Usuario?>(null) }
 
-    DisposableEffect(userId) {
-        if (userId.isNullOrEmpty()) {
+    val resolvedUid = userId?.takeIf { it.isNotBlank() }
+        ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
+    DisposableEffect(resolvedUid) {
+        if (resolvedUid.isNullOrEmpty()) {
             usuarioState.value = null
             onDispose { }
         } else {
-            val userRef = Firebase.database.reference.child("Edutrack").child("Usuario").child(userId)
+            val userRef = com.example.edutrack.profileRef(resolvedUid)
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     usuarioState.value = snapshot.getValue(Usuario::class.java)
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    usuarioState.value = null
+                    android.util.Log.e("Firebase", "Error leyendo usuario: ${error.message}")
                 }
             }
             userRef.addValueEventListener(valueEventListener)

@@ -25,9 +25,18 @@ import com.example.edutrack.data.setDarkMode
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
 import com.example.edutrack.data.userIdFlow
+import com.example.edutrack.Groups.CrearGrupoScreen
+import com.example.edutrack.Groups.GrupoDetalleScreen
+import com.example.edutrack.Groups.GruposScreen
+import com.example.edutrack.Groups.UnirseGrupoScreen
 import com.example.edutrack.Registro.e.RegisteerScreen
 import com.example.edutrack.Anio.AnioRoute
 import com.example.edutrack.Inicio.CreacionAnioScreen
+import com.example.edutrack.Onboarding.OnboardingScreen
+import com.example.edutrack.Simulador.SimuladorScreen
+import com.example.edutrack.Premium.PaywallScreen
+import com.example.edutrack.data.isOnboardedFlow
+import com.example.edutrack.data.setOnboarded
 import kotlinx.coroutines.launch
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -43,8 +52,12 @@ class NavigationActivity : ComponentActivity() {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             val isLogged by context.isLoggedFlow().collectAsState(initial = false)
-            val userId by context.userIdFlow().collectAsState(initial = null)
+            val userIdFromStore by context.userIdFlow().collectAsState(initial = null)
             val isDarkMode by context.darkModeFlow().collectAsState(initial = false)
+            val isOnboarded by context.isOnboardedFlow().collectAsState(initial = true)
+
+            // Usa el uid de Firebase Auth directamente para evitar race conditions con DataStore.
+            val userId = userIdFromStore ?: Firebase.auth.currentUser?.uid
 
             // Restaura sesion si Firebase ya tiene un usuario autenticado.
             LaunchedEffect(Unit) {
@@ -76,8 +89,19 @@ class NavigationActivity : ComponentActivity() {
                             isLoadingOverride = null,
                             onAuthSuccess = { uid ->
                                 scope.launch { context.setUserSession(uid) }
-                                navController.navigate("inicio") {
+                                val destination = if (isOnboarded) "inicio" else "onboarding"
+                                navController.navigate(destination) {
                                     popUpTo("login") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                    composable("onboarding") {
+                        OnboardingScreen(
+                            onFinish = {
+                                scope.launch { context.setOnboarded() }
+                                navController.navigate("inicio") {
+                                    popUpTo("onboarding") { inclusive = true }
                                 }
                             }
                         )
@@ -90,7 +114,67 @@ class NavigationActivity : ComponentActivity() {
                                 navController.navigate("anio/$anioId")
                             },
                             onCrearAnio = { navController.navigate("crearAnio") },
-                            onPerfil = { navController.navigate("perfil") }
+                            onPerfil = { navController.navigate("perfil") },
+                            onSimulador = { navController.navigate("simulador") },
+                            onPaywall = { navController.navigate("paywall") },
+                            onGrupos = { navController.navigate("grupos") }
+                        )
+                    }
+                    composable("simulador") {
+                        SimuladorScreen(
+                            userId = userId,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") }
+                        )
+                    }
+                    composable("paywall") {
+                        PaywallScreen(
+                            userId = userId,
+                            onDismiss = { navController.popBackStack() },
+                            onPurchase = { navController.popBackStack() },
+                            onRestorePurchase = { navController.popBackStack() }
+                        )
+                    }
+                    composable("grupos") {
+                        GruposScreen(
+                            userId = userId,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") },
+                            onCrearGrupo = { navController.navigate("crearGrupo") },
+                            onUnirseGrupo = { navController.navigate("unirseGrupo") },
+                            onGrupoDetalle = { groupId -> navController.navigate("grupoDetalle/$groupId") }
+                        )
+                    }
+                    composable("crearGrupo") {
+                        CrearGrupoScreen(
+                            userId = userId,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") },
+                            onGroupCreated = { groupId ->
+                                navController.navigate("grupoDetalle/$groupId") {
+                                    popUpTo("grupos")
+                                }
+                            }
+                        )
+                    }
+                    composable("unirseGrupo") {
+                        UnirseGrupoScreen(
+                            userId = userId,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") },
+                            onGroupJoined = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = "grupoDetalle/{groupId}",
+                        arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+                        GrupoDetalleScreen(
+                            userId = userId,
+                            groupId = groupId,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") }
                         )
                     }
                     composable(
@@ -135,6 +219,7 @@ class NavigationActivity : ComponentActivity() {
                             tipoPeriodo = tipoPeriodo,
                             numeroPeriodos = numeroPeriodos,
                             anioId = anioId,
+                            userId = userId ?: "",
                             onBack = { navController.popBackStack() }
                         )
                     }
@@ -152,7 +237,8 @@ class NavigationActivity : ComponentActivity() {
                                 navController.navigate("login") {
                                     popUpTo("login") { inclusive = true }
                                 }
-                            }
+                            },
+                            onPaywall = { navController.navigate("paywall") }
                         )
                     }
                     composable("crearAnio") {

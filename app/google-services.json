@@ -1,7 +1,7 @@
 {
   "project_info": {
     "project_number": "5200891311",
-    "firebase_url": "https://edutrack-5579f-default-rtdb.europe-west1.firebasedatabase.app/",
+    "firebase_url": "https://edutrack-5579f-default-rtdb.europe-west1.firebasedatabase.app",
     "project_id": "edutrack-5579f",
     "storage_bucket": "edutrack-5579f.firebasestorage.app"
   },
@@ -10,10 +10,18 @@
       "client_info": {
         "mobilesdk_app_id": "1:5200891311:android:69700665b0e677f4a1b35a",
         "android_client_info": {
-          "package_name": "com.example.edutrack"
+          "package_name": "com.edutrack.app"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "5200891311-i1ufbg5mns1atcuj4710nev15ebh8dcf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.company.EduTrack",
+            "certificate_hash": "185fad126704b116fbf444d97f8aa7c2f72c3e56"
+          }
+        },
         {
           "client_id": "5200891311-4po6aqp8j40erm316qai8l6ddmrp2m7u.apps.googleusercontent.com",
           "client_type": 3

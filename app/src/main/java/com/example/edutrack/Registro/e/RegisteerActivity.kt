@@ -1,13 +1,11 @@
-﻿package com.example.edutrack.Registro.e
+package com.example.edutrack.Registro.e
 
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -49,6 +47,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,28 +64,28 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
+import com.example.edutrack.profileRef
 import com.example.edutrack.ui.theme.EduTrackTheme
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
-import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 
 // Modos de autenticacion disponibles.
 private enum class AuthMode { Login, Register }
 
 // Activity de acceso y registro.
 class RegisteerActivity : ComponentActivity() {
-    // Configura la UI de login/registro.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -108,26 +107,13 @@ fun RegisteerScreen(
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val loading: MutableState<Boolean> = remember { mutableStateOf(false) }
-    val googleSignInClient = remember { GoogleSignIn.getClient(context, googleSignInOptions(context)) }
+    val scope = rememberCoroutineScope()
     var authMode by remember { mutableStateOf(AuthMode.Login) }
     var email by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            firebaseAuthWithGoogle(auth, account?.idToken, context, loading, authMode) { user ->
-                onAuthSuccess(user.uid)
-            }
-        } catch (e: ApiException) {
-            loading.value = false
-            Toast.makeText(context, "No se pudo iniciar sesión con Google.", Toast.LENGTH_LONG).show()
-        }
-    }
 
     val isLoading = isLoadingOverride ?: loading.value
 
@@ -164,7 +150,17 @@ fun RegisteerScreen(
                                     onAuthSuccess(user.uid)
                                 }
                             } else {
-                                Toast.makeText(context, "Credenciales inválidas o usuario no registrado.", Toast.LENGTH_LONG).show()
+                                val loginError = when {
+                                    task.exception?.message?.contains("no user record") == true ->
+                                        "No existe cuenta con ese correo."
+                                    task.exception?.message?.contains("password is invalid") == true ||
+                                    task.exception?.message?.contains("INVALID_LOGIN_CREDENTIALS") == true ->
+                                        "Contraseña incorrecta."
+                                    task.exception?.message?.contains("too many") == true ->
+                                        "Demasiados intentos. Espera un momento."
+                                    else -> "Error: ${task.exception?.message ?: "desconocido"}"
+                                }
+                                Toast.makeText(context, loginError, Toast.LENGTH_LONG).show()
                             }
                         }
                 }
@@ -196,19 +192,27 @@ fun RegisteerScreen(
                     Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres.", Toast.LENGTH_LONG).show()
                     return@RegisteerContent
                 }
-
                 auth.createUserWithEmailAndPassword(email.trim(), password)
                     .addOnCompleteListener { task ->
                         loading.value = false
                         if (task.isSuccessful) {
                             auth.currentUser?.let { user ->
-                                persistUserInDatabase(user, context, displayName.trim().ifBlank { null }, password)
+                                persistUserInDatabase(user, context, displayName.trim().ifBlank { null })
                                 sendVerificationEmailIfNeeded(user, context)
                                 Toast.makeText(context, "Cuenta creada. Revisa tu correo para verificarla.", Toast.LENGTH_LONG).show()
                                 onAuthSuccess(user.uid)
                             }
                         } else {
-                            Toast.makeText(context, "No se pudo registrar el usuario.", Toast.LENGTH_LONG).show()
+                            val errorMsg = when {
+                                task.exception?.message?.contains("email address is already in use") == true ->
+                                    "Este correo ya tiene una cuenta. Inicia sesión."
+                                task.exception?.message?.contains("badly formatted") == true ->
+                                    "El formato del correo no es válido."
+                                task.exception?.message?.contains("weak-password") == true ->
+                                    "La contraseña es demasiado débil."
+                                else -> "Error: ${task.exception?.message ?: "desconocido"}"
+                            }
+                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                         }
                     }
             }
@@ -216,7 +220,39 @@ fun RegisteerScreen(
         onGoogleSignIn = {
             if (loading.value) return@RegisteerContent
             loading.value = true
-            launcher.launch(googleSignInClient.signInIntent)
+            scope.launch {
+                try {
+                    val credentialManager = CredentialManager.create(context)
+                    val googleIdOption = GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(false)
+                        .setServerClientId(context.getString(R.string.default_web_client_id))
+                        .setAutoSelectEnabled(false)
+                        .build()
+                    val request = GetCredentialRequest.Builder()
+                        .addCredentialOption(googleIdOption)
+                        .build()
+                    val result = credentialManager.getCredential(context = context, request = request)
+                    val credential = result.credential
+                    if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                        val tokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        firebaseAuthWithGoogle(auth, tokenCredential.idToken, context, loading, authMode) { user ->
+                            onAuthSuccess(user.uid)
+                        }
+                    } else {
+                        loading.value = false
+                        Toast.makeText(context, "Tipo de credencial no compatible.", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: GetCredentialCancellationException) {
+                    loading.value = false
+                } catch (e: GetCredentialException) {
+                    loading.value = false
+                    val msg = e.message?.take(120) ?: "Error desconocido"
+                    Toast.makeText(context, "Google Sign-In: $msg", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    loading.value = false
+                    Toast.makeText(context, "Error inesperado: ${e.message?.take(100)}", Toast.LENGTH_LONG).show()
+                }
+            }
         },
         onToggleMode = {
             authMode = if (authMode == AuthMode.Login) AuthMode.Register else AuthMode.Login
@@ -225,6 +261,7 @@ fun RegisteerScreen(
         }
     )
 }
+
 // Contenido visual del formulario de autenticacion.
 @Composable
 private fun RegisteerContent(
@@ -295,7 +332,7 @@ private fun RegisteerContent(
                         )
 
                         Text(
-                            text = if (authMode == AuthMode.Login) "Inicia sesión" else "Crear cuenta",
+                            text = if (authMode == AuthMode.Login) "Controla tus notas desde el primer día" else "Empieza a controlar tus notas",
                             style = MaterialTheme.typography.headlineSmall,
                             color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
@@ -305,9 +342,9 @@ private fun RegisteerContent(
 
                         Text(
                             text = if (authMode == AuthMode.Login) {
-                                "Continúa con tu cuenta para sincronizar tus datos."
+                                "Calcula tu media, organiza tus asignaturas y descubre qué necesitas sacar para aprobar."
                             } else {
-                                "Regístrate con tu correo electrónico para continuar."
+                                "Crea tu cuenta y empieza a saber exactamente cómo vas en cada asignatura."
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = colorScheme.onSurfaceVariant,
@@ -350,11 +387,7 @@ private fun RegisteerContent(
                                             modifier = Modifier.size(22.dp)
                                         )
                                         Text(
-                                            text = if (authMode == AuthMode.Login) {
-                                                "Iniciar sesión con Google"
-                                            } else {
-                                                "Crear cuenta con Google"
-                                            },
+                                            text = "Continuar con Google",
                                             style = MaterialTheme.typography.labelLarge,
                                             color = colorScheme.onSurface,
                                             fontWeight = FontWeight.SemiBold
@@ -540,13 +573,14 @@ private fun RegisteerContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "EduTrack",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
+                            text = "¿Qué nota necesitas para aprobar?",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "Tus datos se guardarán en tu cuenta y podrás recuperarlos en cualquier dispositivo. Te enviaremos un correo de verificación cuando registres una nueva cuenta.",
+                            text = "Edutrack calcula tu media automáticamente y te dice qué necesitas sacar en cada examen. Tus datos se sincronizan en todos tus dispositivos.",
                             textAlign = TextAlign.Center,
                             color = colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
@@ -567,36 +601,38 @@ private fun RegisteerContent(
 }
 
 
-// Guarda o actualiza el usuario en Firebase.
 private fun persistUserInDatabase(
     user: FirebaseUser?,
     context: Context,
-    displayName: String? = null,
-    password: String? = null
+    displayName: String? = null
 ) {
     val currentUser = user ?: return
-    val dbRef = Firebase.database.reference
-    val userRef = dbRef.child("Edutrack").child("Usuario").child(currentUser.uid)
+    val userRef = profileRef(currentUser.uid)
 
     userRef.get().addOnSuccessListener { snapshot ->
         val nombreCalculado = displayName?.takeIf { it.isNotBlank() }
             ?: currentUser.displayName
             ?: currentUser.email?.substringBefore("@")
             ?: "Usuario"
-        val usuario = Usuario(
-            id = currentUser.uid,
-            nombre = nombreCalculado,
-            email = currentUser.email ?: "",
-            password = password
-        )
+        val authPhotoUrl = currentUser.photoUrl?.toString()
         if (snapshot.exists()) {
-            userRef.updateChildren(
-                mapOf(
-                    "nombre" to usuario.nombre,
-                    "email" to usuario.email
-                )
+            val updates = mutableMapOf<String, Any>(
+                "nombre" to nombreCalculado,
+                "email" to (currentUser.email ?: "")
             )
+            // Solo sobreescribe la foto si el perfil no tiene una personalizada y la cuenta de Google tiene una.
+            val existingPhoto = snapshot.child("photoUrl").getValue(String::class.java)
+            if (existingPhoto.isNullOrBlank() && !authPhotoUrl.isNullOrBlank()) {
+                updates["photoUrl"] = authPhotoUrl
+            }
+            userRef.updateChildren(updates)
         } else {
+            val usuario = Usuario(
+                id = currentUser.uid,
+                nombre = nombreCalculado,
+                email = currentUser.email ?: "",
+                photoUrl = authPhotoUrl
+            )
             userRef.setValue(usuario)
         }
     }.addOnFailureListener {
@@ -615,30 +651,9 @@ private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context)
     }
 }
 
-
-// Resuelve el email asociado a un nombre de usuario.
+// Con la nueva estructura de DB no se puede hacer query cross-user; solo se admite login por email.
 private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
-    val usersRef = Firebase.database.reference.child("Edutrack").child("Usuario")
-    usersRef.orderByChild("nombre").equalTo(username)
-        .addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val userSnapshot = snapshot.children.firstOrNull()
-                val email = userSnapshot?.child("email")?.getValue(String::class.java)
-                onResolved(email)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                onResolved(null)
-            }
-        })
-}
-
-// Configura Google Sign-In.
-private fun googleSignInOptions(context: Context): GoogleSignInOptions {
-    return GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.default_web_client_id))
-        .requestEmail()
-        .build()
+    onResolved(null)
 }
 
 // Autentica con Google y persiste el usuario si es valido.
@@ -652,8 +667,7 @@ private fun firebaseAuthWithGoogle(
 ) {
     if (idToken.isNullOrEmpty()) {
         loading.value = false
-        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG)
-            .show()
+        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG).show()
         return
     }
 
@@ -674,9 +688,7 @@ private fun firebaseAuthWithGoogle(
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 if (user != null) onSuccess(user)
             } else {
-                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG)
-                    .show()
+                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
             }
         }
 }
-

@@ -12,11 +12,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.edutrack"
-        minSdk = 34
-        targetSdk = 34
+        applicationId = "com.edutrack.app"
+        minSdk = 26
+        targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.3.0-beta01"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -68,7 +68,6 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.material3.material3)
-    implementation(libs.androidx.benchmark.traceprocessor)
     debugImplementation(libs.androidx.ui.tooling)
 
 
@@ -87,7 +86,16 @@ dependencies {
     // Firebase
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.storage.ktx)
     implementation(libs.play.services.auth)
+
+    // Google Play Billing — TODO: conectar BillingClient en PaywallScreen antes de producción abierta
+    implementation(libs.billing.ktx)
+
+    // Credential Manager (Google Sign-In modern API)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Coil (Image Loading)
     implementation(libs.coil.compose)

@@ -71,28 +71,6 @@ fun calcularMediaAnio(anio: Anio): Double? {
 fun formatMedia(media: Double): String =
     String.format(Locale.getDefault(), "%.2f", media)
 
-// Calcula la media ponderada de anios seleccionados segun porcentajes.
-fun calcularMediaConjunta(
-    seleccionados: Map<String, Anio>,
-    porcentajes: Map<String, String>
-): Double? {
-    var acumulado = 0.0
-    var pesoTotal = 0.0
-
-    seleccionados.values.forEach { anio ->
-        val id = anio.id ?: return@forEach
-        val peso = porcentajes[id]?.toDoubleOrNull() ?: 0.0
-
-        if (peso > 0) {
-            val mediaAnio = calcularMediaAnio(anio) ?: 0.0
-            acumulado += mediaAnio * peso
-            pesoTotal += peso
-        }
-    }
-
-    return if (pesoTotal > 0) acumulado / pesoTotal else null
-}
-
 // Convierte un snapshot de Firebase a un modelo Anio.
 fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
     val id = snapshot.child("id").getValue(String::class.java)
@@ -101,9 +79,8 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
     val fechaInicio = snapshot.child("fechaInicio").getValue(String::class.java)
     val fechaFin = snapshot.child("fechaFin").getValue(String::class.java)
     val numeroAsignaturas = snapshot.child("numero_asignaturas").getValue(Long::class.java)?.toInt()
-    val idUser = snapshot.child("id_user").getValue(String::class.java)
 
-    val asignaturasMap = snapshot.child("lista_asignaturas")
+    val asignaturasMap = snapshot.child("asignaturas")
         .children
         .mapNotNull { child ->
             child.getValue(Asignatura::class.java)?.let { asignatura ->
@@ -123,8 +100,7 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
         fechaInicio = fechaInicio,
         fechaFin = fechaFin,
         numero_asignaturas = numeroAsignaturas,
-        lista_asignaturas = asignaturasMap,
-        id_user = idUser
+        lista_asignaturas = asignaturasMap
     )
 }
 

@@ -1,0 +1,114 @@
+{
+  "rules": {
+    "Edutrack": {
+      "users": {
+        "$userId": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId",
+          "profile": {
+            ".validate": "newData.hasChildren(['id', 'nombre', 'email'])",
+            "id": {
+              ".validate": "newData.isString() && newData.val() == $userId"
+            },
+            "nombre": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+            },
+            "email": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "password": {
+              ".validate": false
+            }
+          },
+          "premiumCache": {
+            "isPremium": {
+              ".validate": "newData.isBoolean()"
+            },
+            "productId": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "expiresAt": {
+              ".validate": "!newData.exists() || newData.isNumber()"
+            }
+          },
+          "anios": {
+            "$anioId": {
+              ".validate": "newData.hasChildren(['id', 'nombre'])",
+              "id": {
+                ".validate": "newData.isString() && newData.val() == $anioId"
+              },
+              "nombre": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+              },
+              "asignaturas": {
+                "$asignaturaId": {
+                  ".validate": "newData.hasChildren(['id', 'nombre'])",
+                  "id": {
+                    ".validate": "newData.isString() && newData.val() == $asignaturaId"
+                  },
+                  "nombre": {
+                    ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+                  },
+                  "creditos": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 300"
+                  },
+                  "tipo_periodo": {
+                    ".validate": "newData.isString() && (newData.val() == 'Trimestre' || newData.val() == 'Cuatrimestre')"
+                  },
+                  "numero_periodos": {
+                    ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 4"
+                  },
+                  "notas": {
+                    "$notaId": {
+                      ".validate": "newData.hasChildren(['id'])",
+                      "id": {
+                        ".validate": "newData.isString() && newData.val() == $notaId"
+                      },
+                      "valor": {
+                        ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 10)"
+                      },
+                      "peso": {
+                        ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "groups": {
+        ".read": "auth != null",
+        ".indexOn": ["inviteCode"],
+        "$groupId": {
+          ".write": "auth != null && (!data.exists() && newData.child('ownerUid').val() == auth.uid || data.exists() && (root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN' || auth != null))"
+        }
+      },
+
+      "groupMembers": {
+        "$groupId": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && (auth.uid == $uid || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN')"
+          }
+        }
+      },
+
+      "userGroups": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      },
+
+      "groupSharedSubjects": {
+        "$groupId": {
+          ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
+          ".write": "auth != null && (root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN')"
+        }
+      }
+    }
+  }
+}

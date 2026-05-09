@@ -1,7 +1,10 @@
 package com.example.edutrack.Anio
 
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -29,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,11 +56,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.Groups.rememberUserGroupsState
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
 import com.example.edutrack.CrearAsignatura
+import com.example.edutrack.Perfil.rememberUsuarioState
+import com.example.edutrack.compartirAsignaturaConGrupo
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.ui.theme.EduTrackTheme
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 
@@ -72,7 +82,7 @@ fun AnioRoute(
     if (anio == null) {
         CircularProgressIndicator()
     } else {
-        AnioScreen(anio = anio, pageIndex = anios.indexOf(anio), onBack = onBack, onOpenNotas = onOpenNotas)
+        AnioScreen(anio = anio, userId = userId, pageIndex = anios.indexOf(anio), onBack = onBack, onOpenNotas = onOpenNotas)
     }
 }
 
@@ -98,15 +108,18 @@ fun AnioScreenWrapper(userId: String?, initialAnioId: String?) {
 }
 
 // Pantalla principal del anio: header, busqueda y grilla de asignaturas.
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AnioScreen(
     modifier: Modifier = Modifier,
     anio: com.example.edutrack.dataclass.Anio,
+    userId: String? = null,
     pageIndex: Int,
     onBack: () -> Unit = {},
     onOpenNotas: (Asignatura, String?) -> Unit = { _, _ -> }
 ) {
+    val userGroups by rememberUserGroupsState(userId)
+    var asignaturaToShare by remember { mutableStateOf<Asignatura?>(null) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showAsignaturaDialog by remember { mutableStateOf(false) }
     val maxAsignaturas = anio.numero_asignaturas ?: 0
@@ -194,72 +207,93 @@ fun AnioScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = spacing),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(8.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(spacing),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(spacing)
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .height(screenHeight * 0.15f)
-                                .aspectRatio(1.2f)
-                                .border(
-                                    width = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(screenHeight * 0.02f)
+                                .size(52.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(14.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = toRoman(pageIndex + 1),
-                                style = MaterialTheme.typography.displaySmall,
-                                color = if (anioLleno) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = anio.nombre ?: "",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "$actuales / $maxAsignaturas asignaturas",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                        if (anio.descripcion?.isNotBlank() == true) {
                             IconButton(onClick = { showDescriptionDialog = true }) {
                                 Icon(
                                     imageVector = Icons.Default.KeyboardArrowDown,
                                     contentDescription = "Ver descripción",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                text = anio.nombre ?: "",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
-                            IconButton(onClick = { /* Filtro reservado */ }) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = "Filtrar asignaturas",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
                     }
                 }
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    itemsIndexed(asignaturasFiltradas) { index, asignatura ->
-                        AsignaturaCard(index + 1, asignatura) {
-                            onOpenNotas(asignatura, anio.id)
+                if (asignaturasFiltradas.isEmpty() && !showSearch) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("📚", style = MaterialTheme.typography.displaySmall)
+                            Text(
+                                text = "No hay asignaturas aún",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Pulsa + para añadir tu primera asignatura",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 150.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        itemsIndexed(asignaturasFiltradas) { index, asignatura ->
+                            AsignaturaCard(
+                                index = index + 1,
+                                asignatura = asignatura,
+                                onClick = { onOpenNotas(asignatura, anio.id) },
+                                onLongClick = if (userGroups.isNotEmpty()) {
+                                    { asignaturaToShare = asignatura }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -280,10 +314,19 @@ fun AnioScreen(
         )
     }
 
+    asignaturaToShare?.let { asig ->
+        PublicarAsignaturaDialog(
+            asignatura = asig,
+            grupos = userGroups,
+            userId = userId,
+            onDismiss = { asignaturaToShare = null }
+        )
+    }
+
     if (showAsignaturaDialog) {
         CrearAsignaturaDialog(
             anioId = anio.id,
-            idUsuario = anio.id_user,
+            idUsuario = null,
             maxAsignaturas = maxAsignaturas,
             actuales = actuales,
             onDismiss = { showAsignaturaDialog = false }
@@ -291,28 +334,111 @@ fun AnioScreen(
     }
 }
 
-// Tarjeta para una asignatura individual.
+// Tarjeta para una asignatura con media visible.
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AsignaturaCard(index: Int, asignatura: Asignatura, onClick: () -> Unit) {
+fun AsignaturaCard(
+    index: Int,
+    asignatura: Asignatura,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
+) {
+    val media = asignatura.media
+    val colorScheme = MaterialTheme.colorScheme
+    val mediaColor = when {
+        media == null -> colorScheme.onSurfaceVariant
+        media >= 7.0 -> colorScheme.tertiary
+        media >= 5.0 -> colorScheme.primary
+        else -> colorScheme.error
+    }
+    val abbreviation = abbreviateName(asignatura.nombre ?: "")
+
     Card(
-        modifier = Modifier.aspectRatio(1f),
-        onClick = onClick,
-        elevation = CardDefaults.cardElevation(4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(text = "$index", style = MaterialTheme.typography.titleLarge)
-            Text(text = abbreviateName(asignatura.nombre ?: ""), style = MaterialTheme.typography.bodyMedium)
-            val creditos = asignatura.creditos ?: 0
-            if (creditos > 0) {
-                Text(
-                    text = "$creditos cr",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // Avatar + score row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = abbreviation,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colorScheme.onPrimaryContainer
+                    )
+                }
+                if (media != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = String.format("%.1f", media),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = mediaColor
+                        )
+                        Text(
+                            text = "media",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Name
+            Text(
+                text = asignatura.nombre ?: "Asignatura $index",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = colorScheme.onSurface,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+
+            // Tags
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val creditos = asignatura.creditos ?: 0
+                if (creditos > 0) {
+                    Surface(color = colorScheme.secondaryContainer, shape = MaterialTheme.shapes.small) {
+                        Text(
+                            text = "$creditos cr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                asignatura.tipo_periodo?.let { tipo ->
+                    Surface(color = colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
+                        Text(
+                            text = tipo.take(3),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -369,29 +495,112 @@ fun CrearAsignaturaDialog(anioId: String?, idUsuario: String?, maxAsignaturas: I
                     Toast.makeText(context, "Ingresa creditos validos.", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
-                val numeroPeriodos = if (tipo.value == "Cuatrimestre") 4 else 3
+                val numeroPeriodos = if (tipo.value == "Cuatrimestre") 2 else 3
+                val uid = idUsuario
+                    ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                    ?: return@TextButton
                 val asignatura = Asignatura(
                     nombre = nombre.value,
                     descripcion = descripcion.value,
                     creditos = creditosInt,
-                    id_usuario = idUsuario,
-                    id_anio = anioId,
                     tipo_periodo = tipo.value,
                     numero_periodos = numeroPeriodos
                 )
-                CrearAsignatura(asignatura)
-                val asignaturaIdFinal = asignatura.id ?: return@TextButton
-                Firebase.database.reference
-                    .child("Edutrack")
-                    .child("Anio")
-                    .child(anioId)
-                    .child("lista_asignaturas")
-                    .child(asignaturaIdFinal)
-                    .setValue(asignatura)
+                CrearAsignatura(uid, anioId, asignatura)
                 onDismiss()
             }) { Text("Crear") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun PublicarAsignaturaDialog(
+    asignatura: Asignatura,
+    grupos: List<com.example.edutrack.dataclass.UserGroup>,
+    userId: String?,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val usuario by rememberUsuarioState(userId)
+    var selectedGroupId by remember { mutableStateOf(grupos.firstOrNull()?.groupId) }
+    var isSharing by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Publicar en grupo") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "\"${asignatura.nombre}\"",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (asignatura.media != null && asignatura.media > 0.0) {
+                    Text(
+                        text = "Media: ${String.format("%.1f", asignatura.media)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = "Elige el grupo donde publicar:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                grupos.forEach { grupo ->
+                    val isSelected = selectedGroupId == grupo.groupId
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedGroupId = grupo.groupId },
+                        label = { Text(grupo.name ?: "Grupo") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val gid = selectedGroupId ?: return@Button
+                    val uid = userId ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@Button
+                    val userName = usuario?.nombre?.takeIf { it.isNotBlank() }
+                        ?: FirebaseAuth.getInstance().currentUser?.displayName
+                        ?: "Usuario"
+                    isSharing = true
+                    val subject = GroupSharedSubject(
+                        name = asignatura.nombre,
+                        tipoPeriodo = asignatura.tipo_periodo,
+                        numeroPeriodos = asignatura.numero_periodos,
+                        media = asignatura.media,
+                        sharedBy = uid,
+                        sharedByName = userName,
+                        sharedByPhotoUrl = usuario?.photoUrl,
+                        sharedAt = System.currentTimeMillis()
+                    )
+                    compartirAsignaturaConGrupo(gid, subject) { success ->
+                        isSharing = false
+                        Toast.makeText(
+                            context,
+                            if (success) "Publicado en el grupo" else "Error al publicar",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        onDismiss()
+                    }
+                },
+                enabled = selectedGroupId != null && !isSharing
+            ) {
+                if (isSharing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Publicar")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
     )
 }
 
