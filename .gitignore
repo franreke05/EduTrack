@@ -1,0 +1,41 @@
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+/build/
+app/build/
+
+# Gradle
+.gradle/
+gradle-wrapper.jar
+local.properties
+
+# Android Studio / IntelliJ IDE
+.idea/workspace.xml
+.idea/markdown.xml
+.idea/caches/
+*.iml
+*.iws
+*.ids
+.DS_Store
+captures/
+
+# Key / signing
+keystore.jks
+*.keystore
+*.jks
+keystore.properties
+
+# Claude Code memory and temp files
+.claude/
+Usersfranragency-agents-temp/
+
+# Marketing / draft docs (not code)
+BETA_TEST_CHECKLIST.md
+GOOGLE_PLAY_COPY.md
+MARKETING_HOOKS.md
+PLAY_STORE_ASSETS_CHECKLIST.md
+PRIVACY_POLICY_DRAFT.md
+TERMS_DRAFT.md
+TODO_SETUP.md
