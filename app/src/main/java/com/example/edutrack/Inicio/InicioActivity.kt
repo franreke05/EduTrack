@@ -1313,10 +1313,9 @@ private fun CalendarioBottomSheet(
                                 override fun onDataChange(exSnapshot: DataSnapshot) {
                                     exSnapshot.children.forEach { examenSnapshot ->
                                         val examen = examenSnapshot.getValue(Examen::class.java)
-                                        // Filtrar: solo mostrar exámenes con hora y fecha válida
+                                        // Mostrar exámenes con fecha válida (hora es opcional)
                                         if (examen != null &&
                                             examen.fecha.isNotBlank() &&
-                                            examen.hora.isNotBlank() &&
                                             examen.nombre.isNotBlank() &&
                                             !examen.nombre.equals("prueba", ignoreCase = true)) {
                                             try {
@@ -1327,11 +1326,12 @@ private fun CalendarioBottomSheet(
                                                     val year = parts[2].toInt()
 
                                                     if (month == currentMonth && year == currentYear) {
+                                                        val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
                                                         examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
-                                                            Pair(examen.nombre, examen.hora)
+                                                            Pair(examen.nombre, horaDisplay)
                                                         )
                                                         allDaysTemp.add(day)
-                                                        android.util.Log.d("CalendarioBottomSheet", "Loaded examen: ${examen.nombre} on day $day")
+                                                        android.util.Log.d("CalendarioBottomSheet", "Loaded examen: ${examen.nombre} on day $day at $horaDisplay")
                                                     }
                                                 }
                                             } catch (e: Exception) {
