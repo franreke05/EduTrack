@@ -19,6 +19,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,12 +35,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.MoreVert
@@ -61,6 +66,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -85,11 +91,17 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.edutrack.Premium.UpgradeSheet
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import com.example.edutrack.dataclass.Anio
+import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.domain.PlanManager
+import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberUserPlan
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -106,6 +118,26 @@ private val storyRingColors = listOf(
     listOf(Color(0xFFE53935), Color(0xFFFF6D00)),
 )
 
+@Preview(showBackground = true)
+@Composable
+fun Iniciopreview() {
+    val mockAnios = listOf(
+        Anio(id = "1", nombre = "1º Grado Ing. Informática", numero_asignaturas = 10),
+        Anio(id = "2", nombre = "2º Grado Ing. Informática", numero_asignaturas = 12)
+    )
+    MaterialTheme {
+        CuerpoInicioContent(
+            anios = mockAnios,
+            userPlan = UserPlan.FREE,
+            onAnioSelected = {},
+            onCrearAnio = {},
+            onPerfil = {},
+            onSimulador = {},
+            onPaywall = {},
+            onGrupos = {}
+        )
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoInicio(
@@ -120,6 +152,33 @@ fun CuerpoInicio(
 ) {
     val aniosFromFirebase by rememberAniosState(userId)
     val userPlan by rememberUserPlan(userId)
+
+    CuerpoInicioContent(
+        modifier = modifier,
+        anios = aniosFromFirebase,
+        userPlan = userPlan,
+        onAnioSelected = onAnioSelected,
+        onCrearAnio = onCrearAnio,
+        onPerfil = onPerfil,
+        onSimulador = onSimulador,
+        onPaywall = onPaywall,
+        onGrupos = onGrupos
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CuerpoInicioContent(
+    modifier: Modifier = Modifier,
+    anios: List<Anio>,
+    userPlan: UserPlan,
+    onAnioSelected: (String?) -> Unit = {},
+    onCrearAnio: () -> Unit = {},
+    onPerfil: () -> Unit = {},
+    onSimulador: () -> Unit = {},
+    onPaywall: () -> Unit = {},
+    onGrupos: () -> Unit = {}
+) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
     var showMenuFor by remember { mutableStateOf<String?>(null) }
@@ -134,7 +193,7 @@ fun CuerpoInicio(
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             val guardedCrearAnio = {
-                if (!PlanManager.canCreateCourse(userPlan, aniosFromFirebase.size)) {
+                if (!PlanManager.canCreateCourse(userPlan, anios.size)) {
                     showCourseUpgrade = true
                 } else {
                     onCrearAnio()
@@ -145,14 +204,14 @@ fun CuerpoInicio(
                 InstagramTopBar(
                     onPerfil = onPerfil,
                     onGrupos = onGrupos,
-                    isPremium = userPlan == com.example.edutrack.domain.UserPlan.PREMIUM
+                    isPremium = userPlan == UserPlan.PREMIUM
                 )
             }
 
             item {
                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 StoriesRow(
-                    anios = aniosFromFirebase,
+                    anios = anios,
                     onCrearAnio = guardedCrearAnio,
                     onAnioNavigate = { anio -> onAnioSelected(anio.id) }
                 )
@@ -160,50 +219,66 @@ fun CuerpoInicio(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            if (aniosFromFirebase.isEmpty()) {
+            if (anios.isEmpty()) {
                 item {
                     EmptyFeedState(onCrearAnio = guardedCrearAnio)
                 }
             } else {
-                // Resumen global animado
                 item {
-                    AnimatedFeedItem(index = 0) {
-                        ResumenGeneralCard(
-                            anios = aniosFromFirebase,
-                            onSimulador = onSimulador
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val isTablet = maxWidth > 600.dp
 
-                item {
-                    AnimatedFeedItem(index = 1) {
-                        SimuladorFeedCard(onSimulador = onSimulador)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                        if (isTablet) {
+                            // Layout en dos columnas para tablets
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Primera fila: Resumen Académico + Simulador
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    AnimatedFeedItem(index = 0) {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            ResumenGeneralCard(
+                                                anios = anios,
+                                                onSimulador = onSimulador
+                                            )
+                                        }
+                                    }
+                                    AnimatedFeedItem(index = 1) {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            SimuladorFeedCard(onSimulador = onSimulador)
+                                        }
+                                    }
+                                }
 
-                itemsIndexed(
-                    aniosFromFirebase,
-                    key = { _, anio -> anio.id ?: anio.hashCode().toString() }
-                ) { index, anio ->
-                    AnimatedFeedItem(index = index + 2) {
-                        AnioFeedCard(
-                            anio = anio,
-                            index = index + 1,
-                            showMenu = showMenuFor == anio.id,
-                            onMenuToggle = {
-                                showMenuFor = if (showMenuFor == anio.id) null else anio.id
-                            },
-                            onMenuDismiss = { showMenuFor = null },
-                            onOpen = { onAnioSelected(anio.id) },
-                            onSimulador = onSimulador,
-                            onDelete = {
-                                anioToDelete = anio
-                                showDeleteDialog = true
-                                showMenuFor = null
+                                // Segunda fila: Exámenes del mes (fullwidth)
+                                AnimatedFeedItem(index = 2) {
+                                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
+                                }
                             }
-                        )
+                        } else {
+                            // Layout en columna para móviles
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AnimatedFeedItem(index = 0) {
+                                    ResumenGeneralCard(
+                                        anios = anios,
+                                        onSimulador = onSimulador
+                                    )
+                                }
+                                AnimatedFeedItem(index = 1) {
+                                    SimuladorFeedCard(onSimulador = onSimulador)
+                                }
+                                AnimatedFeedItem(index = 2) {
+                                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
+                                }
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -884,6 +959,475 @@ private fun SimuladorFeedCard(onSimulador: () -> Unit) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Unit = {}) {
+    val colorScheme = MaterialTheme.colorScheme
+    var mostrarCalendario by remember { mutableStateOf(false) }
+
+    // Parsear exámenes del mes actual
+    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val now = Calendar.getInstance()
+    val currentMonth = now.get(Calendar.MONTH) + 1
+    val currentYear = now.get(Calendar.YEAR)
+
+    val examensByDay = mutableMapOf<Int, MutableList<Triple<String, String, String?>>>() // día -> (asignatura, fechaExamen, horaExamen)
+    val daysWithExams = mutableSetOf<Int>()
+
+    anios.forEach { anio ->
+        anio.lista_asignaturas?.values?.forEach { asignatura ->
+            if (asignatura.fechaExamen != null && asignatura.fechaExamen.isNotEmpty()) {
+                try {
+                    val date = sdf.parse(asignatura.fechaExamen)
+                    if (date != null) {
+                        val cal = Calendar.getInstance().apply { time = date }
+                        if (cal.get(Calendar.MONTH) + 1 == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
+                            val day = cal.get(Calendar.DAY_OF_MONTH)
+                            val asigName = asignatura.nombre ?: "Examen"
+                            val hora = asignatura.horaExamen ?: "--:--"
+                            examensByDay.getOrPut(day) { mutableListOf() }
+                                .add(Triple(asigName, asignatura.fechaExamen, hora))
+                            daysWithExams.add(day)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fecha inválida, ignorar
+                }
+            }
+        }
+    }
+
+    val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
+    val yearStr = currentYear.toString()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Exámenes de este mes",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "${monthName.replaceFirstChar { it.uppercase() }} $yearStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                TextButton(onClick = { mostrarCalendario = true }) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ver calendario", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            // Mini calendario de la semana actual
+            MiniCalendarGrid(
+                currentDay = now.get(Calendar.DAY_OF_MONTH),
+                daysWithExams = daysWithExams
+            )
+
+            // Timeline de exámenes del mes
+            if (examensByDay.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val sortedDays = examensByDay.keys.sorted()
+                    items(sortedDays.size) { index ->
+                        val day = sortedDays[index]
+                        val exams = examensByDay[day] ?: emptyList()
+                        val firstExam = exams.firstOrNull() ?: return@items
+                        val (asigName, _, hora) = firstExam
+                        val ringColor = storyRingColors[index % storyRingColors.size]
+
+                        ExamenBadge(
+                            asignatura = asigName,
+                            dia = day.toString().padStart(2, '0'),
+                            hora = hora,
+                            colors = ringColor
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Sin exámenes programados",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    if (mostrarCalendario) {
+        CalendarioBottomSheet(
+            anios = anios,
+            onDismiss = { mostrarCalendario = false },
+            onNavAsignatura = onAnioSelected
+        )
+    }
+}
+
+@Composable
+private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
+    val colorScheme = MaterialTheme.colorScheme
+    val now = Calendar.getInstance()
+    val weekStart = now.clone() as Calendar
+    weekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+
+    val days = mutableListOf<Int>()
+    for (i in 0..6) {
+        val dayOfMonth = weekStart.get(Calendar.DAY_OF_MONTH)
+        days.add(dayOfMonth)
+        weekStart.add(Calendar.DAY_OF_MONTH, 1)
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Encabezados
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf("L", "M", "X", "J", "V", "S", "D").forEach { day ->
+                Text(
+                    text = day,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        // Días
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            days.forEach { day ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (day == currentDay) colorScheme.primary
+                                    else Color.Transparent
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = day.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (day == currentDay) colorScheme.onPrimary
+                                        else colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (day in daysWithExams) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(colorScheme.primary)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExamenBadge(asignatura: String, dia: String, hora: String?, colors: List<Color>) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.width(70.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(colors)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = dia,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+        Text(
+            text = asignatura.take(12),
+            style = MaterialTheme.typography.labelSmall,
+            color = colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = hora ?: "--:--",
+            style = MaterialTheme.typography.labelSmall,
+            color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            fontSize = 9.sp
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CalendarioBottomSheet(
+    anios: List<Anio>,
+    onDismiss: () -> Unit,
+    onNavAsignatura: (String?) -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    var selectedDay by remember { mutableStateOf<Int?>(null) }
+
+    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val now = Calendar.getInstance()
+    val currentMonth = now.get(Calendar.MONTH) + 1
+    val currentYear = now.get(Calendar.YEAR)
+
+    val examensByDay = mutableMapOf<Int, MutableList<Pair<String, String>>>() // día -> (asignatura, horaExamen)
+    val allDaysInMonth = mutableSetOf<Int>()
+
+    anios.forEach { anio ->
+        anio.lista_asignaturas?.values?.forEach { asignatura ->
+            if (asignatura.fechaExamen != null && asignatura.fechaExamen.isNotEmpty()) {
+                try {
+                    val date = sdf.parse(asignatura.fechaExamen)
+                    if (date != null) {
+                        val cal = Calendar.getInstance().apply { time = date }
+                        if (cal.get(Calendar.MONTH) + 1 == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
+                            val day = cal.get(Calendar.DAY_OF_MONTH)
+                            allDaysInMonth.add(day)
+                            val asigName = asignatura.nombre ?: "Examen"
+                            val hora = asignatura.horaExamen ?: "--:--"
+                            examensByDay.getOrPut(day) { mutableListOf() }
+                                .add(asigName to hora)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+    }
+
+    val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
+    val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Exámenes • ${monthName.replaceFirstChar { it.uppercase() }} $currentYear",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Delete, contentDescription = "Cerrar")
+                }
+            }
+
+            // Calendario completo
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(7),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Headers
+                items(7) { idx ->
+                    val dayName = listOf("L", "M", "X", "J", "V", "S", "D")[idx]
+                    Box(
+                        modifier = Modifier.height(30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = dayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Days
+                val firstDay = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }.get(Calendar.DAY_OF_WEEK) - 2 // Monday = 0
+
+                items(firstDay) { // Empty cells before month starts
+                    Box(modifier = Modifier.height(40.dp))
+                }
+
+                items(daysInMonth) { dayIdx ->
+                    val day = dayIdx + 1
+                    val isCurrentDay = day == now.get(Calendar.DAY_OF_MONTH)
+                    val hasExams = day in allDaysInMonth
+                    val isSelected = day == selectedDay
+
+                    Box(
+                        modifier = Modifier
+                            .height(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    isCurrentDay -> colorScheme.primary
+                                    isSelected -> colorScheme.primaryContainer
+                                    else -> Color.Transparent
+                                }
+                            )
+                            .clickable { selectedDay = day },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Text(
+                                text = day.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isCurrentDay) colorScheme.onPrimary else colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (hasExams && !isCurrentDay) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(3.dp)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.tertiary)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(thickness = 0.5.dp, color = colorScheme.outlineVariant)
+
+            // Exámenes del día seleccionado
+            if (selectedDay != null && selectedDay in examensByDay) {
+                Text(
+                    text = "Exámenes del ${selectedDay} de ${monthName}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                examensByDay[selectedDay]?.forEach { (asignatura, hora) ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = asignatura,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colorScheme.onSurface
+                                )
+                                Text(
+                                    text = hora,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colorScheme.onSurfaceVariant
+                                )
+                            }
+                            TextButton(onClick = {
+                                // Navega a la asignatura - por ahora solo cierra
+                                onNavAsignatura(null)
+                                onDismiss()
+                            }) {
+                                Text("Ver", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

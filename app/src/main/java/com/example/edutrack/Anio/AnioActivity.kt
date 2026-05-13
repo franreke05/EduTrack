@@ -1,31 +1,40 @@
 package com.example.edutrack.Anio
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,7 +48,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -73,19 +81,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.edutrack.CrearAsignatura
 import com.example.edutrack.Groups.rememberUserGroupsState
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
-import com.example.edutrack.CrearAsignatura
 import com.example.edutrack.Perfil.rememberUsuarioState
 import com.example.edutrack.compartirAsignaturaConGrupo
 import com.example.edutrack.dataclass.Asignatura
@@ -96,10 +111,9 @@ import com.example.edutrack.pdf.CursoPdfExporter
 import com.example.edutrack.reminders.ExamReminderScheduler
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalLocale
 
 // Ruta de entrada: carga el anio seleccionado y muestra un indicador mientras falta data.
 @Composable
@@ -141,6 +155,7 @@ fun AnioScreenWrapper(userId: String?, initialAnioId: String?) {
 }
 
 // Pantalla principal del anio: header con progreso, busqueda animada y grilla de asignaturas.
+@SuppressLint("NonObservableLocale")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AnioScreen(
@@ -268,140 +283,255 @@ fun AnioScreen(
                 }
 
                 // Header del curso
+                val asigs = anio.lista_asignaturas?.values.orEmpty()
+
+                val totalCreditos = asigs.sumOf { it.creditos ?: 0 }
+
+                val mediaGlobal = run {
+                    val medias = asigs
+                        .filter { (it.numero_notas ?: 0) > 0 }
+                        .mapNotNull { it.media }
+
+                    if (medias.isEmpty()) null else medias.average()
+                }
+
+                val notaAprobado = anio.nota_minima_aprobado ?: 5.0
+
+                val mediaColor = when {
+                    mediaGlobal == null -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.45f)
+                    mediaGlobal >= notaAprobado + 2.0 -> MaterialTheme.colorScheme.tertiary
+                    mediaGlobal >= notaAprobado -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.error
+                }
+
+                val progressTarget = if (maxAsignaturas > 0) {
+                    (actuales.toFloat() / maxAsignaturas.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+
+                val progressAnimated by animateFloatAsState(
+                    targetValue = progressTarget,
+                    animationSpec = tween(
+                        durationMillis = 750,
+                        easing = FastOutSlowInEasing
+                    ),
+                    label = "yearCardProgress"
+                )
+
+                var mounted by remember(pageIndex, anio.nombre) {
+                    mutableStateOf(false)
+                }
+
+                LaunchedEffect(pageIndex, anio.nombre) {
+                    mounted = false
+                    delay(40)
+                    mounted = true
+                }
+
+                val cardScale by animateFloatAsState(
+                    targetValue = if (mounted) 1f else 0.96f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "yearCardScale"
+                )
+
+                val cardAlpha by animateFloatAsState(
+                    targetValue = if (mounted) 1f else 0f,
+                    animationSpec = tween(320),
+                    label = "yearCardAlpha"
+                )
+
+                val cardShape = RoundedCornerShape(30.dp)
+                val primary = MaterialTheme.colorScheme.primary
+                val tertiary = MaterialTheme.colorScheme.tertiary
+                val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = spacing),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    elevation = CardDefaults.cardElevation(0.dp)
+                        .padding(bottom = spacing)
+                        .graphicsLayer {
+                            scaleX = cardScale
+                            scaleY = cardScale
+                            alpha = cardAlpha
+                        }
+                        .animateContentSize(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Transparent
+                    ),
+                    shape = cardShape,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = onContainer.copy(alpha = 0.10f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.96f),
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+                                    )
+                                )
+                            )
+                            .drawBehind {
+                                drawCircle(
+                                    color = primary.copy(alpha = 0.13f),
+                                    radius = size.maxDimension * 0.42f,
+                                    center = Offset(
+                                        x = size.width * 1.02f,
+                                        y = -size.height * 0.10f
+                                    )
+                                )
+
+                                drawCircle(
+                                    color = tertiary.copy(alpha = 0.09f),
+                                    radius = size.maxDimension * 0.34f,
+                                    center = Offset(
+                                        x = -size.width * 0.10f,
+                                        y = size.height * 1.08f
+                                    )
+                                )
+                            }
                     ) {
-                        // Fila principal: icono + nombre + info
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 18.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        RoundedCornerShape(16.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = toRoman(pageIndex + 1),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(
-                                    text = anio.nombre ?: "",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
-                                if (!anio.fechaInicio.isNullOrBlank() && !anio.fechaFin.isNullOrBlank()) {
-                                    Text(
-                                        text = "${anio.fechaInicio} – ${anio.fechaFin}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
-                                    )
-                                }
-                            }
-                            if (anio.descripcion?.isNotBlank() == true) {
-                                IconButton(
-                                    onClick = { showDescriptionDialog = true },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = "Ver descripción",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Stats row
-                        val totalCreditos = anio.lista_asignaturas?.values?.sumOf { it.creditos ?: 0 } ?: 0
-                        val mediaGlobal = run {
-                            val asigs = anio.lista_asignaturas?.values.orEmpty()
-                            val conNotas = asigs.filter { (it.numero_notas ?: 0) > 0 }
-                            if (conNotas.isEmpty()) null
-                            else conNotas.mapNotNull { it.media }.average()
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            AnioStatChip(
-                                label = if (mediaGlobal != null) String.format("%.2f", mediaGlobal) else "–",
-                                sublabel = "media",
-                                modifier = Modifier.weight(1f),
-                                color = when {
-                                    mediaGlobal == null -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                                    mediaGlobal >= (anio.nota_minima_aprobado ?: 5.0) + 2.0 -> MaterialTheme.colorScheme.tertiary
-                                    mediaGlobal >= (anio.nota_minima_aprobado ?: 5.0) -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.error
-                                }
-                            )
-                            AnioStatChip(
-                                label = "$actuales / $maxAsignaturas",
-                                sublabel = "asignaturas",
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            if (totalCreditos > 0) {
-                                AnioStatChip(
-                                    label = "$totalCreditos",
-                                    sublabel = "créditos",
-                                    modifier = Modifier.weight(1f),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-
-                        // Barra de progreso con porcentaje
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Text(
-                                    text = "Asignaturas completadas",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
-                                )
-                                Text(
-                                    text = if (maxAsignaturas > 0) "${(animatedProgress * 100).toInt()}%" else "0%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(58.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    MaterialTheme.colorScheme.primary,
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                                                )
+                                            )
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.28f),
+                                            shape = RoundedCornerShape(20.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = toRoman(pageIndex + 1),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        letterSpacing = 0.4.sp
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "AÑO ACADÉMICO",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = onContainer.copy(alpha = 0.48f),
+                                        letterSpacing = 0.9.sp
+                                    )
+
+                                    Text(
+                                        text = anio.nombre ?: "",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Black,
+                                        color = onContainer,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    if (!anio.fechaInicio.isNullOrBlank() && !anio.fechaFin.isNullOrBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(999.dp),
+                                            color = onContainer.copy(alpha = 0.07f)
+                                        ) {
+                                            Text(
+                                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                                text = "${anio.fechaInicio} – ${anio.fechaFin}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = onContainer.copy(alpha = 0.68f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (anio.descripcion?.isNotBlank() == true) {
+                                    IconButton(
+                                        onClick = { showDescriptionDialog = true },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(15.dp))
+                                            .background(onContainer.copy(alpha = 0.07f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = "Ver descripción del año",
+                                            tint = onContainer.copy(alpha = 0.70f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
                             }
-                            LinearProgressIndicator(
-                                progress = { animatedProgress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(7.dp)
-                                    .clip(RoundedCornerShape(50)),
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                PremiumYearStatChip(
+                                label = if (mediaGlobal != null) {
+                                    String.format(LocalLocale.current.platformLocale, "%.2f", mediaGlobal)
+                                } else {
+                                    "–"
+                                },
+                                sublabel = "media",
+                                color = mediaColor,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                                PremiumYearStatChip(
+                                    label = "$actuales / $maxAsignaturas",
+                                    sublabel = "asignaturas",
+                                    color = onContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (totalCreditos > 0) {
+                                    PremiumYearStatChip(
+                                        label = "$totalCreditos",
+                                        sublabel = "créditos",
+                                        color = onContainer,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+
+                            PremiumYearProgressBar(
+                                label = "Asignaturas completadas",
+                                progress = progressAnimated,
                                 color = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                                strokeCap = StrokeCap.Round
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -671,6 +801,7 @@ private fun CrearAsignaturaSheetContent(
     val creditos = remember { mutableStateOf("") }
     val tipo = remember { mutableStateOf("Cuatrimestre") }
     val fechaExamen = remember { mutableStateOf("") }
+    val horaExamen = remember { mutableStateOf("") }
     var mostrarCalendarioExamen by remember { mutableStateOf(false) }
     var nombreError by remember { mutableStateOf<String?>(null) }
     var creditosError by remember { mutableStateOf<String?>(null) }
@@ -781,7 +912,14 @@ private fun CrearAsignaturaSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = horaExamen.value,
+            onValueChange = { horaExamen.value = it },
+            label = { Text("Hora del examen (HH:mm)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("09:00") },
+            singleLine = true
+        )
 
         Button(
             onClick = {
@@ -805,7 +943,8 @@ private fun CrearAsignaturaSheetContent(
                     creditos = creditosInt,
                     tipo_periodo = tipo.value,
                     numero_periodos = numeroPeriodos,
-                    fechaExamen = fechaExamen.value.takeIf { it.isNotBlank() }
+                    fechaExamen = fechaExamen.value.takeIf { it.isNotBlank() },
+                    horaExamen = horaExamen.value.takeIf { it.isNotBlank() }
                 )
                 CrearAsignatura(uid, anioId!!, asignatura)
                 if (isPremium && fechaExamen.value.isNotBlank()) {
@@ -927,5 +1066,131 @@ fun AnioScreenPreview() {
             numero_asignaturas = 20
         )
         AnioScreen(anio = mockAnio, pageIndex = 0)
+    }
+}
+@Composable
+private fun PremiumYearStatChip(
+    label: String,
+    sublabel: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val animatedColor by animateColorAsState(
+        targetValue = color,
+        animationSpec = tween(350),
+        label = "yearStatColor"
+    )
+
+    Surface(
+        modifier = modifier.heightIn(min = 62.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f)
+        ),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 7.dp)
+                    .width(28.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(animatedColor.copy(alpha = 0.65f))
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Black,
+                    color = animatedColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = sublabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.56f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = 0.2.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumYearProgressBar(
+    label: String,
+    progress: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val safeProgress = progress.coerceIn(0f, 1f)
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.62f)
+            )
+
+            Text(
+                text = "${(safeProgress * 100).toInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.10f)
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction = safeProgress)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                color.copy(alpha = 0.72f),
+                                color
+                            )
+                        )
+                    )
+            )
+        }
     }
 }
