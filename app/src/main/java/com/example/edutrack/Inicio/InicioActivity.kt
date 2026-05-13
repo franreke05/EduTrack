@@ -1290,83 +1290,95 @@ private fun CalendarioBottomSheet(
             allDaysInMonth.value = emptySet()
             onDispose {}
         } else {
-            var completedYears = 0
-            val totalYears = anios.size
             val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
             val allDaysTemp = mutableSetOf<Int>()
+            var totalExamenesListeners = 0
+            var completedExamenesListeners = 0
 
+            // Primero: contar total de listeners de exámenes que vamos a iniciar
             anios.forEach { anio ->
-                if (anio.id.isNullOrEmpty()) {
-                    completedYears++
-                    return@forEach
+                if (!anio.id.isNullOrEmpty()) {
+                    totalExamenesListeners += (anio.numero_asignaturas ?: 0)
                 }
-
-                val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
-                anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        snapshot.children.forEach { asigSnapshot ->
-                            val asigId = asigSnapshot.key ?: return@forEach
-
-                            // Cargar exámenes para esta asignatura
-                            val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
-                            examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                                override fun onDataChange(exSnapshot: DataSnapshot) {
-                                    exSnapshot.children.forEach { examenSnapshot ->
-                                        val examen = examenSnapshot.getValue(Examen::class.java)
-                                        // Mostrar exámenes con fecha válida (hora es opcional)
-                                        if (examen != null &&
-                                            examen.fecha.isNotBlank() &&
-                                            examen.nombre.isNotBlank() &&
-                                            !examen.nombre.equals("prueba", ignoreCase = true)) {
-                                            try {
-                                                val parts = examen.fecha.split("/")
-                                                if (parts.size == 3) {
-                                                    val day = parts[0].toInt()
-                                                    val month = parts[1].toInt()
-                                                    val year = parts[2].toInt()
-
-                                                    if (month == currentMonth && year == currentYear) {
-                                                        val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                        examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
-                                                            Pair(examen.nombre, horaDisplay)
-                                                        )
-                                                        allDaysTemp.add(day)
-                                                        android.util.Log.d("CalendarioBottomSheet", "Loaded examen: ${examen.nombre} on day $day at $horaDisplay")
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                android.util.Log.e("CalendarioBottomSheet", "Error parsing fecha: ${e.message}")
-                                            }
-                                        }
-                                    }
-                                }
-
-                                override fun onCancelled(error: DatabaseError) {
-                                    android.util.Log.e("CalendarioBottomSheet", "Error loading examenes: ${error.message}")
-                                }
-                            })
-                        }
-
-                        completedYears++
-                        if (completedYears == totalYears) {
-                            examensByDay.value = examensByDayTemp
-                            allDaysInMonth.value = allDaysTemp
-                            android.util.Log.d("CalendarioBottomSheet", "Calendar loaded: ${examensByDayTemp.size} days with exams")
-                        }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        android.util.Log.e("CalendarioBottomSheet", "Error loading asignaturas: ${error.message}")
-                        completedYears++
-                        if (completedYears == totalYears) {
-                            examensByDay.value = examensByDayTemp
-                            allDaysInMonth.value = allDaysTemp
-                        }
-                    }
-                })
             }
 
-            onDispose {}
+            android.util.Log.d("CalendarioBottomSheet", "Total examen listeners to init: $totalExamenesListeners")
+
+            if (totalExamenesListeners == 0) {
+                examensByDay.value = emptyMap()
+                allDaysInMonth.value = emptySet()
+                onDispose {}
+            } else {
+                // Segundo: cargar asignaturas y sus exámenes
+                anios.forEach { anio ->
+                    if (anio.id.isNullOrEmpty()) return@forEach
+
+                    val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
+                    anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            snapshot.children.forEach { asigSnapshot ->
+                                val asigId = asigSnapshot.key ?: return@forEach
+
+                                val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
+                                examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                                    override fun onDataChange(exSnapshot: DataSnapshot) {
+                                        exSnapshot.children.forEach { examenSnapshot ->
+                                            val examen = examenSnapshot.getValue(Examen::class.java)
+                                            if (examen != null &&
+                                                examen.fecha.isNotBlank() &&
+                                                examen.nombre.isNotBlank() &&
+                                                !examen.nombre.equals("prueba", ignoreCase = true)) {
+                                                try {
+                                                    val parts = examen.fecha.split("/")
+                                                    if (parts.size == 3) {
+                                                        val day = parts[0].toInt()
+                                                        val month = parts[1].toInt()
+                                                        val year = parts[2].toInt()
+
+                                                        if (month == currentMonth && year == currentYear) {
+                                                            val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                                            examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
+                                                                Pair(examen.nombre, horaDisplay)
+                                                            )
+                                                            allDaysTemp.add(day)
+                                                            android.util.Log.d("CalendarioBottomSheet", "✓ Exam loaded: ${examen.nombre} day $day")
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("CalendarioBottomSheet", "Parse error: ${e.message}")
+                                                }
+                                            }
+                                        }
+
+                                        completedExamenesListeners++
+                                        android.util.Log.d("CalendarioBottomSheet", "Progress: $completedExamenesListeners/$totalExamenesListeners listeners done")
+
+                                        if (completedExamenesListeners == totalExamenesListeners) {
+                                            examensByDay.value = examensByDayTemp
+                                            allDaysInMonth.value = allDaysTemp
+                                            android.util.Log.d("CalendarioBottomSheet", "✓ Calendar complete: ${examensByDayTemp.size} days loaded")
+                                        }
+                                    }
+
+                                    override fun onCancelled(error: DatabaseError) {
+                                        completedExamenesListeners++
+                                        if (completedExamenesListeners == totalExamenesListeners) {
+                                            examensByDay.value = examensByDayTemp
+                                            allDaysInMonth.value = allDaysTemp
+                                        }
+                                    }
+                                })
+                            }
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                            android.util.Log.e("CalendarioBottomSheet", "Error loading asignaturas: ${error.message}")
+                        }
+                    })
+                }
+
+                onDispose {}
+            }
         }
     }
 
