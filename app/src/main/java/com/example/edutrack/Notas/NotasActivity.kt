@@ -88,6 +88,9 @@ import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
+import com.example.edutrack.dataclass.Examen
+import com.example.edutrack.examenesRef
+import com.example.edutrack.gestures.swipeBackGesture
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -152,14 +155,17 @@ fun NotasScreen(
 ) {
     val context = LocalContext.current
     val notasState = remember { mutableStateOf<List<Notas>>(emptyList()) }
+    val examenesState = remember { mutableStateOf<List<Examen>>(emptyList()) }
     var notasLoaded by remember { mutableStateOf(false) }
     var showNotaSheet by remember { mutableStateOf(false) }
+    var showExamenSheet by remember { mutableStateOf(false) }
     var notaEnEdicion by remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
     var showDeleteAsignatura by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val examenSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     DisposableEffect(asignaturaId) {
         val notasRef = com.example.edutrack.notasRef(userId, anioId ?: "", asignaturaId)
@@ -175,6 +181,22 @@ fun NotasScreen(
         }
         notasRef.addValueEventListener(listener)
         onDispose { notasRef.removeEventListener(listener) }
+    }
+
+    DisposableEffect(asignaturaId) {
+        val examsRef = examenesRef(userId, anioId ?: "", asignaturaId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val lista = snapshot.children.mapNotNull { it.getValue(Examen::class.java) }
+                    .sortedBy { it.fecha }
+                examenesState.value = lista
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(context, "Error leyendo exámenes", Toast.LENGTH_SHORT).show()
+            }
+        }
+        examsRef.addValueEventListener(listener)
+        onDispose { examsRef.removeEventListener(listener) }
     }
 
     val userPlan by rememberUserPlan(userId)
@@ -239,7 +261,7 @@ fun NotasScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { inner ->
-        Surface(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxSize().swipeBackGesture(onBack)) {
             Column(
                 modifier = Modifier
                     .padding(inner)
@@ -258,7 +280,13 @@ fun NotasScreen(
                     porcentajeTotal = porcentajeTotal,
                 )
 
-
+                ExamenesSection(
+                    examenes = examenesState.value,
+                    onAddExamen = { showExamenSheet = true },
+                    onDeleteExamen = { examen ->
+                        examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
+                    }
+                )
 
                 ListaNotasPorPeriodo(
                     notas = notasState.value,
@@ -297,6 +325,28 @@ fun NotasScreen(
                         showNotaSheet = false
                         notaEnEdicion = null
                     }
+                }
+            )
+        }
+    }
+
+    if (showExamenSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showExamenSheet = false },
+            sheetState = examenSheetState
+        ) {
+            ExamenSheetContent(
+                asignaturaNombre = asignaturaNombre,
+                onDismiss = { showExamenSheet = false },
+                onSave = { examen ->
+                    val newExamen = examen.copy(
+                        id = examen.id.ifEmpty { UUID.randomUUID().toString() },
+                        asignaturaId = asignaturaId,
+                        asignaturaNombre = asignaturaNombre,
+                        creadoEn = System.currentTimeMillis()
+                    )
+                    examenesRef(userId, anioId ?: "", asignaturaId).child(newExamen.id).setValue(newExamen)
+                    showExamenSheet = false
                 }
             )
         }
@@ -1033,6 +1083,178 @@ private fun actualizarMediaAsignatura(userId: String, anioId: String?, asignatur
     val ref = com.example.edutrack.asignaturaRef(userId, anioId, asignaturaId)
     ref.child("media").setValue(resumen.media)
     ref.child("numero_notas").setValue(resumen.totalNotas)
+}
+
+@Composable
+fun ExamenesSection(
+    examenes: List<Examen>,
+    onAddExamen: () -> Unit,
+    onDeleteExamen: (Examen) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Exámenes próximos",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            IconButton(onClick = onAddExamen, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Add, contentDescription = "Agregar examen")
+            }
+        }
+
+        if (examenes.isEmpty()) {
+            Text(
+                "Sin exámenes programados",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                items(examenes) { examen ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    examen.nombre,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        examen.fecha,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (examen.hora.isNotEmpty()) {
+                                        Text(
+                                            examen.hora,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = { onDeleteExamen(examen) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar examen", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExamenSheetContent(
+    asignaturaNombre: String,
+    onDismiss: () -> Unit,
+    onSave: (Examen) -> Unit
+) {
+    val nombre = remember { mutableStateOf("") }
+    val fecha = remember { mutableStateOf("") }
+    val hora = remember { mutableStateOf("") }
+    var mostrarCalendario by remember { mutableStateOf(false) }
+    var nombreError by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            "Nuevo examen",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            asignaturaNombre,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        OutlinedTextField(
+            value = nombre.value,
+            onValueChange = { nombre.value = it; nombreError = null },
+            label = { Text("Nombre del examen") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = nombreError != null,
+            supportingText = nombreError?.let { msg -> { Text(msg) } },
+            singleLine = true
+        )
+
+        OutlinedTextField(
+            value = fecha.value,
+            onValueChange = {},
+            label = { Text("Fecha (dd/MM/yyyy)") },
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { mostrarCalendario = true }) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        )
+        if (mostrarCalendario) {
+            SelectorDeFecha(
+                onFechaSeleccionada = { fecha.value = it },
+                onDismiss = { mostrarCalendario = false }
+            )
+        }
+
+        OutlinedTextField(
+            value = hora.value,
+            onValueChange = { hora.value = it },
+            label = { Text("Hora (HH:mm)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("09:00") },
+            singleLine = true
+        )
+
+        Button(
+            onClick = {
+                if (nombre.value.trim().isBlank()) {
+                    nombreError = "El nombre es obligatorio"
+                    return@Button
+                }
+                onSave(Examen(
+                    nombre = nombre.value.trim(),
+                    fecha = fecha.value,
+                    hora = hora.value
+                ))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text("Guardar examen", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 // Vista previa del contenido de notas.

@@ -56,6 +56,7 @@ import com.example.edutrack.dataclass.UserGroup
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.gestures.swipeBackGesture
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,7 +94,8 @@ fun GruposScreen(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .swipeBackGesture(onBack),
             color = MaterialTheme.colorScheme.background
         ) {
             if (userGroups.isEmpty()) {

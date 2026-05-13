@@ -21,6 +21,9 @@
             }
           },
           "premiumCache": {
+            ".read": "auth != null && auth.uid == $userId",
+            ".write": false,
+            ".validate": "newData.hasChildren(['isPremium']) || !newData.exists()",
             "isPremium": {
               ".validate": "newData.isBoolean()"
             },
@@ -29,6 +32,12 @@
             },
             "expiresAt": {
               ".validate": "!newData.exists() || newData.isNumber()"
+            },
+            "validatedAt": {
+              ".validate": "!newData.exists() || newData.isNumber()"
+            },
+            "source": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val() == 'google_play_server')"
             }
           },
           "anios": {

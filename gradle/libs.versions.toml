@@ -29,6 +29,10 @@ androidxMaterial3 = "1.4.0"
 benchmarkTraceprocessor = "1.4.1"
 credentials = "1.5.0"
 googleid = "1.1.1"
+uiText = "1.11.1"
+animation = "1.11.1"
+foundationLayoutVersion = "1.11.1"
+playServicesAdsApi = "25.2.0"
 
 [libraries]
 androidx-compose-bom-v20240401 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
@@ -70,6 +74,10 @@ androidx-benchmark-traceprocessor = { group = "androidx.benchmark", name = "benc
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animation" }
+androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
+play-services-ads-api = { group = "com.google.android.gms", name = "play-services-ads-api", version.ref = "playServicesAdsApi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

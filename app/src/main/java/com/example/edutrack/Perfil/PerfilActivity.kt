@@ -68,6 +68,7 @@ import com.example.edutrack.domain.rememberPremiumCache
 import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.premiumCacheRef
 import com.example.edutrack.ui.theme.EduTrackTheme
+import com.example.edutrack.gestures.swipeBackGesture
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,7 +162,8 @@ fun CuerpoPerfil(
         Surface(
             modifier = Modifier
                 .padding(innerPadding)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .swipeBackGesture(onFinish),
             color = MaterialTheme.colorScheme.background
         ) {
             if (usuario == null) {
@@ -479,22 +481,20 @@ private fun MiPlanCard(
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
-            title = { Text("¿Cancelar suscripción?") },
-            text = { Text("Perderás acceso a todas las funciones Premium al final del período actual.") },
+            title = { Text("Gestionar suscripción") },
+            text = { Text("Las suscripciones se gestionan directamente desde Google Play. Abre la aplicación de Google Play para cancelar o cambiar tu plan.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (userId != null) {
-                            premiumCacheRef(userId).updateChildren(mapOf("isPremium" to false))
-                        }
+                        // TODO: Abrir Google Play Manage Subscriptions
+                        // Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions"))
                         showCancelDialog = false
-                        onCancelSubscription()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Cancelar suscripción") }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Abrir Google Play") }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) { Text("Mantener Premium") }
+                TextButton(onClick = { showCancelDialog = false }) { Text("Cerrar") }
             }
         )
     }

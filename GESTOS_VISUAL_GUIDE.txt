@@ -1,0 +1,145 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     GESTOS IMPLEMENTADOS EN EDUTRACK                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─ GESTO 1: SWIPE BACK ─────────────────────────────────────────────────────────┐
+│                                                                               │
+│ DÓNDE:      AnioActivity (pantalla de asignaturas)                          │
+│ ACCIÓN:     Deslizar desde el borde IZQUIERDO hacia la DERECHA              │
+│ RESULTADO:  Vuelve a la pantalla anterior                                   │
+│                                                                               │
+│ Visualización:                                                               │
+│ ┌─────────────────────────────────────────────────────────────┐            │
+│ │ [Matematicas] [Lenguaje] [Historia] ...                     │            │
+│ │                                                               │            │
+│ │  ← Área sensible (primeros 50dp del borde)                  │            │
+│ │     Desliza aquí hacia →                                     │            │
+│ │                                                               │            │
+│ │ Velocidad requerida: > 300 dp/s                             │            │
+│ └─────────────────────────────────────────────────────────────┘            │
+│                                                                               │
+│ BENEFICIO: Navegación natural, como en Gmail, Twitter, etc                  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ GESTO 2: LONG PRESS (MENÚ CONTEXTUAL) ───────────────────────────────────────┐
+│                                                                               │
+│ DÓNDE:      Tarjetas de asignaturas (en AnioActivity)                      │
+│ ACCIÓN:     Mantén presionada una tarjeta ~500ms                            │
+│ RESULTADO:  Si tienes Grupos → Abre menú para compartir                    │
+│             Si no tienes Grupos → Sin efecto                               │
+│                                                                               │
+│ Visualización:                                                               │
+│ ┌──────────────────────┐                                                   │
+│ │  Matemáticas         │  ← Presiona aquí y mantén 500ms                  │
+│ │  Media: 8.5          │                                                    │
+│ │  5 cr | 2do sem      │                                                    │
+│ └──────────────────────┘                                                   │
+│          ↓ (después de 500ms)                                               │
+│  ┌──────────────────┐                                                      │
+│  │ Compartir Grupo  │ ← Menú aparece                                       │
+│  │ (si tienes)      │                                                      │
+│  └──────────────────┘                                                      │
+│                                                                               │
+│ BENEFICIO: Acceso rápido a funciones, UX más fluida                        │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ GESTO 3: SWIPE DOWN (EN BOTTOM SHEETS) ──────────────────────────────────────┐
+│                                                                               │
+│ DÓNDE:      ModalBottomSheet (crear asignatura, etc)                        │
+│ ACCIÓN:     Deslizar hacia abajo desde el drag handle                       │
+│ RESULTADO:  Cierra el modal automáticamente                                 │
+│                                                                               │
+│ Visualización:                                                               │
+│                                                                               │
+│                 ┌─────────────────────────────┐                             │
+│                 │ ═══════ ← Drag handle       │  Presión aquí ↓            │
+│                 │                             │                              │
+│                 │  Crear Nueva Asignatura    │                             │
+│                 │  ─────────────────────────  │                             │
+│                 │  Nombre: [________]         │                             │
+│                 │  Créditos: [__]             │                             │
+│                 │                             │                             │
+│                 │  [Crear] [Cancelar]         │                             │
+│                 └─────────────────────────────┘                             │
+│                          ↓ (desliza hacia abajo)                            │
+│                     Cierra automáticamente                                  │
+│                                                                               │
+│ BENEFICIO: Cierre intuitivo, menos clics, UX estándar en Android           │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           ACCESIBILIDAD                                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+⚠️  IMPORTANTE: Todos los gestos tienen botones alternativos
+
+✓ Swipe Back      → Botón "Atrás" en la AppBar (esquina superior izq)
+✓ Long Press      → Menú de 3 puntos / Botones de acción
+✓ Swipe Down      → Botón X / Cancelar en el modal
+
+No hay funcionalidad SOLO accesible por gesto. El usuario puede siempre
+usar botones tradicionales si prefiere.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        ESTADO DE IMPLEMENTACIÓN                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+FASE 1: GESTOS BÁSICOS (COMPLETADA) ✅
+  ✅ Swipe Back     → AnioActivity
+  ✅ Long Press     → AsignaturaCard
+  ✅ Swipe Down     → ModalBottomSheet (automático)
+
+FASE 2: GESTOS AVANZADOS (PRÓXIMA)
+  ⏳ Swipe L/R      → Entre cursos (InicioActivity)
+  ⏳ Swipe Up       → Expandir cards
+  ⏳ Drag & Drop    → Reordenar (Premium)
+
+FASE 3: PULIDO Y TESTING
+  ⏳ Testing en dispositivo físico
+  ⏳ Ajuste de umbrales según feedback
+  ⏳ Documentación de troubleshooting
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          CÓMO TESTING                                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+1. SWIPE BACK:
+   ✓ Abre AnioActivity
+   ✓ Desliza desde el borde izquierdo (primeros 50dp)
+   ✓ Debe volver inmediatamente
+   ✓ Prueba con diferentes velocidades (rápido vs lento)
+
+2. LONG PRESS:
+   ✓ Abre AnioActivity
+   ✓ Crea un grupo primero (desde Perfil)
+   ✓ Long-press en una tarjeta de asignatura
+   ✓ Debe aparecer opción "Compartir en Grupo"
+
+3. SWIPE DOWN:
+   ✓ En AnioActivity, presiona el FAB (botón +)
+   ✓ Se abre el ModalBottomSheet
+   ✓ Desliza el drag handle hacia abajo
+   ✓ Debe cerrar el modal
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      ARCHIVOS DE REFERENCIA                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📁 app/src/main/java/com/example/edutrack/gestures/
+   ├── GestureDetectors.kt          (Core implementation)
+   ├── GestureExamples.kt           (Code examples)
+   ├── EJEMPLOS_INTEGRACION.kt      (Integration guide)
+   ├── GESTOS_IMPLEMENTADOS.md      (Features summary)
+   └── QUICK_REFERENCE.kt           (Quick lookup)
+
+📄 GESTOS_VISUAL_GUIDE.txt          (Este archivo)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Build Status: ⏳ Compilando...
+Last Status: 🔄 ./gradlew assembleDebug en progreso
+
+═══════════════════════════════════════════════════════════════════════════════

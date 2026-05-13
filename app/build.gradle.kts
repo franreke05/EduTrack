@@ -43,9 +43,6 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
-    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -54,8 +51,11 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.compose.ui.text)
     // Core & Lifecycle
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
@@ -68,15 +68,14 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.material3.material3)
+    implementation(libs.play.services.ads.api)
     debugImplementation(libs.androidx.ui.tooling)
 
 
     // Material 3
     implementation(libs.androidx.material3)
-    dependencies {
-        implementation(libs.androidx.compose.material.icons.core)
-        implementation(libs.androidx.compose.material.icons.extended)
-    }
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.material.icons.extended)
 
 
     // Navigation
@@ -107,6 +106,4 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(platform(libs.androidx.compose.bom.v20240401))
-    implementation(libs.androidx.compose.material3)
 }

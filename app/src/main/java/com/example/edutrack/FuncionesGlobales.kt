@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.dataclass.Examen
 import com.example.edutrack.dataclass.Group
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupRole
@@ -32,6 +33,7 @@ fun anioRef(userId: String, anioId: String) = aniosRef(userId).child(anioId)
 fun asignaturasRef(userId: String, anioId: String) = anioRef(userId, anioId).child("asignaturas")
 fun asignaturaRef(userId: String, anioId: String, asignaturaId: String) = asignaturasRef(userId, anioId).child(asignaturaId)
 fun notasRef(userId: String, anioId: String, asignaturaId: String) = asignaturaRef(userId, anioId, asignaturaId).child("notas")
+fun examenesRef(userId: String, anioId: String, asignaturaId: String) = asignaturaRef(userId, anioId, asignaturaId).child("examenes")
 
 // Rutas de grupos (nivel raíz bajo ROOT_NODE, no bajo users/).
 fun groupsRef() = db().child(ROOT_NODE).child("groups")

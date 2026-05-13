@@ -114,6 +114,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalLocale
+import com.example.edutrack.gestures.swipeBackGesture
 
 // Ruta de entrada: carga el anio seleccionado y muestra un indicador mientras falta data.
 @Composable
@@ -259,7 +260,12 @@ fun AnioScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(
+            modifier = modifier
+                .fillMaxSize()
+                .swipeBackGesture(onBack = onBack),
+            color = MaterialTheme.colorScheme.background
+        ) {
             Column(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -800,9 +806,6 @@ private fun CrearAsignaturaSheetContent(
     val descripcion = remember { mutableStateOf("") }
     val creditos = remember { mutableStateOf("") }
     val tipo = remember { mutableStateOf("Cuatrimestre") }
-    val fechaExamen = remember { mutableStateOf("") }
-    val horaExamen = remember { mutableStateOf("") }
-    var mostrarCalendarioExamen by remember { mutableStateOf(false) }
     var nombreError by remember { mutableStateOf<String?>(null) }
     var creditosError by remember { mutableStateOf<String?>(null) }
 
@@ -883,44 +886,6 @@ private fun CrearAsignaturaSheetContent(
             }
         }
 
-        if (isPremium) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Recordatorio de examen (Premium)",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                OutlinedTextField(
-                    value = fechaExamen.value,
-                    onValueChange = {},
-                    label = { Text("Fecha del examen (opcional)") },
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        IconButton(onClick = { mostrarCalendarioExamen = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                )
-                if (mostrarCalendarioExamen) {
-                    com.example.edutrack.Inicio.SelectorDeFecha(
-                        onFechaSeleccionada = { fechaExamen.value = it },
-                        onDismiss = { mostrarCalendarioExamen = false }
-                    )
-                }
-            }
-        }
-
-        OutlinedTextField(
-            value = horaExamen.value,
-            onValueChange = { horaExamen.value = it },
-            label = { Text("Hora del examen (HH:mm)") },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("09:00") },
-            singleLine = true
-        )
-
         Button(
             onClick = {
                 val trimmedNombre = nombre.value.trim()
@@ -942,14 +907,9 @@ private fun CrearAsignaturaSheetContent(
                     descripcion = descripcion.value,
                     creditos = creditosInt,
                     tipo_periodo = tipo.value,
-                    numero_periodos = numeroPeriodos,
-                    fechaExamen = fechaExamen.value.takeIf { it.isNotBlank() },
-                    horaExamen = horaExamen.value.takeIf { it.isNotBlank() }
+                    numero_periodos = numeroPeriodos
                 )
                 CrearAsignatura(uid, anioId!!, asignatura)
-                if (isPremium && fechaExamen.value.isNotBlank()) {
-                    ExamReminderScheduler.schedule(context, asignatura)
-                }
                 onDismiss()
             },
             modifier = Modifier

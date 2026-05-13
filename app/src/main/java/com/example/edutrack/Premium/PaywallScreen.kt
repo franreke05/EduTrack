@@ -280,40 +280,36 @@ fun PaywallScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // TODO: Integrar con Google Play Billing cuando esté disponible
                     Button(
                         onClick = {
-                            if (isPurchasing || userId == null) return@Button
-                            isPurchasing = true
-                            // TODO (producción): reemplazar con Google Play Billing real.
-                            premiumCacheRef(userId).updateChildren(
-                                mapOf("isPremium" to true)
-                            ).addOnCompleteListener {
-                                isPurchasing = false
-                                onPurchase(selectedPlan)
-                            }
+                            // Placeholder: en producción, abrirá Google Play Billing
+                            // La suscripción se valida server-side mediante Cloud Function
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = MaterialTheme.shapes.extraLarge,
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                        enabled = !isPurchasing
+                        enabled = false
                     ) {
-                        if (isPurchasing) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Desbloquear Premium",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = colorScheme.onPrimary
-                            )
-                        }
+                        Text(
+                            text = "Billing en construcción",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.onPrimary
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Las suscripciones se gestionan directamente en Google Play. Pronto esta funcionalidad estará disponible.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     Spacer(modifier = Modifier.height(8.dp))
 

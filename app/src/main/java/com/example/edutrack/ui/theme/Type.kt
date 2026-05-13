@@ -6,6 +6,22 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+// TODO: To use Poppins font, add these font files to app/src/main/res/font/:
+// - poppins_regular.ttf
+// - poppins_medium.ttf
+// - poppins_semibold.ttf
+// - poppins_bold.ttf
+// Then uncomment the code below and replace FontFamily.Default with PoppinsFamily
+
+// import androidx.compose.ui.text.font.Font
+// import com.example.edutrack.R
+// val PoppinsFamily = FontFamily(
+//     Font(R.font.poppins_regular, FontWeight.Normal),
+//     Font(R.font.poppins_medium, FontWeight.Medium),
+//     Font(R.font.poppins_semibold, FontWeight.SemiBold),
+//     Font(R.font.poppins_bold, FontWeight.Bold)
+// )
+
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,

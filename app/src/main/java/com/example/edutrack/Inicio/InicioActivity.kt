@@ -100,6 +100,8 @@ import java.util.Calendar
 import java.util.Locale
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
+import com.example.edutrack.dataclass.Examen
+import com.example.edutrack.examenesRef
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberUserPlan
@@ -1104,8 +1106,10 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
     }
 
     if (mostrarCalendario) {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
         CalendarioBottomSheet(
             anios = anios,
+            userId = userId,
             onDismiss = { mostrarCalendario = false },
             onNavAsignatura = onAnioSelected
         )
@@ -1261,6 +1265,7 @@ private fun ExamenBadge(asignatura: String, dia: String, hora: String?, media: D
 @Composable
 private fun CalendarioBottomSheet(
     anios: List<Anio>,
+    userId: String?,
     onDismiss: () -> Unit,
     onNavAsignatura: (String?) -> Unit
 ) {
@@ -1272,34 +1277,90 @@ private fun CalendarioBottomSheet(
     val currentMonth = now.get(Calendar.MONTH) + 1
     val currentYear = now.get(Calendar.YEAR)
 
-    val examensByDay = mutableMapOf<Int, MutableList<Pair<String, String>>>() // día -> (asignatura, horaExamen)
-    val allDaysInMonth = mutableSetOf<Int>()
-
-    anios.forEach { anio ->
-        anio.lista_asignaturas?.values?.forEach { asignatura ->
-            if (asignatura.fechaExamen != null && asignatura.fechaExamen.isNotEmpty()) {
-                try {
-                    val date = sdf.parse(asignatura.fechaExamen)
-                    if (date != null) {
-                        val cal = Calendar.getInstance().apply { time = date }
-                        if (cal.get(Calendar.MONTH) + 1 == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
-                            val day = cal.get(Calendar.DAY_OF_MONTH)
-                            allDaysInMonth.add(day)
-                            val asigName = asignatura.nombre ?: "Examen"
-                            val hora = asignatura.horaExamen ?: "--:--"
-                            examensByDay.getOrPut(day) { mutableListOf() }
-                                .add(asigName to hora)
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Ignore
-                }
-            }
-        }
-    }
-
     val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
     val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+    val examensByDay = remember { mutableStateOf<Map<Int, List<Pair<String, String>>>>(emptyMap()) }
+    val allDaysInMonth = remember { mutableStateOf(setOf<Int>()) }
+
+    // Cargar exámenes desde Firebase en tiempo real
+    DisposableEffect(anios, userId, currentMonth, currentYear) {
+        if (userId.isNullOrEmpty() || anios.isEmpty()) {
+            examensByDay.value = emptyMap()
+            allDaysInMonth.value = emptySet()
+            onDispose {}
+        } else {
+            val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
+            val allDaysTemp = mutableSetOf<Int>()
+            var loadedCount = 0
+            val totalAsignaturas: Int = anios.sumOf { anio -> anio.numero_asignaturas ?: 0 }
+
+            anios.forEach { anio ->
+                if (anio.id.isNullOrEmpty()) return@forEach
+                val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
+                anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        snapshot.children.forEach { asigSnapshot ->
+                            val asigId = asigSnapshot.key ?: return@forEach
+                            val asigNombre = asigSnapshot.child("nombre").getValue(String::class.java) ?: ""
+
+                            // Cargar exámenes para esta asignatura
+                            val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
+                            examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                                override fun onDataChange(exSnapshot: DataSnapshot) {
+                                    exSnapshot.children.forEach { examenSnapshot ->
+                                        val examen = examenSnapshot.getValue(Examen::class.java)
+                                        if (examen != null && examen.fecha.isNotBlank()) {
+                                            try {
+                                                val parts = examen.fecha.split("/")
+                                                if (parts.size == 3) {
+                                                    val day = parts[0].toInt()
+                                                    val month = parts[1].toInt()
+                                                    val year = parts[2].toInt()
+
+                                                    // Solo mostrar exámenes del mes actual
+                                                    if (month == currentMonth && year == currentYear) {
+                                                        val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                                        val pair = Pair(examen.nombre, horaDisplay)
+
+                                                        examensByDayTemp.getOrPut(day) { mutableListOf() }.add(pair)
+                                                        allDaysTemp.add(day)
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("CalendarioBottomSheet", "Error parsing examen: ${e.message}")
+                                            }
+                                        }
+                                    }
+
+                                    loadedCount++
+                                    if (loadedCount == totalAsignaturas) {
+                                        examensByDay.value = examensByDayTemp
+                                        allDaysInMonth.value = allDaysTemp
+                                    }
+                                }
+
+                                override fun onCancelled(error: DatabaseError) {
+                                    android.util.Log.e("CalendarioBottomSheet", "Error loading examenes: ${error.message}")
+                                    loadedCount++
+                                    if (loadedCount == totalAsignaturas) {
+                                        examensByDay.value = examensByDayTemp
+                                        allDaysInMonth.value = allDaysTemp
+                                    }
+                                }
+                            })
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        android.util.Log.e("CalendarioBottomSheet", "Error loading asignaturas: ${error.message}")
+                    }
+                })
+            }
+
+            onDispose {}
+        }
+    }
 
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1366,8 +1427,9 @@ private fun CalendarioBottomSheet(
                 items(daysInMonth) { dayIdx ->
                     val day = dayIdx + 1
                     val isCurrentDay = day == now.get(Calendar.DAY_OF_MONTH)
-                    val hasExams = day in allDaysInMonth
+                    val hasExams = day in allDaysInMonth.value
                     val isSelected = day == selectedDay
+                    val examesForDay = examensByDay.value[day] ?: emptyList()
 
                     Box(
                         modifier = Modifier
@@ -1410,13 +1472,13 @@ private fun CalendarioBottomSheet(
             HorizontalDivider(thickness = 0.5.dp, color = colorScheme.outlineVariant)
 
             // Exámenes del día seleccionado
-            if (selectedDay != null && selectedDay in examensByDay) {
+            if (selectedDay != null && selectedDay in examensByDay.value) {
                 Text(
                     text = "Exámenes del ${selectedDay} de ${monthName}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
-                examensByDay[selectedDay]?.forEach { (asignatura, hora) ->
+                examensByDay.value[selectedDay]?.forEach { (examen, hora) ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1433,7 +1495,7 @@ private fun CalendarioBottomSheet(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = asignatura,
+                                    text = examen,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = colorScheme.onSurface
@@ -1445,8 +1507,7 @@ private fun CalendarioBottomSheet(
                                 )
                             }
                             TextButton(onClick = {
-                                // Navega a la asignatura - por ahora solo cierra
-                                onNavAsignatura(null)
+                                // Solo cierra el calendario
                                 onDismiss()
                             }) {
                                 Text("Ver", style = MaterialTheme.typography.labelSmall)

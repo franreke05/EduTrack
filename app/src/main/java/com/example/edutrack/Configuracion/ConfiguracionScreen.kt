@@ -60,6 +60,7 @@ import com.example.edutrack.data.notificationsEnabledFlow
 import com.example.edutrack.data.setDarkMode
 import com.example.edutrack.data.setLanguage
 import com.example.edutrack.data.setNotificationsEnabled
+import com.example.edutrack.gestures.swipeBackGesture
 import kotlinx.coroutines.launch
 
 private const val SUPPORT_EMAIL = "franreke506@gmail.com"
@@ -111,7 +112,8 @@ fun ConfiguracionScreen(
         Surface(
             modifier = Modifier
                 .padding(innerPadding)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .swipeBackGesture(onBack),
             color = MaterialTheme.colorScheme.background
         ) {
             LazyColumn(

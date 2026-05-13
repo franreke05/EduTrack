@@ -89,6 +89,7 @@ import com.example.edutrack.domain.RequiredGradeResult
 import com.example.edutrack.domain.calculateRequiredGrade
 import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.notasRef
+import com.example.edutrack.gestures.swipeBackGesture
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -201,7 +202,8 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .swipeBackGesture(onBack),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Hero header with stagger entrance
