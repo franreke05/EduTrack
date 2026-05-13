@@ -1138,7 +1138,7 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                         android.util.Log.d("ExamenesFeedCard", "✓ CLICK en calendario")
                         mostrarCalendario = true
                     },
-                    modifier = Modifier.size(width = 100.dp, height = 40.dp)
+                    modifier = Modifier.size(width = 140.dp, height = 40.dp)
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
