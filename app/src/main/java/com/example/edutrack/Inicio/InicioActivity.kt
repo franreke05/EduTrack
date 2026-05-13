@@ -1269,6 +1269,11 @@ private fun CalendarioBottomSheet(
     onDismiss: () -> Unit,
     onNavAsignatura: (String?) -> Unit
 ) {
+    android.util.Log.d("CalendarioBottomSheet", "INIT: anios=${anios.size}, userId=$userId")
+    anios.forEachIndexed { idx, anio ->
+        android.util.Log.d("CalendarioBottomSheet", "  Year $idx: id=${anio.id}, num_asig=${anio.numero_asignaturas}")
+    }
+
     val colorScheme = MaterialTheme.colorScheme
     var selectedDay by remember { mutableStateOf<Int?>(null) }
 
@@ -1310,6 +1315,8 @@ private fun CalendarioBottomSheet(
                 onDispose {}
             } else {
                 // Segundo: cargar asignaturas y sus exámenes
+                val examenListeners = mutableListOf<ValueEventListener>()
+
                 anios.forEach { anio ->
                     if (anio.id.isNullOrEmpty()) return@forEach
 
@@ -1320,7 +1327,7 @@ private fun CalendarioBottomSheet(
                                 val asigId = asigSnapshot.key ?: return@forEach
 
                                 val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
-                                examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                                val examenListener = object : ValueEventListener {
                                     override fun onDataChange(exSnapshot: DataSnapshot) {
                                         exSnapshot.children.forEach { examenSnapshot ->
                                             val examen = examenSnapshot.getValue(Examen::class.java)
@@ -1356,18 +1363,21 @@ private fun CalendarioBottomSheet(
                                         if (completedExamenesListeners == totalExamenesListeners) {
                                             examensByDay.value = examensByDayTemp
                                             allDaysInMonth.value = allDaysTemp
-                                            android.util.Log.d("CalendarioBottomSheet", "✓ Calendar complete: ${examensByDayTemp.size} days loaded")
+                                            android.util.Log.d("CalendarioBottomSheet", "✓✓ Calendar FINAL: ${examensByDayTemp.size} days loaded")
                                         }
                                     }
 
                                     override fun onCancelled(error: DatabaseError) {
+                                        android.util.Log.e("CalendarioBottomSheet", "Error loading examenes: ${error.message}")
                                         completedExamenesListeners++
                                         if (completedExamenesListeners == totalExamenesListeners) {
                                             examensByDay.value = examensByDayTemp
                                             allDaysInMonth.value = allDaysTemp
                                         }
                                     }
-                                })
+                                }
+                                examenListeners.add(examenListener)
+                                examenesRef.addListenerForSingleValueEvent(examenListener)
                             }
                         }
 
