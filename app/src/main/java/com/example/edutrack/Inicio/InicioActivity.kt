@@ -1290,19 +1290,22 @@ private fun CalendarioBottomSheet(
             allDaysInMonth.value = emptySet()
             onDispose {}
         } else {
+            var completedYears = 0
+            val totalYears = anios.size
             val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
             val allDaysTemp = mutableSetOf<Int>()
-            var loadedCount = 0
-            val totalAsignaturas: Int = anios.sumOf { anio -> anio.numero_asignaturas ?: 0 }
 
             anios.forEach { anio ->
-                if (anio.id.isNullOrEmpty()) return@forEach
+                if (anio.id.isNullOrEmpty()) {
+                    completedYears++
+                    return@forEach
+                }
+
                 val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
                 anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
                         snapshot.children.forEach { asigSnapshot ->
                             val asigId = asigSnapshot.key ?: return@forEach
-                            val asigNombre = asigSnapshot.child("nombre").getValue(String::class.java) ?: ""
 
                             // Cargar exámenes para esta asignatura
                             val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
@@ -1318,42 +1321,43 @@ private fun CalendarioBottomSheet(
                                                     val month = parts[1].toInt()
                                                     val year = parts[2].toInt()
 
-                                                    // Solo mostrar exámenes del mes actual
                                                     if (month == currentMonth && year == currentYear) {
                                                         val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                        val pair = Pair(examen.nombre, horaDisplay)
-
-                                                        examensByDayTemp.getOrPut(day) { mutableListOf() }.add(pair)
+                                                        examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
+                                                            Pair(examen.nombre, horaDisplay)
+                                                        )
                                                         allDaysTemp.add(day)
+                                                        android.util.Log.d("CalendarioBottomSheet", "Loaded examen: ${examen.nombre} on day $day")
                                                     }
                                                 }
                                             } catch (e: Exception) {
-                                                android.util.Log.e("CalendarioBottomSheet", "Error parsing examen: ${e.message}")
+                                                android.util.Log.e("CalendarioBottomSheet", "Error parsing fecha: ${e.message}")
                                             }
                                         }
-                                    }
-
-                                    loadedCount++
-                                    if (loadedCount == totalAsignaturas) {
-                                        examensByDay.value = examensByDayTemp
-                                        allDaysInMonth.value = allDaysTemp
                                     }
                                 }
 
                                 override fun onCancelled(error: DatabaseError) {
                                     android.util.Log.e("CalendarioBottomSheet", "Error loading examenes: ${error.message}")
-                                    loadedCount++
-                                    if (loadedCount == totalAsignaturas) {
-                                        examensByDay.value = examensByDayTemp
-                                        allDaysInMonth.value = allDaysTemp
-                                    }
                                 }
                             })
+                        }
+
+                        completedYears++
+                        if (completedYears == totalYears) {
+                            examensByDay.value = examensByDayTemp
+                            allDaysInMonth.value = allDaysTemp
+                            android.util.Log.d("CalendarioBottomSheet", "Calendar loaded: ${examensByDayTemp.size} days with exams")
                         }
                     }
 
                     override fun onCancelled(error: DatabaseError) {
                         android.util.Log.e("CalendarioBottomSheet", "Error loading asignaturas: ${error.message}")
+                        completedYears++
+                        if (completedYears == totalYears) {
+                            examensByDay.value = examensByDayTemp
+                            allDaysInMonth.value = allDaysTemp
+                        }
                     }
                 })
             }
