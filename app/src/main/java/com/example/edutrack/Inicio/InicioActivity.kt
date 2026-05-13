@@ -1135,14 +1135,14 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                 }
                 TextButton(
                     onClick = {
-                        android.util.Log.d("ExamenesFeedCard", "✓ CLICK en Ver calendario")
+                        android.util.Log.d("ExamenesFeedCard", "✓ CLICK en calendario")
                         mostrarCalendario = true
                     },
-                    modifier = Modifier.size(width = 120.dp, height = 40.dp)
+                    modifier = Modifier.size(width = 100.dp, height = 40.dp)
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver calendario", style = MaterialTheme.typography.labelSmall)
+                    Text("Calendario", style = MaterialTheme.typography.labelSmall)
                 }
                 android.util.Log.d("ExamenesFeedCard", "Botón renderizado")
             }
