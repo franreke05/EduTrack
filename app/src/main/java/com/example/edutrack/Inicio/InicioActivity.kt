@@ -974,12 +974,13 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
     val currentMonth = now.get(Calendar.MONTH) + 1
     val currentYear = now.get(Calendar.YEAR)
 
-    val examensByDay = mutableMapOf<Int, MutableList<Triple<String, String, String?>>>() // día -> (asignatura, fechaExamen, horaExamen)
+    // Estructura: (nombre, hora, media)
+    val examensByDay = mutableMapOf<Int, MutableList<Triple<String, String, Double?>>>()
     val daysWithExams = mutableSetOf<Int>()
 
     anios.forEach { anio ->
         anio.lista_asignaturas?.values?.forEach { asignatura ->
-            if (asignatura.fechaExamen != null && asignatura.fechaExamen.isNotEmpty()) {
+            if (!asignatura.fechaExamen.isNullOrEmpty()) {
                 try {
                     val date = sdf.parse(asignatura.fechaExamen)
                     if (date != null) {
@@ -989,7 +990,7 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                             val asigName = asignatura.nombre ?: "Examen"
                             val hora = asignatura.horaExamen ?: "--:--"
                             examensByDay.getOrPut(day) { mutableListOf() }
-                                .add(Triple(asigName, asignatura.fechaExamen, hora))
+                                .add(Triple(asigName, hora, asignatura.media))
                             daysWithExams.add(day)
                         }
                     }
@@ -1058,30 +1059,31 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
             // Mini calendario de la semana actual
             MiniCalendarGrid(
                 currentDay = now.get(Calendar.DAY_OF_MONTH),
-                daysWithExams = daysWithExams
+                daysWithExams = daysWithExams,
+                currentMonth = currentMonth,
+                currentYear = currentYear
             )
 
             // Timeline de exámenes del mes
             if (examensByDay.isNotEmpty()) {
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val sortedDays = examensByDay.keys.sorted()
-                    items(sortedDays.size) { index ->
+                    items(sortedDays.size, key = { index -> sortedDays[index] }) { index ->
                         val day = sortedDays[index]
-                        val exams = examensByDay[day] ?: emptyList()
-                        val firstExam = exams.firstOrNull() ?: return@items
-                        val (asigName, _, hora) = firstExam
-                        val ringColor = storyRingColors[index % storyRingColors.size]
-
-                        ExamenBadge(
-                            asignatura = asigName,
-                            dia = day.toString().padStart(2, '0'),
-                            hora = hora,
-                            colors = ringColor
-                        )
+                        examensByDay[day]?.firstOrNull()?.let { (asigName, hora, media) ->
+                            val ringColor = storyRingColors[index % storyRingColors.size]
+                            ExamenBadge(
+                                asignatura = asigName,
+                                dia = day.toString().padStart(2, '0'),
+                                hora = hora,
+                                media = media,
+                                colors = ringColor
+                            )
+                        }
                     }
                 }
             } else {
@@ -1111,16 +1113,21 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
 }
 
 @Composable
-private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
+private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>, currentMonth: Int, currentYear: Int) {
     val colorScheme = MaterialTheme.colorScheme
     val now = Calendar.getInstance()
     val weekStart = now.clone() as Calendar
     weekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
 
-    val days = mutableListOf<Int>()
+    val days = mutableListOf<Pair<Int, Int>>() // (dayOfMonth, monthOfDay: 0=current, -1=prev, 1=next)
     for (i in 0..6) {
         val dayOfMonth = weekStart.get(Calendar.DAY_OF_MONTH)
-        days.add(dayOfMonth)
+        val monthOfDay = when {
+            weekStart.get(Calendar.MONTH) + 1 < currentMonth -> -1  // Previous month
+            weekStart.get(Calendar.MONTH) + 1 > currentMonth -> 1   // Next month
+            else -> 0  // Current month
+        }
+        days.add(dayOfMonth to monthOfDay)
         weekStart.add(Calendar.DAY_OF_MONTH, 1)
     }
 
@@ -1147,7 +1154,7 @@ private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            days.forEach { day ->
+            days.forEach { (day, monthOfDay) ->
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -1164,7 +1171,7 @@ private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (day == currentDay) colorScheme.primary
+                                    if (day == currentDay && monthOfDay == 0) colorScheme.primary
                                     else Color.Transparent
                                 ),
                             contentAlignment = Alignment.Center
@@ -1172,17 +1179,18 @@ private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
                             Text(
                                 text = day.toString(),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (day == currentDay) colorScheme.onPrimary
+                                color = if (day == currentDay && monthOfDay == 0) colorScheme.onPrimary
+                                        else if (monthOfDay != 0) colorScheme.onSurfaceVariant
                                         else colorScheme.onSurface,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        if (day in daysWithExams) {
+                        if (day in daysWithExams && monthOfDay == 0) {
                             Box(
                                 modifier = Modifier
                                     .size(4.dp)
                                     .clip(CircleShape)
-                                    .background(colorScheme.primary)
+                                    .background(colorScheme.error)
                             )
                         }
                     }
@@ -1193,17 +1201,24 @@ private fun MiniCalendarGrid(currentDay: Int, daysWithExams: Set<Int>) {
 }
 
 @Composable
-private fun ExamenBadge(asignatura: String, dia: String, hora: String?, colors: List<Color>) {
+private fun ExamenBadge(asignatura: String, dia: String, hora: String?, media: Double?, colors: List<Color>) {
     val colorScheme = MaterialTheme.colorScheme
+
+    val mediaColor = when {
+        media == null || media <= 0 -> colorScheme.onSurfaceVariant
+        media >= 7.0 -> colorScheme.tertiary
+        media >= 5.0 -> colorScheme.primary
+        else -> colorScheme.error
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.width(70.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.width(72.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(52.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(colors)),
             contentAlignment = Alignment.Center
@@ -1218,17 +1233,27 @@ private fun ExamenBadge(asignatura: String, dia: String, hora: String?, colors: 
         Text(
             text = asignatura.take(12),
             style = MaterialTheme.typography.labelSmall,
-            color = colorScheme.onSurfaceVariant,
+            color = colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.SemiBold
         )
         Text(
             text = hora ?: "--:--",
             style = MaterialTheme.typography.labelSmall,
-            color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            fontSize = 9.sp
+            color = colorScheme.onSurfaceVariant,
+            fontSize = 10.sp
         )
+        if (media != null && media > 0) {
+            Text(
+                text = String.format("%.1f", media),
+                style = MaterialTheme.typography.labelSmall,
+                color = mediaColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp
+            )
+        }
     }
 }
 
@@ -1297,8 +1322,12 @@ private fun CalendarioBottomSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Delete, contentDescription = "Cerrar")
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Cerrar",
+                        modifier = Modifier.rotate(90f)
+                    )
                 }
             }
 
