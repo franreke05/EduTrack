@@ -2,7 +2,7 @@ package com.example.edutrack.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light palette — indigo académico
+// Light palette
 val Primary = Color(0xFF4361EE)
 val OnPrimary = Color(0xFFFFFFFF)
 val PrimaryContainer = Color(0xFFDDE1FF)
@@ -23,14 +23,14 @@ val OnError = Color(0xFFFFFFFF)
 val ErrorContainer = Color(0xFFFFDAD6)
 val OnErrorContainer = Color(0xFF410002)
 
-val Background = Color(0xFFFAFAFE)
+val Background = Color(0xFFFFFFFF)
 val OnBackground = Color(0xFF1A1B2E)
 val Surface = Color(0xFFFFFFFF)
 val OnSurface = Color(0xFF1A1B2E)
-val SurfaceVariant = Color(0xFFE5E5F0)
+val SurfaceVariant = Color(0xFFF2F2F2)
 val OnSurfaceVariant = Color(0xFF47485E)
 val Outline = Color(0xFF777896)
-val OutlineVariant = Color(0xFFC7C6D8)
+val OutlineVariant = Color(0xFFDDDDDD)
 val InverseSurface = Color(0xFF2F3047)
 val InverseOnSurface = Color(0xFFF1EFFF)
 
@@ -55,13 +55,13 @@ val OnErrorDark = Color(0xFF690005)
 val ErrorContainerDark = Color(0xFF93000A)
 val OnErrorContainerDark = Color(0xFFFFDAD6)
 
-val BackgroundDark = Color(0xFF131420)
+val BackgroundDark = Color(0xFF000000)
 val OnBackgroundDark = Color(0xFFE5E4EE)
-val SurfaceDark = Color(0xFF1E1F2E)
+val SurfaceDark = Color(0xFF111111)
 val OnSurfaceDark = Color(0xFFE5E4EE)
-val SurfaceVariantDark = Color(0xFF454558)
+val SurfaceVariantDark = Color(0xFF222222)
 val OnSurfaceVariantDark = Color(0xFFC6C5D6)
-val OutlineDark = Color(0xFF90909F)
-val OutlineVariantDark = Color(0xFF454558)
+val OutlineDark = Color(0xFF555555)
+val OutlineVariantDark = Color(0xFF333333)
 val InverseSurfaceDark = Color(0xFFE5E4EE)
 val InverseOnSurfaceDark = Color(0xFF2F3047)

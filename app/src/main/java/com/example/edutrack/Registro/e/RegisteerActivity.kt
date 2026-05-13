@@ -11,11 +11,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -158,6 +160,9 @@ fun RegisteerScreen(
                                         "Contraseña incorrecta."
                                     task.exception?.message?.contains("too many") == true ->
                                         "Demasiados intentos. Espera un momento."
+                                    task.exception?.message?.contains("Chain validation failed") == true ||
+                                    task.exception?.message?.contains("SSL") == true ->
+                                        "Error de conexión. Verifica que la fecha y hora del dispositivo sean correctas."
                                     else -> "Error: ${task.exception?.message ?: "desconocido"}"
                                 }
                                 Toast.makeText(context, loginError, Toast.LENGTH_LONG).show()
@@ -286,9 +291,13 @@ private fun RegisteerContent(
     val colorScheme = MaterialTheme.colorScheme
 
     Surface(modifier = modifier.fillMaxSize(), color = colorScheme.background) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isTablet = maxWidth > 600.dp
+            val hPad = if (isTablet) (maxWidth - 480.dp) / 2f else 20.dp
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
@@ -298,7 +307,7 @@ private fun RegisteerContent(
                         )
                     )
                 )
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = hPad)
         ) {
             Column(
                 modifier = Modifier
@@ -327,7 +336,7 @@ private fun RegisteerContent(
                             painter = painterResource(id = R.drawable.agendita),
                             contentDescription = "Logo",
                             modifier = Modifier
-                                .size(screenHeight * 0.12f)
+                                .size(minOf(screenHeight * 0.12f, 96.dp))
                                 .clip(CircleShape)
                         )
 
@@ -597,6 +606,7 @@ private fun RegisteerContent(
                 }
             }
         }
+        } // BoxWithConstraints
     }
 }
 

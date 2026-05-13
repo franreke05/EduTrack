@@ -9,5 +9,7 @@ data class Asignatura(
     val media: Double? = 0.0,
     val numero_notas: Int? = 0,
     val tipo_periodo: String? = "Trimestre",
-    val numero_periodos: Int? = 3
+    val numero_periodos: Int? = 3,
+    val fechaExamen: String? = null,
+    val horaExamen: String? = null
 ) : java.io.Serializable

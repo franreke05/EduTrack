@@ -16,13 +16,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Settings
 import coil.compose.AsyncImage
 import com.google.firebase.storage.FirebaseStorage
 import androidx.compose.material3.AlertDialog
@@ -32,9 +31,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,15 +55,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.EditarUsuario
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.borrarUsuarioCompleto
-import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.PremiumCache
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberPremiumCache
@@ -71,19 +70,17 @@ import com.example.edutrack.premiumCacheRef
 import com.example.edutrack.ui.theme.EduTrackTheme
 import kotlinx.coroutines.launch
 
-// Pantalla de perfil con edicion basica y acciones de cuenta.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuerpoPerfil(
     modifier: Modifier = Modifier,
     userId: String? = null,
-    isDarkMode: Boolean = false,
-    onToggleDarkMode: () -> Unit = {},
+    onSettings: () -> Unit = {},
     onFinish: () -> Unit = {},
     onLogout: () -> Unit = {},
     onPaywall: () -> Unit = {}
 ) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val usuario by rememberUsuarioState(userId)
     val anios by rememberAniosState(userId)
     val userPlan by rememberUserPlan(userId)
@@ -92,8 +89,7 @@ fun CuerpoPerfil(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    var nombreEditable = remember(usuario) { mutableStateOf(usuario?.nombre ?: "") }
-    var passwordEditable = remember { mutableStateOf("") }
+    val nombreEditable = remember(usuario) { mutableStateOf(usuario?.nombre ?: "") }
     var isUploadingPhoto by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -101,17 +97,23 @@ fun CuerpoPerfil(
     ) { uri: Uri? ->
         if (uri == null || userId == null) return@rememberLauncherForActivityResult
         isUploadingPhoto = true
-        val storageRef = FirebaseStorage.getInstance()
-            .reference.child("avatars/$userId.jpg")
+        val storageRef = FirebaseStorage.getInstance().reference.child("avatars/$userId.jpg")
         storageRef.putFile(uri)
             .continueWithTask { task ->
                 if (!task.isSuccessful) throw task.exception!!
                 storageRef.downloadUrl
             }
             .addOnSuccessListener { downloadUri ->
-                com.example.edutrack.EditarUsuario(userId, mapOf("photoUrl" to downloadUri.toString())) { _ -> }
-                isUploadingPhoto = false
-                coroutineScope.launch { snackbarHostState.showSnackbar("Foto actualizada") }
+                EditarUsuario(userId, mapOf("photoUrl" to downloadUri.toString())) { success ->
+                    isUploadingPhoto = false
+                    coroutineScope.launch {
+                        if (success) {
+                            snackbarHostState.showSnackbar("Foto actualizada")
+                        } else {
+                            snackbarHostState.showSnackbar("Error actualizando la foto")
+                        }
+                    }
+                }
             }
             .addOnFailureListener {
                 isUploadingPhoto = false
@@ -119,11 +121,8 @@ fun CuerpoPerfil(
             }
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val horizontalPadding = 24.dp
-    val verticalPadding = 16.dp
-
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -135,25 +134,25 @@ fun CuerpoPerfil(
                 },
                 actions = {
                     IconButton(onClick = {
-                        usuario?.id?.let {
+                        usuario?.id?.let { uid ->
                             val updates = mutableMapOf<String, Any>()
                             if (nombreEditable.value != usuario?.nombre) {
                                 updates["nombre"] = nombreEditable.value
                             }
                             if (updates.isNotEmpty()) {
-                                EditarUsuario(it, updates) { success ->
+                                EditarUsuario(uid, updates) { success ->
                                     coroutineScope.launch {
-                                        if (success) {
-                                            snackbarHostState.showSnackbar("Perfil actualizado correctamente")
-                                        } else {
-                                            snackbarHostState.showSnackbar("Error al actualizar el perfil")
-                                        }
+                                        if (success) snackbarHostState.showSnackbar("Perfil actualizado correctamente")
+                                        else snackbarHostState.showSnackbar("Error al actualizar el perfil")
                                     }
                                 }
                             }
                         }
                     }) {
                         Icon(Icons.Default.Save, contentDescription = "Guardar")
+                    }
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Configuración")
                     }
                 }
             )
@@ -166,37 +165,35 @@ fun CuerpoPerfil(
             color = MaterialTheme.colorScheme.background
         ) {
             if (usuario == null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
                 LazyColumn(
                     modifier = modifier
                         .fillMaxSize()
-                        .padding(horizontalPadding),
+                        .padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Avatar card centrado
                     item {
-                        Spacer(modifier = Modifier.height(verticalPadding))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                             shape = MaterialTheme.shapes.extraLarge,
                             elevation = CardDefaults.cardElevation(0.dp)
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    .padding(vertical = 28.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(72.dp)
+                                        .size(96.dp)
                                         .clickable { photoPickerLauncher.launch("image/*") }
                                 ) {
                                     if (!usuario?.photoUrl.isNullOrBlank()) {
@@ -204,26 +201,31 @@ fun CuerpoPerfil(
                                             model = usuario?.photoUrl,
                                             contentDescription = "Foto de perfil",
                                             modifier = Modifier
-                                                .size(72.dp)
+                                                .size(96.dp)
                                                 .clip(CircleShape),
-                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                            contentScale = ContentScale.Crop
                                         )
                                     } else {
                                         Surface(
-                                            modifier = Modifier.size(72.dp).clip(CircleShape),
+                                            modifier = Modifier
+                                                .size(96.dp)
+                                                .clip(CircleShape),
                                             color = MaterialTheme.colorScheme.primary
                                         ) {
-                                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
                                                 if (isUploadingPhoto) {
                                                     CircularProgressIndicator(
-                                                        modifier = Modifier.size(28.dp),
+                                                        modifier = Modifier.size(36.dp),
                                                         color = MaterialTheme.colorScheme.onPrimary,
-                                                        strokeWidth = 2.dp
+                                                        strokeWidth = 2.5.dp
                                                     )
                                                 } else {
                                                     Text(
                                                         text = (usuario?.nombre ?: "U").take(1).uppercase(),
-                                                        style = MaterialTheme.typography.headlineMedium,
+                                                        style = MaterialTheme.typography.headlineLarge,
                                                         fontWeight = FontWeight.Bold,
                                                         color = MaterialTheme.colorScheme.onPrimary
                                                     )
@@ -231,10 +233,9 @@ fun CuerpoPerfil(
                                             }
                                         }
                                     }
-                                    // Botón cámara superpuesto
                                     Box(
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(28.dp)
                                             .align(Alignment.BottomEnd)
                                             .clip(CircleShape)
                                             .background(MaterialTheme.colorScheme.surface),
@@ -242,7 +243,7 @@ fun CuerpoPerfil(
                                     ) {
                                         if (isUploadingPhoto) {
                                             CircularProgressIndicator(
-                                                modifier = Modifier.size(14.dp),
+                                                modifier = Modifier.size(16.dp),
                                                 strokeWidth = 1.5.dp
                                             )
                                         } else {
@@ -250,29 +251,33 @@ fun CuerpoPerfil(
                                                 Icons.Default.CameraAlt,
                                                 contentDescription = "Cambiar foto",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
                                     }
                                 }
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
-                                        usuario?.nombre ?: "",
+                                        text = usuario?.nombre ?: "",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Text(
-                                        usuario?.email ?: "",
+                                        text = usuario?.email ?: "",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                     )
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(verticalPadding))
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
+                    // Información de la cuenta
                     item {
                         Text(
                             text = "Información de la cuenta",
@@ -281,18 +286,15 @@ fun CuerpoPerfil(
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp)
+                                .padding(start = 4.dp, bottom = 6.dp)
                         )
-                    }
-                    item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(0.dp)
                         ) {
-                            Column(modifier = Modifier.padding(horizontalPadding / 2)) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                                 OutlinedTextField(
                                     value = nombreEditable.value,
                                     onValueChange = { nombreEditable.value = it },
@@ -303,27 +305,20 @@ fun CuerpoPerfil(
                                 )
                                 OutlinedTextField(
                                     value = usuario?.email ?: "",
-                                    onValueChange = { },
+                                    onValueChange = {},
                                     label = { Text("Email") },
                                     readOnly = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 12.dp)
-                                )
-                                PasswordTextField(
-                                    value = passwordEditable.value,
-                                    onValueChange = { passwordEditable.value = it },
-                                    label = { Text("Nueva Contraseña (opcional)") },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 12.dp, bottom = 16.dp)
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
+                    // Mis cursos
                     item {
-                        Spacer(modifier = Modifier.height(verticalPadding))
                         Text(
                             text = "Mis cursos",
                             style = MaterialTheme.typography.titleSmall,
@@ -331,39 +326,52 @@ fun CuerpoPerfil(
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp)
+                                .padding(start = 4.dp, bottom = 6.dp)
                         )
-                    }
-                    if (anios.isNotEmpty()) {
-                        items(anios) {
+                        if (anios.isEmpty()) {
                             Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 8.dp),
-                                shape = MaterialTheme.shapes.large,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                )
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.extraLarge,
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(0.dp)
                             ) {
-                                ListItem(
-                                    headlineContent = { Text(it.nombre ?: "") }
+                                Text(
+                                    text = "No hay años escolares registrados.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(16.dp)
                                 )
                             }
+                        } else {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.extraLarge,
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(0.dp)
+                            ) {
+                                anios.forEachIndexed { index, anio ->
+                                    ListItem(
+                                        headlineContent = {
+                                            Text(
+                                                text = anio.nombre ?: "",
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                        },
+                                        colors = ListItemDefaults.colors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
+                                    )
+                                    if (index < anios.lastIndex) {
+                                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+                                    }
+                                }
+                            }
                         }
-                    } else {
-                        item {
-                            Text(
-                                "No hay años escolares registrados.",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
+                    // Mi plan
                     item {
-                        Spacer(modifier = Modifier.height(verticalPadding))
                         Text(
                             text = "Mi plan",
                             style = MaterialTheme.typography.titleSmall,
@@ -371,7 +379,7 @@ fun CuerpoPerfil(
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 8.dp)
+                                .padding(start = 4.dp, bottom = 6.dp)
                         )
                         MiPlanCard(
                             userPlan = userPlan,
@@ -384,19 +392,11 @@ fun CuerpoPerfil(
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(verticalPadding))
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
 
+                    // Acciones de cuenta
                     item {
-                        OutlinedButton(
-                            onClick = onToggleDarkMode,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                if (isDarkMode) "Cambiar a modo claro" else "Cambiar a modo oscuro"
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
                             onClick = { showDeleteDialog = true },
                             modifier = Modifier.fillMaxWidth(),
@@ -405,11 +405,11 @@ fun CuerpoPerfil(
                                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)
                             )
                         ) {
-                            Text("Eliminar Cuenta")
+                            Text("Eliminar cuenta")
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
-                            onClick = { onLogout() },
+                            onClick = onLogout,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
@@ -425,8 +425,7 @@ fun CuerpoPerfil(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(verticalPadding))
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
             }
@@ -454,7 +453,7 @@ fun CuerpoPerfil(
                             contentColor = MaterialTheme.colorScheme.onError
                         )
                     ) {
-                        Text("Si, eliminar todo")
+                        Text("Sí, eliminar todo")
                     }
                 },
                 dismissButton = {
@@ -509,7 +508,8 @@ private fun MiPlanCard(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -518,7 +518,7 @@ private fun MiPlanCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Premium activo ⭐",
+                        text = "Premium activo",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -537,32 +537,17 @@ private fun MiPlanCard(
                     }
                 }
 
-                if (renewalText != null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(
-                            text = renewalText,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-                } else {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(
-                            text = "Suscripción activa",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = renewalText ?: "Suscripción activa",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
                 }
 
                 val premiumFeatures = listOf(
@@ -592,7 +577,8 @@ private fun MiPlanCard(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -647,7 +633,6 @@ private fun MiPlanCard(
     }
 }
 
-// Vista previa de la pantalla de perfil.
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {

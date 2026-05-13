@@ -15,5 +15,7 @@ data class Notas(
     // Fecha del examen.
     val fecha: String? = "",
     // Trimestre o cuatrimestre al que pertenece la nota.
-    val periodo: Int? = 1
+    val periodo: Int? = 1,
+    // Timestamp de creación para ordenar el historial de evolución.
+    val creadoEn: Long = 0L
 )

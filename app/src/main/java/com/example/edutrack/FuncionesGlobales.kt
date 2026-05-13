@@ -235,3 +235,13 @@ fun compartirAsignaturaConGrupo(
         .addOnSuccessListener { onResult(true) }
         .addOnFailureListener { Log.e("DB", "Error compartiendo asignatura", it); onResult(false) }
 }
+
+fun eliminarAsignaturaCompartida(
+    groupId: String,
+    subjectId: String,
+    onResult: (Boolean) -> Unit
+) {
+    groupSharedSubjectsRef(groupId).child(subjectId).removeValue()
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener { Log.e("DB", "Error eliminando asignatura compartida", it); onResult(false) }
+}

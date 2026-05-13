@@ -100,20 +100,6 @@ fun PaywallScreen(
                     )
                 )
         ) {
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Cerrar",
-                    tint = colorScheme.onSurfaceVariant
-                )
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -356,6 +342,20 @@ fun PaywallScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Cerrar",
+                    tint = colorScheme.onSurfaceVariant
+                )
             }
         }
     }

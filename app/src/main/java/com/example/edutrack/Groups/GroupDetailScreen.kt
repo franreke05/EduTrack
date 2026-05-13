@@ -14,12 +14,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
@@ -59,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.GroupSharedSubject
+import com.example.edutrack.eliminarAsignaturaCompartida
 import com.example.edutrack.salirDeGrupo
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -80,6 +89,8 @@ fun GrupoDetalleScreen(
     var showLeaveDialog by remember { mutableStateOf(false) }
     var isLeaving by remember { mutableStateOf(false) }
     var selectedSubject by remember { mutableStateOf<GroupSharedSubject?>(null) }
+    var subjectToDelete by remember { mutableStateOf<GroupSharedSubject?>(null) }
+    var isDeletingSubject by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -91,6 +102,7 @@ fun GrupoDetalleScreen(
     val isAdmin = myRole == GroupRole.ADMIN || isOwner
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
@@ -130,15 +142,23 @@ fun GrupoDetalleScreen(
             return@Scaffold
         }
 
-        LazyColumn(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(innerPadding)
         ) {
+            val isTablet = maxWidth > 600.dp
+            val hPad = if (isTablet) (maxWidth - 600.dp) / 2 else 16.dp
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = hPad, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Header card
             item {
+                var headerVisible by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { delay(50L); headerVisible = true }
+                AnimatedVisibility(headerVisible, enter = fadeIn(tween(400)) + slideInVertically { it / 4 }) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
@@ -172,6 +192,7 @@ fun GrupoDetalleScreen(
                         }
                     }
                 }
+                } // end AnimatedVisibility header
             }
 
             // Código de invitación (visible para todos los miembros)
@@ -339,22 +360,70 @@ fun GrupoDetalleScreen(
                     }
                 }
             } else {
-                items(sharedSubjects, key = { it.id ?: it.hashCode().toString() }) { subject ->
-                    SharedSubjectCard(
-                        subject = subject,
-                        onClick = { selectedSubject = subject }
-                    )
+                itemsIndexed(sharedSubjects, key = { _, subject -> subject.id ?: subject.hashCode().toString() }) { index, subject ->
+                    var visible by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) { delay(index * 70L + 60L); visible = true }
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(300)) + slideInVertically { it / 3 }
+                    ) {
+                        SharedSubjectCard(
+                            subject = subject,
+                            isAdmin = isAdmin,
+                            onClick = { selectedSubject = subject },
+                            onDelete = { subjectToDelete = subject }
+                        )
+                    }
                 }
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
-        }
+            } // end LazyColumn
+        } // end BoxWithConstraints
     }
 
     selectedSubject?.let { subject ->
         SharedSubjectDetailDialog(
             subject = subject,
             onDismiss = { selectedSubject = null }
+        )
+    }
+
+    subjectToDelete?.let { subject ->
+        AlertDialog(
+            onDismissRequest = { if (!isDeletingSubject) subjectToDelete = null },
+            title = { Text("¿Eliminar asignatura compartida?") },
+            text = {
+                Text("Se eliminará \"${subject.name ?: "esta asignatura"}\" del grupo. Los miembros ya no podrán verla. Esta acción no se puede deshacer.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val sid = subject.id ?: return@Button
+                        isDeletingSubject = true
+                        eliminarAsignaturaCompartida(groupId, sid) { success ->
+                            isDeletingSubject = false
+                            subjectToDelete = null
+                            if (!success) {
+                                scope.launch { snackbarHostState.showSnackbar("Error al eliminar la asignatura") }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    enabled = !isDeletingSubject
+                ) {
+                    if (isDeletingSubject) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onError, strokeWidth = 2.dp)
+                    } else {
+                        Text("Eliminar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { subjectToDelete = null }, enabled = !isDeletingSubject) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
@@ -395,7 +464,9 @@ fun GrupoDetalleScreen(
 @Composable
 private fun SharedSubjectCard(
     subject: GroupSharedSubject,
-    onClick: () -> Unit
+    isAdmin: Boolean = false,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val media = subject.media
@@ -481,6 +552,20 @@ private fun SharedSubjectCard(
                         text = "media",
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (isAdmin && onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Eliminar asignatura",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }

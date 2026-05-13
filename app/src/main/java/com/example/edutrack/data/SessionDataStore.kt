@@ -19,6 +19,8 @@ object SessionPrefs {
     val SELECTED_ANIO = stringPreferencesKey("selected_anio")
     val DARK_MODE = booleanPreferencesKey("dark_mode")
     val IS_ONBOARDED = booleanPreferencesKey("is_onboarded")
+    val LANGUAGE = stringPreferencesKey("language")
+    val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
@@ -61,6 +63,20 @@ fun Context.isOnboardedFlow(): Flow<Boolean> =
 
 suspend fun Context.setOnboarded() {
     sessionDataStore.edit { it[SessionPrefs.IS_ONBOARDED] = true }
+}
+
+fun Context.languageFlow(): Flow<String> =
+    sessionDataStore.data.map { it[SessionPrefs.LANGUAGE] ?: "es" }.distinctUntilChanged()
+
+suspend fun Context.setLanguage(lang: String) {
+    sessionDataStore.edit { it[SessionPrefs.LANGUAGE] = lang }
+}
+
+fun Context.notificationsEnabledFlow(): Flow<Boolean> =
+    sessionDataStore.data.map { it[SessionPrefs.NOTIFICATIONS_ENABLED] ?: true }.distinctUntilChanged()
+
+suspend fun Context.setNotificationsEnabled(enabled: Boolean) {
+    sessionDataStore.edit { it[SessionPrefs.NOTIFICATIONS_ENABLED] = enabled }
 }
 
 // Limpia los datos de sesion almacenados.

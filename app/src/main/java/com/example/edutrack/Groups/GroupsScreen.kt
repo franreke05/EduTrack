@@ -1,5 +1,11 @@
 package com.example.edutrack.Groups
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
@@ -34,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +56,7 @@ import com.example.edutrack.dataclass.UserGroup
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.domain.rememberUserPlan
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +74,7 @@ fun GruposScreen(
     var showJoinUpgrade by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Mis grupos", fontWeight = FontWeight.Bold) },
@@ -91,18 +100,12 @@ fun GruposScreen(
                 GruposEmptyState(
                     userPlan = userPlan,
                     onUnirse = {
-                        if (!PlanManager.canJoinMoreGroups(userPlan, 0)) {
-                            showJoinUpgrade = true
-                        } else {
-                            onUnirseGrupo()
-                        }
+                        if (!PlanManager.canJoinMoreGroups(userPlan, 0)) showJoinUpgrade = true
+                        else onUnirseGrupo()
                     },
                     onCrear = {
-                        if (!PlanManager.canCreateGroup(userPlan)) {
-                            showCreateUpgrade = true
-                        } else {
-                            onCrearGrupo()
-                        }
+                        if (!PlanManager.canCreateGroup(userPlan)) showCreateUpgrade = true
+                        else onCrearGrupo()
                     }
                 )
             } else {
@@ -110,23 +113,32 @@ fun GruposScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(userGroups, key = { it.groupId ?: it.hashCode().toString() }) { userGroup ->
-                        GrupoCard(
-                            userGroup = userGroup,
-                            onClick = { userGroup.groupId?.let { onGrupoDetalle(it) } }
-                        )
+                    itemsIndexed(
+                        userGroups,
+                        key = { _, g -> g.groupId ?: g.hashCode().toString() }
+                    ) { index, userGroup ->
+                        var visible by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) {
+                            delay(index * 70L + 60L)
+                            visible = true
+                        }
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(300)) + slideInVertically { it / 3 }
+                        ) {
+                            GrupoCard(
+                                userGroup = userGroup,
+                                onClick = { userGroup.groupId?.let { onGrupoDetalle(it) } }
+                            )
+                        }
                     }
 
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
-                        // Botón Unirse
                         OutlinedButton(
                             onClick = {
-                                if (!PlanManager.canJoinMoreGroups(userPlan, userGroups.size)) {
-                                    showJoinUpgrade = true
-                                } else {
-                                    onUnirseGrupo()
-                                }
+                                if (!PlanManager.canJoinMoreGroups(userPlan, userGroups.size)) showJoinUpgrade = true
+                                else onUnirseGrupo()
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -134,17 +146,11 @@ fun GruposScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Unirme con código")
                         }
-
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        // Botón Crear
                         Button(
                             onClick = {
-                                if (!PlanManager.canCreateGroup(userPlan)) {
-                                    showCreateUpgrade = true
-                                } else {
-                                    onCrearGrupo()
-                                }
+                                if (!PlanManager.canCreateGroup(userPlan)) showCreateUpgrade = true
+                                else onCrearGrupo()
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
@@ -191,10 +197,26 @@ fun GruposScreen(
 
 @Composable
 private fun GrupoCard(userGroup: UserGroup, onClick: () -> Unit) {
+    val roleLabel = when (userGroup.role) {
+        GroupRole.OWNER.name -> "Propietario"
+        GroupRole.ADMIN.name -> "Admin"
+        else -> "Miembro"
+    }
+    val roleBg = when (userGroup.role) {
+        GroupRole.OWNER.name -> MaterialTheme.colorScheme.primary
+        GroupRole.ADMIN.name -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val roleOnBg = when (userGroup.role) {
+        GroupRole.OWNER.name -> MaterialTheme.colorScheme.onPrimary
+        GroupRole.ADMIN.name -> MaterialTheme.colorScheme.onSecondaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -205,37 +227,44 @@ private fun GrupoCard(userGroup: UserGroup, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.medium
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.large),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.People,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .size(24.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
                     text = userGroup.name ?: "Grupo",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                val roleLabel = when (userGroup.role) {
-                    GroupRole.OWNER.name -> "Propietario"
-                    GroupRole.ADMIN.name -> "Administrador"
-                    else -> "Miembro"
+                Surface(color = roleBg, shape = MaterialTheme.shapes.small) {
+                    Text(
+                        text = roleLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = roleOnBg,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
-                Text(
-                    text = roleLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
     }
 }
@@ -246,46 +275,54 @@ private fun GruposEmptyState(
     onUnirse: () -> Unit,
     onCrear: () -> Unit
 ) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(450)) + scaleIn(initialScale = 0.92f, animationSpec = tween(450))
         ) {
-            Text(text = "👥", style = MaterialTheme.typography.displayMedium)
-            Text(
-                text = "Todavía no estás en ningún grupo",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Únete a tu clase o crea un grupo para compartir asignaturas y porcentajes.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onUnirse,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Unirme con código")
-            }
-            OutlinedButton(
-                onClick = onCrear,
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
-                if (!PlanManager.canCreateGroup(userPlan)) {
-                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "👥", style = MaterialTheme.typography.displayMedium)
+                Text(
+                    text = "Todavía no estás en ningún grupo",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Únete a tu clase o crea un grupo para compartir asignaturas y porcentajes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onUnirse,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Unirme con código")
                 }
-                Text("Crear grupo")
+                OutlinedButton(
+                    onClick = onCrear,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    if (!PlanManager.canCreateGroup(userPlan)) {
+                        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text("Crear grupo")
+                }
             }
         }
     }

@@ -21,10 +21,10 @@ import com.example.edutrack.ui.theme.EduTrackTheme
 import com.example.edutrack.data.clearSession
 import com.example.edutrack.data.darkModeFlow
 import com.example.edutrack.data.isLoggedFlow
-import com.example.edutrack.data.setDarkMode
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
 import com.example.edutrack.data.userIdFlow
+import com.example.edutrack.Configuracion.ConfiguracionScreen
 import com.example.edutrack.Groups.CrearGrupoScreen
 import com.example.edutrack.Groups.GrupoDetalleScreen
 import com.example.edutrack.Groups.GruposScreen
@@ -186,6 +186,7 @@ class NavigationActivity : ComponentActivity() {
                             userId = userId,
                             anioId = anioId,
                             onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") },
                             onOpenNotas = { asignatura, anioActualId ->
                                 val asignaturaId = Uri.encode(asignatura.id.orEmpty())
                                 val asignaturaNombre = Uri.encode(asignatura.nombre.orEmpty())
@@ -220,25 +221,32 @@ class NavigationActivity : ComponentActivity() {
                             numeroPeriodos = numeroPeriodos,
                             anioId = anioId,
                             userId = userId ?: "",
-                            onBack = { navController.popBackStack() }
+                            notaMinima = 5.0,
+                            onBack = { navController.popBackStack() },
+                            onPaywall = { navController.navigate("paywall") }
                         )
                     }
                     composable("perfil") {
                         CuerpoPerfil(
                             userId = userId,
-                            isDarkMode = isDarkMode,
-                            onToggleDarkMode = {
-                                scope.launch { context.setDarkMode(!isDarkMode) }
-                            },
+                            onSettings = { navController.navigate("configuracion") },
                             onFinish = { navController.popBackStack() },
                             onLogout = {
-                                scope.launch { context.clearSession() }
-                                Firebase.auth.signOut()
-                                navController.navigate("login") {
-                                    popUpTo("login") { inclusive = true }
+                                scope.launch {
+                                    context.clearSession()
+                                    Firebase.auth.signOut()
+                                    navController.navigate("login") {
+                                        popUpTo(navController.graph.id) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 }
                             },
                             onPaywall = { navController.navigate("paywall") }
+                        )
+                    }
+                    composable("configuracion") {
+                        ConfiguracionScreen(
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("crearAnio") {

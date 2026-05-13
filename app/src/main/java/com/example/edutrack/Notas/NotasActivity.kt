@@ -5,6 +5,11 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +26,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,8 +34,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -42,19 +46,25 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,24 +73,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.dataclass.Notas
+import com.example.edutrack.domain.UserPlan
+import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -89,10 +98,11 @@ import com.google.firebase.database.ValueEventListener
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Activity que muestra la pantalla de notas de una asignatura.
 class NotasActivity : ComponentActivity() {
-    // Lee los parametros de la intent y abre la UI de notas.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -136,25 +146,29 @@ fun NotasScreen(
     numeroPeriodos: Int,
     anioId: String?,
     userId: String,
-    onBack: () -> Unit
+    notaMinima: Double = 5.0,
+    onBack: () -> Unit,
+    onPaywall: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val notasState = remember { mutableStateOf<List<Notas>>(emptyList()) }
     var notasLoaded by remember { mutableStateOf(false) }
-    val showDialog = remember { mutableStateOf(false) }
-    val notaEnEdicion = remember { mutableStateOf<Notas?>(null) }
+    var showNotaSheet by remember { mutableStateOf(false) }
+    var notaEnEdicion by remember { mutableStateOf<Notas?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
     var showDeleteAsignatura by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     DisposableEffect(asignaturaId) {
         val notasRef = com.example.edutrack.notasRef(userId, anioId ?: "", asignaturaId)
-
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val lista = snapshot.children.mapNotNull { it.getValue(Notas::class.java) }
                 notasState.value = lista
                 notasLoaded = true
             }
-
             override fun onCancelled(error: DatabaseError) {
                 Toast.makeText(context, "Error leyendo notas", Toast.LENGTH_SHORT).show()
             }
@@ -162,6 +176,8 @@ fun NotasScreen(
         notasRef.addValueEventListener(listener)
         onDispose { notasRef.removeEventListener(listener) }
     }
+
+    val userPlan by rememberUserPlan(userId)
 
     val promedio by remember(notasState.value) {
         derivedStateOf { calcularPromedio(notasState.value) }
@@ -183,6 +199,7 @@ fun NotasScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(asignaturaNombre) },
@@ -193,17 +210,9 @@ fun NotasScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        notaEnEdicion.value = null
-                        showDialog.value = true
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Añadir nota")
-                    }
-                    IconButton(onClick = {
-                        Toast.makeText(
-                            context,
-                            "Gestiona notas con porcentaje por $tipoPeriodo.",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        snackbarScope.launch {
+                            snackbarHostState.showSnackbar("Gestiona notas con porcentaje por $tipoPeriodo")
+                        }
                     }) {
                         Icon(Icons.Default.Info, contentDescription = "Información")
                     }
@@ -216,7 +225,19 @@ fun NotasScreen(
                     }
                 }
             )
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    notaEnEdicion = null
+                    showNotaSheet = true
+                },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir nota", tint = MaterialTheme.colorScheme.onPrimary)
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { inner ->
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -226,19 +247,26 @@ fun NotasScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                EvolucionSection(
+                    notas = notasState.value,
+                    userPlan = userPlan,
+                    onPaywall = onPaywall
+                )
                 EncabezadoNotas(
                     nombre = asignaturaNombre,
                     promedio = promedio,
                     porcentajeTotal = porcentajeTotal,
                 )
 
+
+
                 ListaNotasPorPeriodo(
                     notas = notasState.value,
                     numeroPeriodos = numeroPeriodos,
                     tipoPeriodo = tipoPeriodo,
                     onEditar = { nota ->
-                        notaEnEdicion.value = nota
-                        showDialog.value = true
+                        notaEnEdicion = nota
+                        showNotaSheet = true
                     },
                     onEliminar = { nota ->
                         showDeleteConfirm.value = nota
@@ -248,29 +276,45 @@ fun NotasScreen(
         }
     }
 
-    if (showDialog.value) {
-        NotaDialog(
-            numeroPeriodos = numeroPeriodos,
-            nota = notaEnEdicion.value,
-            onDismiss = { showDialog.value = false },
-            onSave = { nota ->
-                guardarNota(userId, anioId ?: "", asignaturaId, nota) {
-                    showDialog.value = false
-                }
+    if (showNotaSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showNotaSheet = false
+                notaEnEdicion = null
             },
-            notasActuales = notasState.value
-        )
+            sheetState = sheetState
+        ) {
+            NotaSheetContent(
+                numeroPeriodos = numeroPeriodos,
+                nota = notaEnEdicion,
+                notasActuales = notasState.value,
+                onDismiss = {
+                    showNotaSheet = false
+                    notaEnEdicion = null
+                },
+                onSave = { nota ->
+                    guardarNota(userId, anioId ?: "", asignaturaId, nota) {
+                        showNotaSheet = false
+                        notaEnEdicion = null
+                    }
+                }
+            )
+        }
     }
 
     showDeleteConfirm.value?.let { nota ->
         AlertDialog(
             onDismissRequest = { showDeleteConfirm.value = null },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         eliminarNota(userId, anioId ?: "", asignaturaId, nota)
                         showDeleteConfirm.value = null
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) { Text("Eliminar") }
             },
             dismissButton = {
@@ -285,12 +329,16 @@ fun NotasScreen(
         AlertDialog(
             onDismissRequest = { showDeleteAsignatura = false },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         borrarAsignaturaCompleta(userId, anioId ?: "", asignaturaId)
                         showDeleteAsignatura = false
                         onBack()
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) { Text("Eliminar") }
             },
             dismissButton = {
@@ -302,17 +350,34 @@ fun NotasScreen(
     }
 }
 
-// Encabezado con media, porcentaje y estado visual de la asignatura.
+// Encabezado con media animada, barra de progreso y estado de la asignatura.
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double) {
     val colorScheme = MaterialTheme.colorScheme
     val (estadoLabel, estadoColor) = when {
         porcentajeTotal <= 0.0 -> "Sin notas" to colorScheme.onSurfaceVariant
-        promedio >= 5.0 -> "Vas bien" to colorScheme.tertiary
+        promedio >= 7.0 -> "Excelente" to colorScheme.tertiary
+        promedio >= 5.0 -> "Aprobado" to colorScheme.tertiary
         promedio >= 4.0 -> "En riesgo" to colorScheme.error
         else -> "Atención" to colorScheme.error
     }
+    val promedioColor = when {
+        porcentajeTotal <= 0.0 -> colorScheme.onPrimaryContainer
+        promedio >= 7.0 -> colorScheme.tertiary
+        promedio >= 5.0 -> colorScheme.primary
+        else -> colorScheme.error
+    }
     val iniciales = abreviarNombre(nombre)
+    val animatedPorcentaje by animateFloatAsState(
+        targetValue = (porcentajeTotal / 100.0).toFloat().coerceIn(0f, 1f),
+        animationSpec = tween(900),
+        label = "porcentajeProgress"
+    )
+    val animatedPromedio by animateFloatAsState(
+        targetValue = promedio.toFloat(),
+        animationSpec = tween(900),
+        label = "promedioAnim"
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -320,73 +385,71 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
         shape = MaterialTheme.shapes.extraLarge,
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(colorScheme.primary, RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = iniciales,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onPrimary
-                )
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(colorScheme.primary, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = iniciales,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onPrimary
+                    )
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = nombre,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = colorScheme.onPrimaryContainer,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = estadoLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = estadoColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = String.format("%.2f", animatedPromedio),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = promedioColor
+                    )
+                    Text(
+                        text = "${String.format("%.0f", porcentajeTotal)}% eval.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = nombre,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colorScheme.onPrimaryContainer,
-                    maxLines = 1
-                )
-                Text(
-                    text = estadoLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = estadoColor,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = String.format("%.2f", promedio),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = "${String.format("%.0f", porcentajeTotal)}% evaluado",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                )
-            }
+            LinearProgressIndicator(
+                progress = { animatedPorcentaje },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                color = promedioColor,
+                trackColor = colorScheme.primary.copy(alpha = 0.2f)
+            )
         }
     }
 }
 
-// Vista previa del contenido de notas.
-@Preview
-@Composable
-fun EncabezadoNotasPreview() {
-    EduTrackTheme{
-        ListaNotasPorPeriodo(List(1) { Notas("22","22",
-            "ss", 20.0,
-            20.0,
-            "222",
-            1) },
-            3, "Trimestre", {}, {})
-    }
-}
-
-
-// Lista de notas agrupadas por periodo con header de estado.
+// Lista de notas agrupadas por periodo con animación de entrada escalonada.
 @Composable
 private fun ListaNotasPorPeriodo(
     notas: List<Notas>,
@@ -420,8 +483,18 @@ private fun ListaNotasPorPeriodo(
                     EmptyPeriodoState()
                 }
             } else {
-                items(lista, key = { it.id ?: it.hashCode() }) { nota ->
-                    NotaRow(nota, onEditar = { onEditar(nota) }, onEliminar = { onEliminar(nota) })
+                itemsIndexed(lista, key = { _, nota -> nota.id ?: nota.hashCode() }) { index, nota ->
+                    var visible by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) {
+                        delay(index * 50L + 60L)
+                        visible = true
+                    }
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(300)) + slideInVertically { it / 4 }
+                    ) {
+                        NotaRow(nota, onEditar = { onEditar(nota) }, onEliminar = { onEliminar(nota) })
+                    }
                 }
             }
             item(key = "spacer_$periodo") { Spacer(modifier = Modifier.height(4.dp)) }
@@ -429,16 +502,22 @@ private fun ListaNotasPorPeriodo(
     }
 }
 
+// Cabecera de periodo con barra de progreso animada.
 @Composable
 private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
     val colorScheme = MaterialTheme.colorScheme
-    val (estadoLabel, containerColor) = when {
-        porcentaje <= 0.0 -> "Pendiente" to colorScheme.surfaceVariant
-        porcentaje >= 99.9 -> "Completo" to colorScheme.tertiaryContainer
-        media != null && media >= 5.0 -> "Vas bien" to colorScheme.secondaryContainer
-        media != null -> "En riesgo" to colorScheme.errorContainer
-        else -> "En curso" to colorScheme.surfaceVariant
+    val (estadoLabel, containerColor, progressColor) = when {
+        porcentaje <= 0.0 -> Triple("Pendiente", colorScheme.surfaceVariant, colorScheme.outline)
+        porcentaje >= 99.9 -> Triple("Completo", colorScheme.tertiaryContainer, colorScheme.tertiary)
+        media != null && media >= 5.0 -> Triple("Vas bien", colorScheme.secondaryContainer, colorScheme.secondary)
+        media != null -> Triple("En riesgo", colorScheme.errorContainer, colorScheme.error)
+        else -> Triple("En curso", colorScheme.surfaceVariant, colorScheme.primary)
     }
+    val animatedProgress by animateFloatAsState(
+        targetValue = (porcentaje / 100.0).toFloat().coerceIn(0f, 1f),
+        animationSpec = tween(900),
+        label = "periodoProgress"
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -446,48 +525,61 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
         shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface
-                )
-                Text(
-                    text = estadoLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colorScheme.onSurfaceVariant
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (media != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        text = estadoLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (media != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = String.format("%.1f", media),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onSurface
+                            )
+                            Text(text = "media", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
+                        }
+                    }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = String.format("%.1f", media),
+                            text = "${String.format("%.0f", porcentaje)}%",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = colorScheme.onSurface
                         )
-                        Text(text = "media", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
+                        Text(text = "evaluado", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
                     }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${String.format("%.0f", porcentaje)}%",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface
-                    )
-                    Text(text = "evaluado", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
-                }
             }
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp),
+                color = progressColor,
+                trackColor = colorScheme.outline.copy(alpha = 0.15f)
+            )
         }
     }
 }
@@ -497,11 +589,11 @@ private fun EmptyPeriodoState() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "Añade tu primera nota",
+            text = "Sin notas — pulsa + para añadir",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -579,20 +671,20 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
     }
 }
 
-// Dialogo para crear o editar una nota con wheel pickers estilo iOS.
-@OptIn(ExperimentalMaterial3Api::class)
+// Bottom sheet para agregar o editar una nota con validación inline.
 @Composable
-private fun NotaDialog(
+private fun NotaSheetContent(
     numeroPeriodos: Int,
     nota: Notas?,
+    notasActuales: List<Notas>,
     onDismiss: () -> Unit,
-    onSave: (Notas) -> Unit,
-    notasActuales: List<Notas>
+    onSave: (Notas) -> Unit
 ) {
     val nombre = remember { mutableStateOf(nota?.nombre ?: "") }
     val fecha = remember { mutableStateOf(nota?.fecha ?: "") }
     val periodo = remember { mutableStateOf(nota?.periodo ?: 1) }
-    val context = LocalContext.current
+    var nombreError by remember { mutableStateOf(false) }
+    var porcentajeError by remember { mutableStateOf<String?>(null) }
     var mostrarCalendario by remember { mutableStateOf(false) }
 
     val notaItems = remember { (0..100).map { String.format("%.1f", it * 0.1) } }
@@ -605,172 +697,177 @@ private fun NotaDialog(
         mutableIntStateOf(((nota?.porcentaje ?: 20.0) - 1).toInt().coerceIn(0, 99))
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(top = 8.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = if (nota == null) "Agregar nota" else "Editar nota",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+        Text(
+            text = if (nota == null) "Agregar nota" else "Editar nota",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
 
-                OutlinedTextField(
-                    value = nombre.value,
-                    onValueChange = { nombre.value = it },
-                    label = { Text("Nombre del examen") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+        HorizontalDivider()
 
-                OutlinedTextField(
-                    value = fecha.value,
-                    onValueChange = {},
-                    label = { Text("Fecha") },
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        IconButton(onClick = { mostrarCalendario = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                )
-                if (mostrarCalendario) {
-                    SelectorDeFecha(
-                        onFechaSeleccionada = { fecha.value = it },
-                        onDismiss = { mostrarCalendario = false }
-                    )
-                }
+        OutlinedTextField(
+            value = nombre.value,
+            onValueChange = { nombre.value = it; nombreError = false },
+            label = { Text("Nombre del examen") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            isError = nombreError,
+            supportingText = if (nombreError) { { Text("Introduce el nombre del examen") } } else null
+        )
 
-                // Wheel pickers
-                Text(
-                    text = "Nota y porcentaje",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text("Nota", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        WheelPicker(
-                            items = notaItems,
-                            initialIndex = notaIndex,
-                            onItemSelected = { notaIndex = it },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = notaItems[notaIndex],
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(220.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant)
-                            .align(Alignment.CenterVertically)
-                    )
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text("Porcentaje", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        WheelPicker(
-                            items = porcentajeItems,
-                            initialIndex = porcentajeIndex,
-                            onItemSelected = { porcentajeIndex = it },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "${porcentajeItems[porcentajeIndex]}%",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // Periodo
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Periodo:", style = MaterialTheme.typography.bodyMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (p in 1..numeroPeriodos) {
-                            val selected = periodo.value == p
-                            Button(
-                                onClick = { periodo.value = p },
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                )
-                            ) { Text("$p") }
-                        }
-                    }
-                }
-
-                HorizontalDivider()
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancelar") }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        val notaDouble = notaIndex * 0.1
-                        val porcentajeDouble = (porcentajeIndex + 1).toDouble()
-                        if (nombre.value.isBlank()) {
-                            Toast.makeText(context, "Escribe el nombre del examen.", Toast.LENGTH_SHORT).show()
-                            return@TextButton
-                        }
-                        val porcentajeUsado = notasActuales
-                            .filter { it.periodo == periodo.value && it.id != nota?.id }
-                            .sumOf { it.porcentaje ?: 0.0 }
-                        if (porcentajeUsado + porcentajeDouble > 100.0 + 1e-6) {
-                            Toast.makeText(context, "El porcentaje total del periodo supera 100%.", Toast.LENGTH_LONG).show()
-                            return@TextButton
-                        }
-                        onSave(
-                            NotaConstruida(
-                                base = nota,
-                                nombre = nombre.value,
-                                fecha = fecha.value,
-                                nota = notaDouble,
-                                porcentaje = porcentajeDouble,
-                                periodo = periodo.value
-                            )
-                        )
-                    }) { Text("Guardar", fontWeight = FontWeight.SemiBold) }
+        OutlinedTextField(
+            value = fecha.value,
+            onValueChange = {},
+            label = { Text("Fecha (opcional)") },
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { mostrarCalendario = true }) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
+        )
+        if (mostrarCalendario) {
+            SelectorDeFecha(
+                onFechaSeleccionada = { fecha.value = it },
+                onDismiss = { mostrarCalendario = false }
+            )
+        }
+
+        Text(
+            text = "Nota y porcentaje",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("Nota", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                WheelPicker(
+                    items = notaItems,
+                    initialIndex = notaIndex,
+                    onItemSelected = { notaIndex = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = notaItems[notaIndex],
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(220.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+                    .align(Alignment.CenterVertically)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("Porcentaje", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                WheelPicker(
+                    items = porcentajeItems,
+                    initialIndex = porcentajeIndex,
+                    onItemSelected = { porcentajeIndex = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "${porcentajeItems[porcentajeIndex]}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        if (porcentajeError != null) {
+            Text(
+                text = porcentajeError!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "Periodo",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (p in 1..numeroPeriodos) {
+                    FilterChip(
+                        selected = periodo.value == p,
+                        onClick = { periodo.value = p },
+                        label = { Text("Periodo $p") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider()
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            ) { Text("Cancelar") }
+            Button(
+                onClick = {
+                    val notaDouble = notaIndex * 0.1
+                    val porcentajeDouble = (porcentajeIndex + 1).toDouble()
+                    if (nombre.value.isBlank()) {
+                        nombreError = true
+                        return@Button
+                    }
+                    val porcentajeUsado = notasActuales
+                        .filter { it.periodo == periodo.value && it.id != nota?.id }
+                        .sumOf { it.porcentaje ?: 0.0 }
+                    if (porcentajeUsado + porcentajeDouble > 100.0 + 1e-6) {
+                        porcentajeError = "El porcentaje total del periodo superaría 100%"
+                        return@Button
+                    }
+                    onSave(
+                        NotaConstruida(
+                            base = nota,
+                            nombre = nombre.value,
+                            fecha = fecha.value,
+                            nota = notaDouble,
+                            porcentaje = porcentajeDouble,
+                            periodo = periodo.value
+                        )
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text("Guardar", fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -791,7 +888,6 @@ private fun WheelPicker(
         initialFirstVisibleItemIndex = initialIndex.coerceIn(0, maxOf(0, items.size - 1))
     )
     val snapBehavior = rememberSnapFlingBehavior(listState)
-
     val selectedIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
 
     LaunchedEffect(selectedIndex) {
@@ -804,7 +900,6 @@ private fun WheelPicker(
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Box(modifier = modifier.height(itemHeight * visibleCount)) {
-        // Fondo del item seleccionado
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -812,7 +907,6 @@ private fun WheelPicker(
                 .height(itemHeight)
                 .background(primaryContainer, RoundedCornerShape(10.dp))
         )
-
         LazyColumn(
             state = listState,
             flingBehavior = snapBehavior,
@@ -842,8 +936,6 @@ private fun WheelPicker(
                 }
             }
         }
-
-        // Gradiente superior
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -851,7 +943,6 @@ private fun WheelPicker(
                 .align(Alignment.TopCenter)
                 .background(Brush.verticalGradient(listOf(surfaceColor, Color.Transparent)))
         )
-        // Gradiente inferior
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -879,11 +970,11 @@ private fun NotaConstruida(
         nota = nota,
         porcentaje = porcentaje,
         fecha = fecha,
-        periodo = periodo
+        periodo = periodo,
+        creadoEn = base?.creadoEn?.takeIf { it > 0L } ?: System.currentTimeMillis()
     )
 }
 
-// Guarda una nota en Firebase para la asignatura.
 private fun guardarNota(userId: String, anioId: String, asignaturaId: String, nota: Notas, onFinish: () -> Unit) {
     if (userId.isBlank() || anioId.isBlank() || asignaturaId.isBlank()) return
     val notaId = nota.id ?: UUID.randomUUID().toString()
@@ -894,7 +985,8 @@ private fun guardarNota(userId: String, anioId: String, asignaturaId: String, no
         nota = nota.nota,
         porcentaje = nota.porcentaje,
         fecha = nota.fecha,
-        periodo = nota.periodo
+        periodo = nota.periodo,
+        creadoEn = nota.creadoEn.takeIf { it > 0L } ?: System.currentTimeMillis()
     )
     com.example.edutrack.notasRef(userId, anioId, asignaturaId)
         .child(notaId)
@@ -902,7 +994,6 @@ private fun guardarNota(userId: String, anioId: String, asignaturaId: String, no
         .addOnCompleteListener { onFinish() }
 }
 
-// Elimina una nota de Firebase.
 private fun eliminarNota(userId: String, anioId: String, asignaturaId: String, nota: Notas) {
     val notaId = nota.id ?: return
     if (userId.isBlank() || anioId.isBlank()) return
@@ -911,7 +1002,6 @@ private fun eliminarNota(userId: String, anioId: String, asignaturaId: String, n
         .removeValue()
 }
 
-// Genera una abreviatura del nombre de la asignatura.
 private fun abreviarNombre(nombre: String): String =
     nombre.trim()
         .split(" ")
@@ -921,7 +1011,6 @@ private fun abreviarNombre(nombre: String): String =
         .ifEmpty { "A" }
         .take(2)
 
-// Calcula el promedio ponderado por porcentaje.
 private fun calcularPromedio(notas: List<Notas>): Double {
     val totalPeso = notas.sumOf { it.porcentaje ?: 0.0 }
     if (totalPeso <= 0.0) return 0.0
@@ -932,13 +1021,9 @@ private fun calcularPromedio(notas: List<Notas>): Double {
 private data class ResumenNotas(val media: Double?, val totalNotas: Int)
 
 private fun calcularResumenNotas(notas: List<Notas>): ResumenNotas {
-    if (notas.isEmpty()) {
-        return ResumenNotas(media = null, totalNotas = 0)
-    }
+    if (notas.isEmpty()) return ResumenNotas(media = null, totalNotas = 0)
     val totalPeso = notas.sumOf { it.porcentaje ?: 0.0 }
-    if (totalPeso <= 0.0) {
-        return ResumenNotas(media = null, totalNotas = notas.size)
-    }
+    if (totalPeso <= 0.0) return ResumenNotas(media = null, totalNotas = notas.size)
     val ponderado = notas.sumOf { (it.nota ?: 0.0) * (it.porcentaje ?: 0.0) }
     return ResumenNotas(media = ponderado / totalPeso, totalNotas = notas.size)
 }
@@ -948,4 +1033,25 @@ private fun actualizarMediaAsignatura(userId: String, anioId: String?, asignatur
     val ref = com.example.edutrack.asignaturaRef(userId, anioId, asignaturaId)
     ref.child("media").setValue(resumen.media)
     ref.child("numero_notas").setValue(resumen.totalNotas)
+}
+
+// Vista previa del contenido de notas.
+@Preview
+@Composable
+fun EncabezadoNotasPreview() {
+    EduTrackTheme {
+
+         EvolucionSection(
+            notas = List(1) { Notas("22", "22", "ss", 20.0, 20.0, "222", 1) },
+            userPlan = UserPlan.PREMIUM,
+            onPaywall = {})
+
+
+        ListaNotasPorPeriodo(
+            notas = List(1) { Notas("22", "22", "ss", 20.0, 20.0, "222", 1) },
+            numeroPeriodos = 3,
+            tipoPeriodo = "Trimestre",
+            onEditar = {},
+            onEliminar = {})
+    }
 }

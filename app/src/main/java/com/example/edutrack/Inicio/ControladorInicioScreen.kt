@@ -45,12 +45,19 @@ fun formatearFecha(timeInMillis: Long): String {
     return formatter.format(Date(timeInMillis))
 }
 
-// Calcula la media del anio ponderando por creditos y dividiendo entre la suma total de creditos.
+// Calcula la media del anio según el tipo de ponderación configurado.
 fun calcularMediaAnio(anio: Anio): Double? {
     val asignaturas = anio.lista_asignaturas?.values.orEmpty()
     val totalNotas = asignaturas.sumOf { it.numero_notas ?: 0 }
     if (totalNotas <= 0) return null
 
+    if (anio.tipo_ponderacion == "simple") {
+        val conNotas = asignaturas.filter { (it.numero_notas ?: 0) > 0 }
+        if (conNotas.isEmpty()) return null
+        return conNotas.sumOf { it.media ?: 0.0 } / conNotas.size
+    }
+
+    // Default: media ponderada por créditos ECTS
     var sumaPonderada = 0.0
     var sumaCreditos = 0.0
 
@@ -100,7 +107,9 @@ fun parseAnioSnapshot(snapshot: DataSnapshot): Anio? {
         fechaInicio = fechaInicio,
         fechaFin = fechaFin,
         numero_asignaturas = numeroAsignaturas,
-        lista_asignaturas = asignaturasMap
+        lista_asignaturas = asignaturasMap,
+        nota_minima_aprobado = snapshot.child("nota_minima_aprobado").getValue(Double::class.java) ?: 5.0,
+        tipo_ponderacion = snapshot.child("tipo_ponderacion").getValue(String::class.java) ?: "creditos"
     )
 }
 
