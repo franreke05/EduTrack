@@ -976,31 +976,112 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
     val now = Calendar.getInstance()
     val currentMonth = now.get(Calendar.MONTH) + 1
     val currentYear = now.get(Calendar.YEAR)
+    val currentDay = now.get(Calendar.DAY_OF_MONTH)
 
-    // Estructura: (nombre, hora, media)
-    val examensByDay = mutableMapOf<Int, MutableList<Triple<String, String, Double?>>>()
-    val daysWithExams = mutableSetOf<Int>()
+    // Estructura: (nombre, hora)
+    val examensByDay = remember { mutableStateOf<Map<Int, List<Pair<String, String>>>>(emptyMap()) }
+    val daysWithExams = remember { mutableStateOf(setOf<Int>()) }
 
-    anios.forEach { anio ->
-        anio.lista_asignaturas?.values?.forEach { asignatura ->
-            if (!asignatura.fechaExamen.isNullOrEmpty()) {
-                try {
-                    val date = sdf.parse(asignatura.fechaExamen)
-                    if (date != null) {
-                        val cal = Calendar.getInstance().apply { time = date }
-                        if (cal.get(Calendar.MONTH) + 1 == currentMonth && cal.get(Calendar.YEAR) == currentYear) {
-                            val day = cal.get(Calendar.DAY_OF_MONTH)
-                            val asigName = asignatura.nombre ?: "Examen"
-                            val hora = asignatura.horaExamen ?: "--:--"
-                            examensByDay.getOrPut(day) { mutableListOf() }
-                                .add(Triple(asigName, hora, asignatura.media))
-                            daysWithExams.add(day)
+    // Cargar exámenes de Firebase
+    val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    DisposableEffect(anios, userId, currentMonth, currentYear) {
+        if (userId.isNullOrEmpty() || anios.isEmpty()) {
+            examensByDay.value = emptyMap()
+            daysWithExams.value = emptySet()
+            onDispose {}
+        } else {
+            val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
+            val daysWithExamsTemp = mutableSetOf<Int>()
+            var yearsCompleted = 0
+            val totalYears = anios.size
+
+            anios.forEach { anio ->
+                if (anio.id.isNullOrEmpty()) {
+                    yearsCompleted++
+                    return@forEach
+                }
+
+                val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
+                anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val asignaturaCount = snapshot.childrenCount.toInt()
+                        var asignaturasProcessed = 0
+
+                        if (asignaturaCount == 0) {
+                            yearsCompleted++
+                            if (yearsCompleted == totalYears) {
+                                examensByDay.value = examensByDayTemp
+                                daysWithExams.value = daysWithExamsTemp
+                            }
+                        } else {
+                            snapshot.children.forEach { asigSnapshot ->
+                                val asigId = asigSnapshot.key ?: return@forEach
+                                val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
+                                examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                                    override fun onDataChange(exSnapshot: DataSnapshot) {
+                                        exSnapshot.children.forEach { examenSnapshot ->
+                                            val examen = examenSnapshot.getValue(Examen::class.java)
+                                            if (examen != null &&
+                                                examen.fecha.isNotBlank() &&
+                                                examen.nombre.isNotBlank() &&
+                                                !examen.nombre.equals("prueba", ignoreCase = true)) {
+                                                try {
+                                                    val parts = examen.fecha.split("/")
+                                                    if (parts.size == 3) {
+                                                        val day = parts[0].toInt()
+                                                        val month = parts[1].toInt()
+                                                        val year = parts[2].toInt()
+
+                                                        if (month == currentMonth && year == currentYear) {
+                                                            val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                                            examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
+                                                                Pair(examen.nombre, horaDisplay)
+                                                            )
+                                                            daysWithExamsTemp.add(day)
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    // Fecha inválida
+                                                }
+                                            }
+                                        }
+
+                                        asignaturasProcessed++
+                                        if (asignaturasProcessed == asignaturaCount) {
+                                            yearsCompleted++
+                                            if (yearsCompleted == totalYears) {
+                                                examensByDay.value = examensByDayTemp
+                                                daysWithExams.value = daysWithExamsTemp
+                                            }
+                                        }
+                                    }
+
+                                    override fun onCancelled(error: DatabaseError) {
+                                        asignaturasProcessed++
+                                        if (asignaturasProcessed == asignaturaCount) {
+                                            yearsCompleted++
+                                            if (yearsCompleted == totalYears) {
+                                                examensByDay.value = examensByDayTemp
+                                                daysWithExams.value = daysWithExamsTemp
+                                            }
+                                        }
+                                    }
+                                })
+                            }
                         }
                     }
-                } catch (e: Exception) {
-                    // Fecha inválida, ignorar
-                }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        yearsCompleted++
+                        if (yearsCompleted == totalYears) {
+                            examensByDay.value = examensByDayTemp
+                            daysWithExams.value = daysWithExamsTemp
+                        }
+                    }
+                })
             }
+
+            onDispose {}
         }
     }
 
@@ -1068,29 +1149,29 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
 
             // Mini calendario de la semana actual
             MiniCalendarGrid(
-                currentDay = now.get(Calendar.DAY_OF_MONTH),
-                daysWithExams = daysWithExams,
+                currentDay = currentDay,
+                daysWithExams = daysWithExams.value,
                 currentMonth = currentMonth,
                 currentYear = currentYear
             )
 
-            // Timeline de exámenes del mes
-            if (examensByDay.isNotEmpty()) {
+            // Timeline de exámenes de esta semana
+            if (examensByDay.value.isNotEmpty()) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    val sortedDays = examensByDay.keys.sorted()
+                    val sortedDays = examensByDay.value.keys.sorted()
                     items(sortedDays.size, key = { index -> sortedDays[index] }) { index ->
                         val day = sortedDays[index]
-                        examensByDay[day]?.firstOrNull()?.let { (asigName, hora, media) ->
+                        examensByDay.value[day]?.firstOrNull()?.let { (nombre, hora) ->
                             val ringColor = storyRingColors[index % storyRingColors.size]
                             ExamenBadge(
-                                asignatura = asigName,
+                                asignatura = nombre,
                                 dia = day.toString().padStart(2, '0'),
                                 hora = hora,
-                                media = media,
+                                media = null,
                                 colors = ringColor
                             )
                         }
