@@ -201,11 +201,15 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .swipeBackGesture(onBack),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .swipeBackGesture(onBack)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
             // Hero header with stagger entrance
             AnimatedVisibility(
                 visible = heroVisible,
@@ -559,6 +563,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            }
         }
     }
 

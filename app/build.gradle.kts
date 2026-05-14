@@ -99,6 +99,9 @@ dependencies {
     // Coil (Image Loading)
     implementation(libs.coil.compose)
 
+    // ZXing core para generación de códigos QR de invitación.
+    implementation(libs.zxing.core)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

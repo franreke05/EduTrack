@@ -28,8 +28,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,6 +50,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.GroupSharedSubject
+import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.eliminarAsignaturaCompartida
 import com.example.edutrack.salirDeGrupo
 import kotlinx.coroutines.launch
@@ -85,12 +90,16 @@ fun GrupoDetalleScreen(
     val group by rememberGroupState(groupId)
     val members by rememberGroupMembersState(groupId)
     val sharedSubjects by rememberGroupSharedSubjectsState(groupId)
+    val userPlan by rememberUserPlan(userId)
 
+    var selectedTab by remember { mutableStateOf(0) }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var isLeaving by remember { mutableStateOf(false) }
     var selectedSubject by remember { mutableStateOf<GroupSharedSubject?>(null) }
     var subjectToDelete by remember { mutableStateOf<GroupSharedSubject?>(null) }
     var isDeletingSubject by remember { mutableStateOf(false) }
+    var showQrSheet by remember { mutableStateOf(false) }
+    var importTarget by remember { mutableStateOf<GroupSharedSubject?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -149,11 +158,32 @@ fun GrupoDetalleScreen(
         ) {
             val isTablet = maxWidth > 600.dp
             val hPad = if (isTablet) (maxWidth - 600.dp) / 2 else 16.dp
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = hPad, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            val tabletSidePad = if (isTablet) (maxWidth - 600.dp) / 2 else 0.dp
+            Column(modifier = Modifier.fillMaxSize()) {
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = { Text("Resumen", fontWeight = FontWeight.SemiBold) }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = { Text("Novedades", fontWeight = FontWeight.SemiBold) }
+                    )
+                }
+                when (selectedTab) {
+                    1 -> GroupFeedTab(
+                        groupId = groupId,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = tabletSidePad)
+                    )
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = hPad, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
             // Header card
             item {
                 var headerVisible by remember { mutableStateOf(false) }
@@ -228,17 +258,18 @@ fun GrupoDetalleScreen(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                Row {
-                                    IconButton(onClick = {
-                                        clipboard.setText(AnnotatedString(group?.inviteCode ?: ""))
-                                        scope.launch { snackbarHostState.showSnackbar("Código copiado al portapapeles") }
-                                    }) {
-                                        Icon(
-                                            Icons.Default.ContentCopy,
-                                            contentDescription = "Copiar código",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
+                                TextButton(onClick = { showQrSheet = true }) {
+                                    Icon(
+                                        Icons.Default.QrCode2,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "Compartir",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
                         }
@@ -378,15 +409,56 @@ fun GrupoDetalleScreen(
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
-            } // end LazyColumn
+                    } // end LazyColumn (Resumen)
+                } // end when(selectedTab)
+            } // end Column
         } // end BoxWithConstraints
     }
 
     selectedSubject?.let { subject ->
         SharedSubjectDetailDialog(
             subject = subject,
+            canImport = !subject.sharedBy.isNullOrBlank() && subject.sharedBy != userId,
+            onImport = {
+                importTarget = subject
+                selectedSubject = null
+            },
             onDismiss = { selectedSubject = null }
         )
+    }
+
+    if (showQrSheet && !group?.inviteCode.isNullOrBlank()) {
+        InviteQrSheet(
+            inviteCode = group?.inviteCode ?: "",
+            onDismiss = { showQrSheet = false },
+            onCopied = {
+                clipboard.setText(AnnotatedString(group?.inviteCode ?: ""))
+                scope.launch { snackbarHostState.showSnackbar("Código copiado al portapapeles") }
+            }
+        )
+    }
+
+    importTarget?.let { subject ->
+        val uid = userId
+        if (uid != null) {
+            SubjectImportSheet(
+                uid = uid,
+                sourceGroupId = groupId,
+                shared = subject,
+                plan = userPlan,
+                actorName = myMember?.displayName,
+                actorPhotoUrl = myMember?.photoUrl,
+                onPaywall = {
+                    importTarget = null
+                    onPaywall()
+                },
+                onDismiss = { importTarget = null },
+                onImported = { message ->
+                    importTarget = null
+                    scope.launch { snackbarHostState.showSnackbar(message) }
+                }
+            )
+        }
     }
 
     subjectToDelete?.let { subject ->
@@ -400,8 +472,16 @@ fun GrupoDetalleScreen(
                 Button(
                     onClick = {
                         val sid = subject.id ?: return@Button
+                        val uid = userId ?: return@Button
                         isDeletingSubject = true
-                        eliminarAsignaturaCompartida(groupId, sid) { success ->
+                        eliminarAsignaturaCompartida(
+                            groupId = groupId,
+                            subjectId = sid,
+                            actorUid = uid,
+                            actorName = myMember?.displayName,
+                            actorPhotoUrl = myMember?.photoUrl,
+                            subjectName = subject.name
+                        ) { success ->
                             isDeletingSubject = false
                             subjectToDelete = null
                             if (!success) {
@@ -437,7 +517,12 @@ fun GrupoDetalleScreen(
                     onClick = {
                         val uid = userId ?: return@Button
                         isLeaving = true
-                        salirDeGrupo(uid, groupId) { success ->
+                        salirDeGrupo(
+                            uid = uid,
+                            groupId = groupId,
+                            actorName = myMember?.displayName,
+                            actorPhotoUrl = myMember?.photoUrl
+                        ) { success ->
                             isLeaving = false
                             showLeaveDialog = false
                             if (success) onBack()
@@ -576,6 +661,8 @@ private fun SharedSubjectCard(
 @Composable
 private fun SharedSubjectDetailDialog(
     subject: GroupSharedSubject,
+    canImport: Boolean = false,
+    onImport: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -690,7 +777,18 @@ private fun SharedSubjectDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cerrar") }
-        }
+            if (canImport) {
+                Button(onClick = onImport) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copiar a mis asignaturas")
+                }
+            } else {
+                TextButton(onClick = onDismiss) { Text("Cerrar") }
+            }
+        },
+        dismissButton = if (canImport) {
+            { TextButton(onClick = onDismiss) { Text("Cerrar") } }
+        } else null
     )
 }

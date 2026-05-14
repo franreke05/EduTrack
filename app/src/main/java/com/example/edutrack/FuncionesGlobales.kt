@@ -6,10 +6,12 @@ import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.Examen
 import com.example.edutrack.dataclass.Group
+import com.example.edutrack.dataclass.GroupFeedEventType
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.Notas
+import com.example.edutrack.dataclass.SubjectImport
 import com.example.edutrack.dataclass.Usuario
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -42,6 +44,15 @@ fun groupMembersRef(groupId: String) = db().child(ROOT_NODE).child("groupMembers
 fun groupMemberRef(groupId: String, uid: String) = groupMembersRef(groupId).child(uid)
 fun userGroupsRef(uid: String) = db().child(ROOT_NODE).child("userGroups").child(uid)
 fun groupSharedSubjectsRef(groupId: String) = db().child(ROOT_NODE).child("groupSharedSubjects").child(groupId)
+fun groupFeedRef(groupId: String) = db().child(ROOT_NODE).child("groupFeed").child(groupId)
+fun groupImportsRef(uid: String) = userRef(uid).child("groupImports")
+fun groupImportsMetaRef(uid: String, monthKey: String) = groupImportsRef(uid).child("_meta").child(monthKey)
+
+// Clave de mes en UTC local (YYYY-MM) para agrupar el contador mensual de imports.
+fun currentMonthKey(): String {
+    val cal = java.util.Calendar.getInstance()
+    return "%04d-%02d".format(cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1)
+}
 
 fun CrearUsuario(usuario: Usuario) {
     val userId = usuario.id?.takeIf { it.isNotBlank() } ?: return
@@ -82,6 +93,44 @@ fun borrarAsignaturaCompleta(
         .addOnSuccessListener { onResult(true) }
         .addOnFailureListener {
             Log.e("DB", "Error borrando asignatura $asignaturaId", it)
+            onResult(false)
+        }
+}
+
+fun editarAnio(
+    userId: String,
+    anioId: String,
+    nombre: String,
+    descripcion: String,
+    maxAsignaturas: Int,
+    tipoPeriodo: String,
+    onResult: (Boolean) -> Unit = {}
+) {
+    if (anioId.isBlank()) { onResult(false); return }
+    val updates = mapOf<String, Any>(
+        "nombre" to nombre,
+        "descripcion" to descripcion,
+        "numero_asignaturas" to maxAsignaturas,
+        "tipo_periodo" to tipoPeriodo
+    )
+    anioRef(userId, anioId).updateChildren(updates)
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener {
+            Log.e("DB", "Error editando año $anioId", it)
+            onResult(false)
+        }
+}
+
+fun borrarAnioCompleto(
+    userId: String,
+    anioId: String,
+    onResult: (Boolean) -> Unit = {}
+) {
+    if (anioId.isBlank()) { onResult(false); return }
+    anioRef(userId, anioId).removeValue()
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener {
+            Log.e("DB", "Error borrando año $anioId", it)
             onResult(false)
         }
 }
@@ -209,14 +258,38 @@ fun unirseAGrupoPorCodigo(
                     "/${ROOT_NODE}/groups/$groupId/memberCount" to ServerValue.increment(1)
                 )
                 db().updateChildren(updates)
-                    .addOnSuccessListener { onResult(true, groupId) }
+                    .addOnSuccessListener {
+                        logFeedEvent(
+                            groupId = groupId,
+                            type = GroupFeedEventType.JOIN,
+                            actorUid = uid,
+                            actorName = displayName,
+                            actorPhotoUrl = photoUrl
+                        )
+                        onResult(true, groupId)
+                    }
                     .addOnFailureListener { onResult(false, "Error al unirse al grupo") }
             }.addOnFailureListener { e -> onResult(false, "Error verificando miembro: ${e.message?.take(60)}") }
         }
         .addOnFailureListener { e -> onResult(false, "Error buscando grupo: ${e.message?.take(60)}") }
 }
 
-fun salirDeGrupo(uid: String, groupId: String, onResult: (Boolean) -> Unit) {
+fun salirDeGrupo(
+    uid: String,
+    groupId: String,
+    actorName: String? = null,
+    actorPhotoUrl: String? = null,
+    onResult: (Boolean) -> Unit
+) {
+    // El evento LEAVE se emite ANTES del removeValue porque las reglas exigen que el
+    // autor sea miembro activo para escribir en groupFeed.
+    logFeedEvent(
+        groupId = groupId,
+        type = GroupFeedEventType.LEAVE,
+        actorUid = uid,
+        actorName = actorName,
+        actorPhotoUrl = actorPhotoUrl
+    )
     val updates = mapOf(
         "/${ROOT_NODE}/groupMembers/$groupId/$uid" to null,
         "/${ROOT_NODE}/userGroups/$uid/$groupId" to null,
@@ -233,17 +306,155 @@ fun compartirAsignaturaConGrupo(
     onResult: (Boolean) -> Unit
 ) {
     val subjectId = subject.id ?: UUID.randomUUID().toString()
-    groupSharedSubjectsRef(groupId).child(subjectId).setValue(subject.copy(id = subjectId))
-        .addOnSuccessListener { onResult(true) }
+    val toWrite = subject.copy(id = subjectId)
+    groupSharedSubjectsRef(groupId).child(subjectId).setValue(toWrite)
+        .addOnSuccessListener {
+            val actorUid = toWrite.sharedBy
+            if (!actorUid.isNullOrBlank()) {
+                logFeedEvent(
+                    groupId = groupId,
+                    type = GroupFeedEventType.SHARE,
+                    actorUid = actorUid,
+                    actorName = toWrite.sharedByName,
+                    actorPhotoUrl = toWrite.sharedByPhotoUrl,
+                    targetId = subjectId,
+                    targetLabel = toWrite.name
+                )
+            }
+            onResult(true)
+        }
         .addOnFailureListener { Log.e("DB", "Error compartiendo asignatura", it); onResult(false) }
 }
 
 fun eliminarAsignaturaCompartida(
     groupId: String,
     subjectId: String,
+    actorUid: String? = null,
+    actorName: String? = null,
+    actorPhotoUrl: String? = null,
+    subjectName: String? = null,
     onResult: (Boolean) -> Unit
 ) {
     groupSharedSubjectsRef(groupId).child(subjectId).removeValue()
-        .addOnSuccessListener { onResult(true) }
+        .addOnSuccessListener {
+            if (!actorUid.isNullOrBlank()) {
+                logFeedEvent(
+                    groupId = groupId,
+                    type = GroupFeedEventType.UNSHARE,
+                    actorUid = actorUid,
+                    actorName = actorName,
+                    actorPhotoUrl = actorPhotoUrl,
+                    targetId = subjectId,
+                    targetLabel = subjectName
+                )
+            }
+            onResult(true)
+        }
         .addOnFailureListener { Log.e("DB", "Error eliminando asignatura compartida", it); onResult(false) }
+}
+
+fun logFeedEvent(
+    groupId: String,
+    type: GroupFeedEventType,
+    actorUid: String,
+    actorName: String?,
+    actorPhotoUrl: String?,
+    targetId: String? = null,
+    targetLabel: String? = null
+) {
+    val ref = groupFeedRef(groupId).push()
+    val eventId = ref.key ?: return
+    val event = mapOf(
+        "id" to eventId,
+        "type" to type.name,
+        "actorUid" to actorUid,
+        "actorName" to actorName,
+        "actorPhotoUrl" to actorPhotoUrl,
+        "targetId" to targetId,
+        "targetLabel" to targetLabel,
+        "createdAt" to ServerValue.TIMESTAMP
+    )
+    ref.setValue(event)
+        .addOnFailureListener { Log.e("DB", "Error logeando feed event ${type.name}", it) }
+}
+
+fun importarAsignaturaDesdeGrupo(
+    uid: String,
+    targetAnioId: String,
+    sourceGroupId: String,
+    shared: GroupSharedSubject,
+    creditos: Int,
+    actorName: String?,
+    actorPhotoUrl: String?,
+    onResult: (success: Boolean, errorMsg: String?) -> Unit
+) {
+    val sourceSubjectId = shared.id
+    if (sourceSubjectId.isNullOrBlank()) {
+        onResult(false, "Asignatura origen sin identificador")
+        return
+    }
+    if (creditos < 1) {
+        onResult(false, "Créditos inválidos")
+        return
+    }
+
+    // Deduplicación: el contador mensual no se incrementa si ya existía un import previo.
+    groupImportsRef(uid).orderByChild("sourceSubjectId").equalTo(sourceSubjectId).limitToFirst(1)
+        .get()
+        .addOnSuccessListener { dupSnap ->
+            if (dupSnap.exists()) {
+                onResult(false, "Ya importaste esta asignatura")
+                return@addOnSuccessListener
+            }
+            val asignaturaId = UUID.randomUUID().toString()
+            val asignatura = Asignatura(
+                id = asignaturaId,
+                nombre = shared.name,
+                creditos = creditos,
+                descripcion = "",
+                media = 0.0,
+                numero_notas = 0,
+                tipo_periodo = shared.tipoPeriodo ?: "Trimestre",
+                numero_periodos = shared.numeroPeriodos ?: 3,
+                fechaExamen = null,
+                horaExamen = null
+            )
+            val importId = groupImportsRef(uid).push().key ?: run {
+                onResult(false, "Error generando identificador")
+                return@addOnSuccessListener
+            }
+            val importEntry = SubjectImport(
+                id = importId,
+                sourceGroupId = sourceGroupId,
+                sourceSubjectId = sourceSubjectId,
+                subjectName = shared.name,
+                importedAt = System.currentTimeMillis(),
+                targetAnioId = targetAnioId,
+                targetAsignaturaId = asignaturaId
+            )
+
+            asignaturaRef(uid, targetAnioId, asignaturaId).setValue(asignatura)
+                .addOnSuccessListener {
+                    groupImportsRef(uid).child(importId).setValue(importEntry)
+                    groupImportsMetaRef(uid, currentMonthKey()).child("count")
+                        .setValue(ServerValue.increment(1))
+                    logFeedEvent(
+                        groupId = sourceGroupId,
+                        type = GroupFeedEventType.IMPORT,
+                        actorUid = uid,
+                        actorName = actorName,
+                        actorPhotoUrl = actorPhotoUrl,
+                        targetId = sourceSubjectId,
+                        targetLabel = shared.name
+                    )
+                    onResult(true, null)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("DB", "Error importando asignatura", e)
+                    onResult(false, "Error al crear la asignatura")
+                }
+        }
+        .addOnFailureListener { e ->
+            onResult(false, "Error comprobando duplicados: ${e.message?.take(60)}")
+        }
 }

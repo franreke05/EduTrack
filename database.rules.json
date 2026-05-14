@@ -40,6 +40,39 @@
               ".validate": "!newData.exists() || (newData.isString() && newData.val() == 'google_play_server')"
             }
           },
+          "groupImports": {
+            "_meta": {
+              "$monthKey": {
+                "count": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0"
+                }
+              }
+            },
+            "$importId": {
+              ".validate": "!newData.exists() || newData.hasChildren(['id', 'sourceGroupId', 'sourceSubjectId', 'importedAt'])",
+              "id": {
+                ".validate": "newData.isString() && newData.val() == $importId"
+              },
+              "sourceGroupId": {
+                ".validate": "newData.isString()"
+              },
+              "sourceSubjectId": {
+                ".validate": "newData.isString()"
+              },
+              "subjectName": {
+                ".validate": "!newData.exists() || newData.isString()"
+              },
+              "importedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "targetAnioId": {
+                ".validate": "!newData.exists() || newData.isString()"
+              },
+              "targetAsignaturaId": {
+                ".validate": "!newData.exists() || newData.isString()"
+              }
+            }
+          },
           "anios": {
             "$anioId": {
               ".validate": "newData.hasChildren(['id', 'nombre'])",
@@ -117,6 +150,17 @@
           ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
           "$subjectId": {
             ".write": "auth != null && ((!data.exists() && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()) || (!newData.exists() && (root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN')))"
+          }
+        }
+      },
+
+      "groupFeed": {
+        "$groupId": {
+          ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
+          ".indexOn": ["createdAt"],
+          "$eventId": {
+            ".write": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists() && !data.exists() && newData.child('actorUid').val() == auth.uid",
+            ".validate": "newData.hasChildren(['id', 'type', 'actorUid', 'createdAt']) && newData.child('type').isString() && newData.child('createdAt').isNumber()"
           }
         }
       }

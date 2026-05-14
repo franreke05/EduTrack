@@ -33,6 +33,7 @@ uiText = "1.11.1"
 animation = "1.11.1"
 foundationLayoutVersion = "1.11.1"
 playServicesAdsApi = "25.2.0"
+zxingCore = "3.5.3"
 
 [libraries]
 androidx-compose-bom-v20240401 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
@@ -78,6 +79,7 @@ androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", ve
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animation" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 play-services-ads-api = { group = "com.google.android.gms", name = "play-services-ads-api", version.ref = "playServicesAdsApi" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

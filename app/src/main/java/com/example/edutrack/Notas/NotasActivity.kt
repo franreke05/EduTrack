@@ -59,9 +59,11 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -74,6 +76,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -160,12 +163,14 @@ fun NotasScreen(
     var showNotaSheet by remember { mutableStateOf(false) }
     var showExamenSheet by remember { mutableStateOf(false) }
     var notaEnEdicion by remember { mutableStateOf<Notas?>(null) }
+    var examenEnEdicion by remember { mutableStateOf<Examen?>(null) }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
     var showDeleteAsignatura by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val examenSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var selectedPeriodoIdx by rememberSaveable { mutableIntStateOf(0) }
 
     DisposableEffect(asignaturaId) {
         val notasRef = com.example.edutrack.notasRef(userId, anioId ?: "", asignaturaId)
@@ -261,45 +266,181 @@ fun NotasScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { inner ->
-        Surface(modifier = Modifier.fillMaxSize().swipeBackGesture(onBack)) {
-            Column(
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .swipeBackGesture(onBack)
+        ) {
+            val grouped = notasState.value.groupBy { it.periodo ?: 1 }
+            val notasPeriodoActual = grouped[(selectedPeriodoIdx + 1).coerceIn(1, numeroPeriodos)].orEmpty()
+            LazyColumn(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(inner)
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
             ) {
-                EvolucionSection(
-                    notas = notasState.value,
-                    userPlan = userPlan,
-                    onPaywall = onPaywall
-                )
-                EncabezadoNotas(
-                    nombre = asignaturaNombre,
-                    promedio = promedio,
-                    porcentajeTotal = porcentajeTotal,
-                )
-
-                ExamenesSection(
-                    examenes = examenesState.value,
-                    onAddExamen = { showExamenSheet = true },
-                    onDeleteExamen = { examen ->
-                        examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
+                item {
+                    EvolucionSection(
+                        notas = notasPeriodoActual,
+                        userPlan = userPlan,
+                        onPaywall = onPaywall
+                    )
+                }
+                item {
+                    EncabezadoNotas(
+                        nombre = asignaturaNombre,
+                        promedio = promedio,
+                        porcentajeTotal = porcentajeTotal,
+                    )
+                }
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Exámenes próximos",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        IconButton(onClick = { examenEnEdicion = null; showExamenSheet = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Add, contentDescription = "Agregar examen")
+                        }
                     }
-                )
-
-                ListaNotasPorPeriodo(
-                    notas = notasState.value,
-                    numeroPeriodos = numeroPeriodos,
-                    tipoPeriodo = tipoPeriodo,
-                    onEditar = { nota ->
-                        notaEnEdicion = nota
-                        showNotaSheet = true
-                    },
-                    onEliminar = { nota ->
-                        showDeleteConfirm.value = nota
+                }
+                if (examenesState.value.isEmpty()) {
+                    item {
+                        Text(
+                            "Sin exámenes programados",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
-                )
+                } else {
+                    items(examenesState.value, key = { it.id }) { examen ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { examenEnEdicion = examen; showExamenSheet = true },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            ),
+                            shape = MaterialTheme.shapes.large
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        examen.nombre,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            examen.fecha,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (examen.hora.isNotEmpty()) {
+                                            Text(
+                                                examen.hora,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                                IconButton(onClick = { examenEnEdicion = examen; showExamenSheet = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                IconButton(onClick = { examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue() }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+                item(key = "periodo_tabs") {
+                    val selectedPeriodo = (selectedPeriodoIdx + 1).coerceIn(1, numeroPeriodos)
+                    val lista = grouped[selectedPeriodo].orEmpty()
+                    val mediaPeriodo = if (lista.isEmpty()) null else {
+                        val peso = lista.sumOf { it.porcentaje ?: 0.0 }
+                        if (peso > 0) lista.sumOf { (it.nota ?: 0.0) * (it.porcentaje ?: 0.0) } / peso else null
+                    }
+                    val porcentajePeriodo = lista.sumOf { it.porcentaje ?: 0.0 }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (numeroPeriodos > 1) {
+                            ScrollableTabRow(
+                                selectedTabIndex = selectedPeriodoIdx,
+                                edgePadding = 0.dp,
+                                containerColor = MaterialTheme.colorScheme.background,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ) {
+                                (1..numeroPeriodos).forEachIndexed { idx, p ->
+                                    val tabMedia = grouped[p].orEmpty().let { tl ->
+                                        val peso = tl.sumOf { it.porcentaje ?: 0.0 }
+                                        if (peso > 0) tl.sumOf { (it.nota ?: 0.0) * (it.porcentaje ?: 0.0) } / peso else null
+                                    }
+                                    Tab(
+                                        selected = selectedPeriodoIdx == idx,
+                                        onClick = { selectedPeriodoIdx = idx },
+                                        text = {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(
+                                                    "$tipoPeriodo $p",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = if (selectedPeriodoIdx == idx) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                                if (tabMedia != null) {
+                                                    Text(
+                                                        String.format("%.1f", tabMedia),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = when {
+                                                            tabMedia >= 7.0 -> MaterialTheme.colorScheme.tertiary
+                                                            tabMedia >= 5.0 -> MaterialTheme.colorScheme.primary
+                                                            else -> MaterialTheme.colorScheme.error
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        PeriodoHeader(
+                            label = "$tipoPeriodo $selectedPeriodo",
+                            media = mediaPeriodo,
+                            porcentaje = porcentajePeriodo
+                        )
+
+                        if (lista.isEmpty()) {
+                            EmptyPeriodoState()
+                        } else {
+                            lista.sortedBy { it.nombre }.forEachIndexed { index, nota ->
+                                NotaRow(nota, onEditar = {
+                                    notaEnEdicion = nota
+                                    showNotaSheet = true
+                                }, onEliminar = {
+                                    showDeleteConfirm.value = nota
+                                })
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -321,9 +462,18 @@ fun NotasScreen(
                     notaEnEdicion = null
                 },
                 onSave = { nota ->
-                    guardarNota(userId, anioId ?: "", asignaturaId, nota) {
+                    val isEditing = notaEnEdicion != null
+                    val limitReached = !isEditing && userPlan != UserPlan.PREMIUM &&
+                        notasState.value.count { it.creadoEn > System.currentTimeMillis() - 86_400_000L } >= 10
+                    if (limitReached) {
                         showNotaSheet = false
                         notaEnEdicion = null
+                        onPaywall()
+                    } else {
+                        guardarNota(userId, anioId ?: "", asignaturaId, nota) {
+                            showNotaSheet = false
+                            notaEnEdicion = null
+                        }
                     }
                 }
             )
@@ -332,21 +482,23 @@ fun NotasScreen(
 
     if (showExamenSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showExamenSheet = false },
+            onDismissRequest = { showExamenSheet = false; examenEnEdicion = null },
             sheetState = examenSheetState
         ) {
             ExamenSheetContent(
                 asignaturaNombre = asignaturaNombre,
-                onDismiss = { showExamenSheet = false },
+                examen = examenEnEdicion,
+                onDismiss = { showExamenSheet = false; examenEnEdicion = null },
                 onSave = { examen ->
-                    val newExamen = examen.copy(
+                    val saved = examen.copy(
                         id = examen.id.ifEmpty { UUID.randomUUID().toString() },
                         asignaturaId = asignaturaId,
                         asignaturaNombre = asignaturaNombre,
-                        creadoEn = System.currentTimeMillis()
+                        creadoEn = examenEnEdicion?.creadoEn ?: System.currentTimeMillis()
                     )
-                    examenesRef(userId, anioId ?: "", asignaturaId).child(newExamen.id).setValue(newExamen)
+                    examenesRef(userId, anioId ?: "", asignaturaId).child(saved.id).setValue(saved)
                     showExamenSheet = false
+                    examenEnEdicion = null
                 }
             )
         }
@@ -734,6 +886,7 @@ private fun NotaSheetContent(
     val fecha = remember { mutableStateOf(nota?.fecha ?: "") }
     val periodo = remember { mutableStateOf(nota?.periodo ?: 1) }
     var nombreError by remember { mutableStateOf(false) }
+    var fechaError by remember { mutableStateOf(false) }
     var porcentajeError by remember { mutableStateOf<String?>(null) }
     var mostrarCalendario by remember { mutableStateOf(false) }
 
@@ -776,11 +929,13 @@ private fun NotaSheetContent(
         OutlinedTextField(
             value = fecha.value,
             onValueChange = {},
-            label = { Text("Fecha (opcional)") },
+            label = { Text("Fecha") },
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),
+            isError = fechaError,
+            supportingText = if (fechaError) { { Text("La fecha es obligatoria") } } else null,
             trailingIcon = {
-                IconButton(onClick = { mostrarCalendario = true }) {
+                IconButton(onClick = { mostrarCalendario = true; fechaError = false }) {
                     Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -896,6 +1051,10 @@ private fun NotaSheetContent(
                     val porcentajeDouble = (porcentajeIndex + 1).toDouble()
                     if (nombre.value.isBlank()) {
                         nombreError = true
+                        return@Button
+                    }
+                    if (fecha.value.isBlank()) {
+                        fechaError = true
                         return@Button
                     }
                     val porcentajeUsado = notasActuales
@@ -1169,12 +1328,13 @@ fun ExamenesSection(
 @Composable
 fun ExamenSheetContent(
     asignaturaNombre: String,
+    examen: Examen? = null,
     onDismiss: () -> Unit,
     onSave: (Examen) -> Unit
 ) {
-    val nombre = remember { mutableStateOf("") }
-    val fecha = remember { mutableStateOf("") }
-    val hora = remember { mutableStateOf("") }
+    val nombre = remember(examen?.id) { mutableStateOf(examen?.nombre ?: "") }
+    val fecha = remember(examen?.id) { mutableStateOf(examen?.fecha ?: "") }
+    val hora = remember(examen?.id) { mutableStateOf(examen?.hora ?: "") }
     var mostrarCalendario by remember { mutableStateOf(false) }
     var nombreError by remember { mutableStateOf<String?>(null) }
 
@@ -1187,7 +1347,7 @@ fun ExamenSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "Nuevo examen",
+            if (examen == null) "Nuevo examen" else "Editar examen",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -1235,24 +1395,34 @@ fun ExamenSheetContent(
             singleLine = true
         )
 
-        Button(
-            onClick = {
-                if (nombre.value.trim().isBlank()) {
-                    nombreError = "El nombre es obligatorio"
-                    return@Button
-                }
-                onSave(Examen(
-                    nombre = nombre.value.trim(),
-                    fecha = fecha.value,
-                    hora = hora.value
-                ))
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Guardar examen", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            ) { Text("Cancelar") }
+            Button(
+                onClick = {
+                    if (nombre.value.trim().isBlank()) {
+                        nombreError = "El nombre es obligatorio"
+                        return@Button
+                    }
+                    onSave(Examen(
+                        id = examen?.id ?: "",
+                        nombre = nombre.value.trim(),
+                        fecha = fecha.value,
+                        hora = hora.value
+                    ))
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Guardar", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

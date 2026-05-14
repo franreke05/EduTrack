@@ -71,6 +71,7 @@ fun CreacionAnioScreen(
     var numero_asignaturas by remember { mutableStateOf("") }
     var notaMinima by remember { mutableStateOf(5.0) }
     var tipoPonderacion by remember { mutableStateOf("creditos") }
+    var tipoPeriodo by remember { mutableStateOf("Cuatrimestre") }
 
     val notasOpciones = listOf(4.0, 4.5, 5.0, 5.5, 6.0)
 
@@ -86,7 +87,8 @@ fun CreacionAnioScreen(
                 fechaFin = fechaFin,
                 numero_asignaturas = numero_asignaturas.toIntOrNull() ?: 0,
                 nota_minima_aprobado = notaMinima,
-                tipo_ponderacion = tipoPonderacion
+                tipo_ponderacion = tipoPonderacion,
+                tipo_periodo = tipoPeriodo
             )
             CrearAnio(uid, anio)
             onFinish()
@@ -205,7 +207,33 @@ fun CreacionAnioScreen(
                 )
             }
 
-            // Sección 4: Cálculo de medias
+            // Sección 4: Tipo de periodo
+            FormSection(
+                icon = Icons.Default.DateRange,
+                title = "Tipo de periodo",
+                subtitle = "Define cómo se dividen las asignaturas del curso"
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Cuatrimestre", "Trimestre").forEach { opcion ->
+                        FilterChip(
+                            selected = tipoPeriodo == opcion,
+                            onClick = { tipoPeriodo = opcion },
+                            label = {
+                                Text(
+                                    opcion,
+                                    fontWeight = if (tipoPeriodo == opcion) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Sección 5: Cálculo de medias
             FormSection(
                 icon = Icons.Default.Calculate,
                 title = "Cálculo de medias",

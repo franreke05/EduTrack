@@ -43,7 +43,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -52,6 +55,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -69,6 +74,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,6 +104,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.edutrack.CrearAsignatura
+import com.example.edutrack.borrarAnioCompleto
+import com.example.edutrack.editarAnio
 import com.example.edutrack.Groups.rememberUserGroupsState
 import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
@@ -179,6 +187,9 @@ fun AnioScreen(
     val anioLleno = actuales >= maxAsignaturas
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showDeleteAnioDialog by remember { mutableStateOf(false) }
+    var showEditAnioSheet by remember { mutableStateOf(false) }
+    var showActionsMenu by remember { mutableStateOf(false) }
     val asignaturasBase = remember(anio.lista_asignaturas) {
         anio.lista_asignaturas?.values?.toList().orEmpty()
     }
@@ -205,28 +216,41 @@ fun AnioScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(anio.nombre ?: "Año escolar") },
+                title = {
+                    Text(
+                        text = anio.nombre ?: "Año escolar",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Volver",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (PlanManager.canExportPdf(userPlan)) {
-                            snackbarScope.launch { CursoPdfExporter.exportAndShare(context, anio) }
-                        } else {
-                            onPaywall()
-                        }
-                    }) {
+                    IconButton(onClick = { showEditAnioSheet = true }) {
                         Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Exportar PDF",
-                            tint = MaterialTheme.colorScheme.primary
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar curso",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(onClick = {
@@ -236,10 +260,82 @@ fun AnioScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Buscar asignatura",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = if (showSearch) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                }
+                    Box {
+                        IconButton(onClick = { showActionsMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Más opciones",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showActionsMenu,
+                            onDismissRequest = { showActionsMenu = false },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shape = MaterialTheme.shapes.large
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Exportar PDF",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Share,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showActionsMenu = false
+                                    if (PlanManager.canExportPdf(userPlan)) {
+                                        snackbarScope.launch { CursoPdfExporter.exportAndShare(context, anio) }
+                                    } else {
+                                        onPaywall()
+                                    }
+                                }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Eliminar curso",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showActionsMenu = false
+                                    showDeleteAnioDialog = true
+                                }
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         floatingActionButton = {
@@ -614,6 +710,95 @@ fun AnioScreen(
         )
     }
 
+    if (showDeleteAnioDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAnioDialog = false },
+            shape = MaterialTheme.shapes.extraLarge,
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    "Eliminar curso",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    "¿Seguro que quieres eliminar \"${anio.nombre}\"? Se borrarán todas sus asignaturas y notas. Esta acción no se puede deshacer.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAnioDialog = false
+                        val uid = userId ?: return@Button
+                        val id = anio.id ?: return@Button
+                        borrarAnioCompleto(uid, id) { success ->
+                            if (success) onBack()
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Text("Eliminar", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteAnioDialog = false },
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    if (showEditAnioSheet) {
+        val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showEditAnioSheet = false },
+            sheetState = editSheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.extraLarge
+        ) {
+            EditarAnioSheetContent(
+                anio = anio,
+                actuales = actuales,
+                onDismiss = { showEditAnioSheet = false },
+                onSave = { nombre, descripcion, maxAsig, tipoPeriodo ->
+                    val uid = userId ?: return@EditarAnioSheetContent
+                    val id = anio.id ?: return@EditarAnioSheetContent
+                    editarAnio(uid, id, nombre, descripcion, maxAsig, tipoPeriodo) {
+                        showEditAnioSheet = false
+                    }
+                }
+            )
+        }
+    }
+
     asignaturaToShare?.let { asig ->
         PublicarAsignaturaDialog(
             asignatura = asig,
@@ -632,6 +817,7 @@ fun AnioScreen(
                 anioId = anio.id,
                 maxAsignaturas = maxAsignaturas,
                 actuales = actuales,
+                tipoPeriodo = anio.tipo_periodo ?: "Cuatrimestre",
                 onDismiss = { showAsignaturaSheet = false },
                 isPremium = PlanManager.isPremium(userPlan)
             )
@@ -792,12 +978,178 @@ private fun AnioStatChip(
     }
 }
 
+@Composable
+private fun EditarAnioSheetContent(
+    anio: com.example.edutrack.dataclass.Anio,
+    actuales: Int,
+    onDismiss: () -> Unit,
+    onSave: (nombre: String, descripcion: String, maxAsignaturas: Int, tipoPeriodo: String) -> Unit
+) {
+    var nombre by remember { mutableStateOf(anio.nombre ?: "") }
+    var descripcion by remember { mutableStateOf(anio.descripcion ?: "") }
+    var maxAsigText by remember { mutableStateOf((anio.numero_asignaturas ?: 12).toString()) }
+    var tipoPeriodo by remember { mutableStateOf(anio.tipo_periodo ?: "Cuatrimestre") }
+    var nombreError by remember { mutableStateOf(false) }
+    var maxAsigError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Column {
+                Text(
+                    "Editar curso",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    "Modifica los datos del curso",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+        OutlinedTextField(
+            value = nombre,
+            onValueChange = { nombre = it; nombreError = false },
+            label = { Text("Nombre del curso") },
+            isError = nombreError,
+            supportingText = if (nombreError) {{ Text("El nombre es obligatorio") }} else null,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large
+        )
+
+        OutlinedTextField(
+            value = descripcion,
+            onValueChange = { descripcion = it },
+            label = { Text("Descripción (opcional)") },
+            minLines = 2,
+            maxLines = 4,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large
+        )
+
+        OutlinedTextField(
+            value = maxAsigText,
+            onValueChange = { v ->
+                val digits = v.filter { it.isDigit() }
+                if (digits.isEmpty() || (digits.toIntOrNull() ?: 0) <= 20) {
+                    maxAsigText = digits
+                }
+                maxAsigError = false
+            },
+            label = { Text("Máximo de asignaturas") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            isError = maxAsigError,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            supportingText = {
+                if (maxAsigError) {
+                    Text(
+                        "Debe estar entre $actuales y 20",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    Text("Tienes $actuales asignatura${if (actuales != 1) "s" else ""} · máximo 20.")
+                }
+            }
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Tipo de periodo",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Afecta a todas las asignaturas del curso.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Cuatrimestre", "Trimestre").forEach { opcion ->
+                    FilterChip(
+                        selected = tipoPeriodo == opcion,
+                        onClick = { tipoPeriodo = opcion },
+                        label = {
+                            Text(
+                                opcion,
+                                fontWeight = if (tipoPeriodo == opcion) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.large
+            ) {
+                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(
+                onClick = {
+                    val maxAsig = maxAsigText.toIntOrNull() ?: 0
+                    if (nombre.isBlank()) { nombreError = true; return@Button }
+                    if (maxAsig < actuales || maxAsig > 20) { maxAsigError = true; return@Button }
+                    onSave(nombre.trim(), descripcion.trim(), maxAsig, tipoPeriodo)
+                },
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.large
+            ) {
+                Text("Guardar", fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
 // Bottom sheet para crear una nueva asignatura con validación inline.
 @Composable
 private fun CrearAsignaturaSheetContent(
     anioId: String?,
     maxAsignaturas: Int,
     actuales: Int,
+    tipoPeriodo: String,
     onDismiss: () -> Unit,
     isPremium: Boolean = false
 ) {
@@ -805,7 +1157,6 @@ private fun CrearAsignaturaSheetContent(
     val nombre = remember { mutableStateOf("") }
     val descripcion = remember { mutableStateOf("") }
     val creditos = remember { mutableStateOf("") }
-    val tipo = remember { mutableStateOf("Cuatrimestre") }
     var nombreError by remember { mutableStateOf<String?>(null) }
     var creditosError by remember { mutableStateOf<String?>(null) }
 
@@ -864,25 +1215,28 @@ private fun CrearAsignaturaSheetContent(
             singleLine = true
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                "Tipo de periodo",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Trimestre", "Cuatrimestre").forEach { opcion ->
-                    FilterChip(
-                        selected = tipo.value == opcion,
-                        onClick = { tipo.value = opcion },
-                        label = { Text(opcion) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.DateRange,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    "Periodo del curso: $tipoPeriodo",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
 
@@ -900,13 +1254,13 @@ private fun CrearAsignaturaSheetContent(
                     hasError = true
                 }
                 if (hasError) return@Button
-                val numeroPeriodos = if (tipo.value == "Cuatrimestre") 2 else 3
+                val numeroPeriodos = if (tipoPeriodo == "Cuatrimestre") 2 else 3
                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@Button
                 val asignatura = Asignatura(
                     nombre = trimmedNombre,
                     descripcion = descripcion.value,
                     creditos = creditosInt,
-                    tipo_periodo = tipo.value,
+                    tipo_periodo = tipoPeriodo,
                     numero_periodos = numeroPeriodos
                 )
                 CrearAsignatura(uid, anioId!!, asignatura)

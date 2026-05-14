@@ -6,9 +6,11 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.example.edutrack.dataclass.Group
+import com.example.edutrack.dataclass.GroupFeedEvent
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.UserGroup
+import com.example.edutrack.groupFeedRef
 import com.example.edutrack.groupMemberRef
 import com.example.edutrack.groupMembersRef
 import com.example.edutrack.groupRef
@@ -110,6 +112,33 @@ fun rememberGroupState(groupId: String?): State<Group?> {
         }
         ref.addValueEventListener(listener)
         onDispose { ref.removeEventListener(listener) }
+    }
+    return state
+}
+
+// Estado en tiempo real del feed de novedades del grupo (últimos 50 eventos, orden descendente).
+@Composable
+fun rememberGroupFeedState(groupId: String?): State<List<GroupFeedEvent>> {
+    val state = remember { mutableStateOf<List<GroupFeedEvent>>(emptyList()) }
+    DisposableEffect(groupId) {
+        if (groupId.isNullOrBlank()) {
+            state.value = emptyList()
+            return@DisposableEffect onDispose {}
+        }
+        val query = groupFeedRef(groupId).orderByChild("createdAt").limitToLast(50)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val events = snapshot.children
+                    .mapNotNull { it.getValue(GroupFeedEvent::class.java) }
+                    .sortedByDescending { it.createdAt ?: 0L }
+                state.value = events
+            }
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("Grupos", "Error leyendo feed: ${error.message}")
+            }
+        }
+        query.addValueEventListener(listener)
+        onDispose { query.removeEventListener(listener) }
     }
     return state
 }
