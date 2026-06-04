@@ -131,8 +131,9 @@
 
       "groupMembers": {
         "$groupId": {
-          ".read": "auth != null",
+          ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
           "$uid": {
+            ".read": "auth != null && (auth.uid == $uid || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists())",
             ".write": "auth != null && (auth.uid == $uid || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN')"
           }
         }
@@ -160,7 +161,27 @@
           ".indexOn": ["createdAt"],
           "$eventId": {
             ".write": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists() && !data.exists() && newData.child('actorUid').val() == auth.uid",
-            ".validate": "newData.hasChildren(['id', 'type', 'actorUid', 'createdAt']) && newData.child('type').isString() && newData.child('createdAt').isNumber()"
+            ".validate": "newData.hasChildren(['id', 'type', 'actorUid', 'createdAt']) && newData.child('actorUid').val() == auth.uid && newData.child('type').isString() && (newData.child('type').val() == 'JOIN' || newData.child('type').val() == 'LEAVE' || newData.child('type').val() == 'SHARE' || newData.child('type').val() == 'UNSHARE' || newData.child('type').val() == 'IMPORT' || newData.child('type').val() == 'RESOURCE' || newData.child('type').val() == 'EXAM') && newData.child('createdAt').isNumber() && (!newData.hasChild('targetLabel') || (newData.child('targetLabel').isString() && newData.child('targetLabel').val().length <= 300))"
+          }
+        }
+      },
+
+      "groupResources": {
+        "$groupId": {
+          ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
+          "$resourceId": {
+            ".write": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists() && (!newData.exists() ? (data.child('authorId').val() == auth.uid || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN') : (!data.exists() && newData.child('authorId').val() == auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['id', 'title', 'authorId', 'createdAt']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 200 && newData.child('authorId').val() == auth.uid && newData.child('createdAt').isNumber() && (!newData.hasChild('url') || (newData.child('url').isString() && newData.child('url').val().length <= 2000)) && (!newData.hasChild('description') || (newData.child('description').isString() && newData.child('description').val().length <= 1000)) && (!newData.hasChild('tag') || (newData.child('tag').isString() && newData.child('tag').val().length <= 100)))"
+          }
+        }
+      },
+
+      "groupExams": {
+        "$groupId": {
+          ".read": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists()",
+          "$examId": {
+            ".write": "auth != null && root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).exists() && (!newData.exists() ? (data.child('authorId').val() == auth.uid || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'OWNER' || root.child('Edutrack/groupMembers/' + $groupId + '/' + auth.uid).child('role').val() == 'ADMIN') : (!data.exists() && newData.child('authorId').val() == auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['id', 'nombre', 'fecha', 'authorId', 'createdAt']) && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 200 && newData.child('fecha').isString() && newData.child('fecha').val().length > 0 && newData.child('authorId').val() == auth.uid && newData.child('createdAt').isNumber() && (!newData.hasChild('asignatura') || (newData.child('asignatura').isString() && newData.child('asignatura').val().length <= 200)) && (!newData.hasChild('hora') || (newData.child('hora').isString() && newData.child('hora').val().length <= 10)))"
           }
         }
       }

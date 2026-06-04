@@ -106,15 +106,15 @@ import androidx.compose.ui.unit.sp
 import com.example.edutrack.CrearAsignatura
 import com.example.edutrack.borrarAnioCompleto
 import com.example.edutrack.editarAnio
-import com.example.edutrack.Groups.rememberUserGroupsState
-import com.example.edutrack.Inicio.rememberAniosState
 import com.example.edutrack.Inicio.toRoman
-import com.example.edutrack.Perfil.rememberUsuarioState
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalUserGroups
+import com.example.edutrack.ui.LocalUsuario
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.compartirAsignaturaConGrupo
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.domain.PlanManager
-import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.pdf.CursoPdfExporter
 import com.example.edutrack.reminders.ExamReminderScheduler
 import com.example.edutrack.ui.theme.EduTrackTheme
@@ -133,7 +133,7 @@ fun AnioRoute(
     onOpenNotas: (Asignatura, String?) -> Unit = { _, _ -> },
     onPaywall: () -> Unit = {}
 ) {
-    val anios by rememberAniosState(userId)
+    val anios = LocalAnios.current
     val anio = anios.firstOrNull { it.id == anioId }
     if (anio == null) {
         CircularProgressIndicator()
@@ -145,7 +145,7 @@ fun AnioRoute(
 // Envuelve la pantalla del anio con navegacion por deslizamiento entre anios.
 @Composable
 fun AnioScreenWrapper(userId: String?, initialAnioId: String?) {
-    val anios by rememberAniosState(userId)
+    val anios = LocalAnios.current
     if (anios.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -177,8 +177,8 @@ fun AnioScreen(
     onPaywall: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val userGroups by rememberUserGroupsState(userId)
-    val userPlan by rememberUserPlan(userId)
+    val userGroups = LocalUserGroups.current
+    val userPlan = LocalUserPlan.current
     var asignaturaToShare by remember { mutableStateOf<Asignatura?>(null) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showAsignaturaSheet by remember { mutableStateOf(false) }
@@ -1284,7 +1284,7 @@ private fun PublicarAsignaturaDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val usuario by rememberUsuarioState(userId)
+    val usuario = LocalUsuario.current
     var selectedGroupId by remember { mutableStateOf(grupos.firstOrNull()?.groupId) }
     var isSharing by remember { mutableStateOf(false) }
 

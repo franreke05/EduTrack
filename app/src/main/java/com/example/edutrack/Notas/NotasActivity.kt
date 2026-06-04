@@ -1,10 +1,16 @@
 package com.example.edutrack.Notas
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -40,9 +46,12 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -90,12 +99,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
+import com.example.edutrack.domain.PlanManager
+import com.example.edutrack.reminders.ExamReminderScheduler
 import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.dataclass.Examen
 import com.example.edutrack.examenesRef
 import com.example.edutrack.gestures.swipeBackGesture
 import com.example.edutrack.domain.UserPlan
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -164,6 +175,17 @@ fun NotasScreen(
     var showExamenSheet by remember { mutableStateOf(false) }
     var notaEnEdicion by remember { mutableStateOf<Notas?>(null) }
     var examenEnEdicion by remember { mutableStateOf<Examen?>(null) }
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* resultado ignorado — si deniega simplemente no llega la notificación */ }
+    LaunchedEffect(showExamenSheet) {
+        if (showExamenSheet && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val showDeleteConfirm = remember { mutableStateOf<Notas?>(null) }
     var showDeleteAsignatura by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -204,7 +226,7 @@ fun NotasScreen(
         onDispose { examsRef.removeEventListener(listener) }
     }
 
-    val userPlan by rememberUserPlan(userId)
+    val userPlan = LocalUserPlan.current
 
     val promedio by remember(notasState.value) {
         derivedStateOf { calcularPromedio(notasState.value) }
@@ -364,7 +386,10 @@ fun NotasScreen(
                                 IconButton(onClick = { examenEnEdicion = examen; showExamenSheet = true }, modifier = Modifier.size(32.dp)) {
                                     Icon(Icons.Default.Edit, contentDescription = "Editar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                IconButton(onClick = { examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue() }, modifier = Modifier.size(32.dp)) {
+                                IconButton(onClick = {
+                                    ExamReminderScheduler.cancel(context, examen)
+                                    examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
+                                }, modifier = Modifier.size(32.dp)) {
                                     Icon(Icons.Default.Delete, contentDescription = "Eliminar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
@@ -496,7 +521,11 @@ fun NotasScreen(
                         asignaturaNombre = asignaturaNombre,
                         creadoEn = examenEnEdicion?.creadoEn ?: System.currentTimeMillis()
                     )
+                    examenEnEdicion?.let { ExamReminderScheduler.cancel(context, it) }
                     examenesRef(userId, anioId ?: "", asignaturaId).child(saved.id).setValue(saved)
+                    if (PlanManager.canUseReminders(userPlan)) {
+                        ExamReminderScheduler.schedule(context, saved, userId, anioId ?: "")
+                    }
                     showExamenSheet = false
                     examenEnEdicion = null
                 }
@@ -1336,7 +1365,9 @@ fun ExamenSheetContent(
     val fecha = remember(examen?.id) { mutableStateOf(examen?.fecha ?: "") }
     val hora = remember(examen?.id) { mutableStateOf(examen?.hora ?: "") }
     var mostrarCalendario by remember { mutableStateOf(false) }
+    var mostrarTimePicker by remember { mutableStateOf(false) }
     var nombreError by remember { mutableStateOf<String?>(null) }
+    var horaError by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -1388,12 +1419,28 @@ fun ExamenSheetContent(
 
         OutlinedTextField(
             value = hora.value,
-            onValueChange = { hora.value = it },
-            label = { Text("Hora (HH:mm)") },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("09:00") },
-            singleLine = true
+            onValueChange = {},
+            label = { Text("Hora") },
+            readOnly = true,
+            isError = horaError != null,
+            supportingText = horaError?.let { msg -> { Text(msg) } },
+            placeholder = { Text("Toca para seleccionar") },
+            trailingIcon = {
+                IconButton(onClick = { mostrarTimePicker = true }) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { mostrarTimePicker = true }
         )
+        if (mostrarTimePicker) {
+            SelectorDeHora(
+                horaInicial = hora.value,
+                onHoraSeleccionada = { hora.value = it; horaError = null },
+                onDismiss = { mostrarTimePicker = false }
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1407,6 +1454,10 @@ fun ExamenSheetContent(
                 onClick = {
                     if (nombre.value.trim().isBlank()) {
                         nombreError = "El nombre es obligatorio"
+                        return@Button
+                    }
+                    if (hora.value.isBlank()) {
+                        horaError = "La hora es obligatoria"
                         return@Button
                     }
                     onSave(Examen(
@@ -1425,6 +1476,51 @@ fun ExamenSheetContent(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectorDeHora(
+    horaInicial: String,
+    onHoraSeleccionada: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val h = horaInicial.split(":").getOrNull(0)?.toIntOrNull() ?: 9
+    val m = horaInicial.split(":").getOrNull(1)?.toIntOrNull() ?: 0
+    val state = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                "Hora del examen",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TimePicker(state = state)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onHoraSeleccionada("%02d:%02d".format(state.hour, state.minute))
+                    onDismiss()
+                },
+                shape = MaterialTheme.shapes.large
+            ) { Text("Aceptar", fontWeight = FontWeight.SemiBold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shape = MaterialTheme.shapes.large) {
+                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    )
 }
 
 // Vista previa del contenido de notas.

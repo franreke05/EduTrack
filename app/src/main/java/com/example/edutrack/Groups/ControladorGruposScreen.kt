@@ -6,14 +6,18 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.example.edutrack.dataclass.Group
+import com.example.edutrack.dataclass.GroupExam
 import com.example.edutrack.dataclass.GroupFeedEvent
 import com.example.edutrack.dataclass.GroupMember
+import com.example.edutrack.dataclass.GroupResource
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.UserGroup
+import com.example.edutrack.groupExamsRef
 import com.example.edutrack.groupFeedRef
 import com.example.edutrack.groupMemberRef
 import com.example.edutrack.groupMembersRef
 import com.example.edutrack.groupRef
+import com.example.edutrack.groupResourcesRef
 import com.example.edutrack.groupSharedSubjectsRef
 import com.example.edutrack.profileRef
 import com.example.edutrack.userGroupsRef
@@ -159,6 +163,58 @@ fun rememberGroupSharedSubjectsState(groupId: String?): State<List<GroupSharedSu
             }
             override fun onCancelled(error: DatabaseError) {
                 android.util.Log.e("Grupos", "Error leyendo asignaturas compartidas: ${error.message}")
+            }
+        }
+        ref.addValueEventListener(listener)
+        onDispose { ref.removeEventListener(listener) }
+    }
+    return state
+}
+
+// Estado en tiempo real de los recursos compartidos en un grupo.
+@Composable
+fun rememberGroupResourcesState(groupId: String?): State<List<GroupResource>> {
+    val state = remember { mutableStateOf<List<GroupResource>>(emptyList()) }
+    DisposableEffect(groupId) {
+        if (groupId.isNullOrBlank()) {
+            state.value = emptyList()
+            return@DisposableEffect onDispose {}
+        }
+        val ref = groupResourcesRef(groupId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                state.value = snapshot.children
+                    .mapNotNull { it.getValue(GroupResource::class.java) }
+                    .sortedByDescending { it.createdAt ?: 0L }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("Grupos", "Error leyendo recursos: ${error.message}")
+            }
+        }
+        ref.addValueEventListener(listener)
+        onDispose { ref.removeEventListener(listener) }
+    }
+    return state
+}
+
+// Estado en tiempo real de los exámenes anunciados en un grupo.
+@Composable
+fun rememberGroupExamsState(groupId: String?): State<List<GroupExam>> {
+    val state = remember { mutableStateOf<List<GroupExam>>(emptyList()) }
+    DisposableEffect(groupId) {
+        if (groupId.isNullOrBlank()) {
+            state.value = emptyList()
+            return@DisposableEffect onDispose {}
+        }
+        val ref = groupExamsRef(groupId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                state.value = snapshot.children
+                    .mapNotNull { it.getValue(GroupExam::class.java) }
+                    .sortedBy { it.fecha ?: "" }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("Grupos", "Error leyendo exámenes del grupo: ${error.message}")
             }
         }
         ref.addValueEventListener(listener)

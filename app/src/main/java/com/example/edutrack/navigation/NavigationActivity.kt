@@ -38,15 +38,30 @@ import com.example.edutrack.Premium.PaywallScreen
 import com.example.edutrack.data.isOnboardedFlow
 import com.example.edutrack.data.setOnboarded
 import kotlinx.coroutines.launch
+import com.example.edutrack.DB_URL
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.ktx.Firebase
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.example.edutrack.Groups.rememberUserGroupsState
+import com.example.edutrack.Inicio.rememberAniosState
+import com.example.edutrack.Perfil.rememberUsuarioState
+import com.example.edutrack.domain.rememberPremiumCache
+import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalPremiumCache
+import com.example.edutrack.ui.LocalUserGroups
+import com.example.edutrack.ui.LocalUsuario
+import com.example.edutrack.ui.LocalUserPlan
 
 // Maneja la navegacion principal y el estado de sesion.
 class NavigationActivity : ComponentActivity() {
     // Configura el contenido Compose y las rutas de navegacion.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Debe llamarse antes de cualquier uso de FirebaseDatabase para activar caché en disco.
+        FirebaseDatabase.getInstance(DB_URL).setPersistenceEnabled(true)
         setContent {
             val navController = rememberNavController()
             val context = LocalContext.current
@@ -67,7 +82,30 @@ class NavigationActivity : ComponentActivity() {
                 }
             }
 
+            // Mantiene los nodos más leídos sincronizados en caché local.
+            LaunchedEffect(userId) {
+                val uid = userId ?: return@LaunchedEffect
+                val root = FirebaseDatabase.getInstance(DB_URL).reference.child("Edutrack")
+                root.child("users/$uid/anios").keepSynced(true)
+                root.child("users/$uid/premiumCache").keepSynced(true)
+                root.child("users/$uid/profile").keepSynced(true)
+                root.child("userGroups/$uid").keepSynced(true)
+            }
+
+            val userPlan by rememberUserPlan(userId)
+            val anios by rememberAniosState(userId)
+            val usuario by rememberUsuarioState(userId)
+            val premiumCache by rememberPremiumCache(userId)
+            val userGroups by rememberUserGroupsState(userId)
+
             EduTrackTheme(darkTheme = isDarkMode) {
+                CompositionLocalProvider(
+                    LocalUserPlan provides userPlan,
+                    LocalAnios provides anios,
+                    LocalUsuario provides usuario,
+                    LocalPremiumCache provides premiumCache,
+                    LocalUserGroups provides userGroups,
+                ) {
                 NavHost(
                     navController = navController,
                     startDestination = "splash"
@@ -255,6 +293,7 @@ class NavigationActivity : ComponentActivity() {
                             onFinish = { navController.popBackStack() }
                         )
                     }
+                }
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.example.edutrack.Registro.e
+package com.example.edutrack.Registro
 
 import android.content.Context
 import android.os.Bundle
@@ -87,7 +87,7 @@ import kotlinx.coroutines.launch
 private enum class AuthMode { Login, Register }
 
 // Activity de acceso y registro.
-class RegisteerActivity : ComponentActivity() {
+class RegisterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

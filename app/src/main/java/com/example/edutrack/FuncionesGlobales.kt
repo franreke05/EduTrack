@@ -19,7 +19,11 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 private const val ROOT_NODE = "Edutrack"
 const val DB_URL = "https://edutrack-5579f-default-rtdb.europe-west1.firebasedatabase.app/"
@@ -45,6 +49,8 @@ fun groupMemberRef(groupId: String, uid: String) = groupMembersRef(groupId).chil
 fun userGroupsRef(uid: String) = db().child(ROOT_NODE).child("userGroups").child(uid)
 fun groupSharedSubjectsRef(groupId: String) = db().child(ROOT_NODE).child("groupSharedSubjects").child(groupId)
 fun groupFeedRef(groupId: String) = db().child(ROOT_NODE).child("groupFeed").child(groupId)
+fun groupResourcesRef(groupId: String) = db().child(ROOT_NODE).child("groupResources").child(groupId)
+fun groupExamsRef(groupId: String) = db().child(ROOT_NODE).child("groupExams").child(groupId)
 fun groupImportsRef(uid: String) = userRef(uid).child("groupImports")
 fun groupImportsMetaRef(uid: String, monthKey: String) = groupImportsRef(uid).child("_meta").child(monthKey)
 
@@ -457,4 +463,334 @@ fun importarAsignaturaDesdeGrupo(
         .addOnFailureListener { e ->
             onResult(false, "Error comprobando duplicados: ${e.message?.take(60)}")
         }
+}
+
+private val generatedInvitationCodes = ConcurrentHashMap<String, Long>()
+private const val INVITE_CODE_LENGTH = 10
+private const val INVITE_CODE_EXPIRY_MS = 3600000L // 1 hora
+
+fun generarCodigoInvitacionSeguro(): String {
+    val now = System.currentTimeMillis()
+    generatedInvitationCodes.entries.removeIf { (_, timestamp) ->
+        now - timestamp > INVITE_CODE_EXPIRY_MS
+    }
+
+    val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    var intentos = 0
+    val maxIntentos = 50
+
+    while (intentos < maxIntentos) {
+        val codigo = (1..INVITE_CODE_LENGTH)
+            .map { chars.random() }
+            .joinToString("")
+
+        if (!generatedInvitationCodes.containsKey(codigo)) {
+            generatedInvitationCodes[codigo] = now
+            Log.d("InvitationCode", "Código generado: $codigo (intento: ${intentos + 1})")
+            return codigo
+        }
+
+        intentos++
+    }
+
+    val uuidFallback = UUID.randomUUID().toString()
+        .replace("-", "")
+        .take(INVITE_CODE_LENGTH)
+        .uppercase()
+
+    Log.w("InvitationCode", "Fallback a UUID después de $maxIntentos intentos: $uuidFallback")
+    generatedInvitationCodes[uuidFallback] = now
+    return uuidFallback
+}
+
+fun marcarExamenComoNotificado(
+    userId: String,
+    anioId: String,
+    asignaturaId: String,
+    examenId: String,
+    onComplete: (success: Boolean) -> Unit
+) {
+    if (userId.isBlank() || anioId.isBlank() || asignaturaId.isBlank() || examenId.isBlank()) {
+        Log.e("ExamAlarm", "IDs incompletos para marcar notificación")
+        onComplete(false)
+        return
+    }
+
+    try {
+        val timestamp = System.currentTimeMillis()
+        val updates = mapOf(
+            "notificado" to true,
+            "notificadoEn" to timestamp
+        )
+
+        examenesRef(userId, anioId, asignaturaId).child(examenId)
+            .updateChildren(updates)
+            .addOnSuccessListener {
+                Log.d("ExamAlarm", "Examen $examenId marcado como notificado")
+                onComplete(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e("ExamAlarm", "Error marcando notificación: ${e.message}")
+                onComplete(false)
+            }
+    } catch (e: Exception) {
+        Log.e("ExamAlarm", "Excepción al marcar notificación", e)
+        onComplete(false)
+    }
+}
+
+fun borrarExamenConfirmado(
+    userId: String,
+    anioId: String,
+    asignaturaId: String,
+    examenId: String,
+    onComplete: (success: Boolean) -> Unit
+) {
+    if (userId.isBlank() || anioId.isBlank() || asignaturaId.isBlank() || examenId.isBlank()) {
+        Log.e("ExamDelete", "IDs incompletos para borrar examen")
+        onComplete(false)
+        return
+    }
+
+    try {
+        examenesRef(userId, anioId, asignaturaId).child(examenId)
+            .removeValue()
+            .addOnSuccessListener {
+                Log.d("ExamDelete", "Examen $examenId eliminado correctamente")
+                onComplete(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e("ExamDelete", "Error eliminando examen: ${e.message}")
+                onComplete(false)
+            }
+    } catch (e: Exception) {
+        Log.e("ExamDelete", "Excepción al eliminar examen", e)
+        onComplete(false)
+    }
+}
+
+fun parseExamDateWithValidation(
+    dateStr: String?,
+    logTag: String = "DateParser"
+): Calendar? {
+    if (dateStr.isNullOrBlank()) {
+        Log.e(logTag, "Fecha vacía o nula recibida")
+        return null
+    }
+
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    dateFormat.isLenient = false
+
+    return try {
+        val parsedDate = dateFormat.parse(dateStr) ?: run {
+            Log.e(logTag, "parse() retornó null para: $dateStr")
+            return null
+        }
+
+        val calendar = Calendar.getInstance()
+        calendar.time = parsedDate
+
+        val year = calendar.get(Calendar.YEAR)
+        if (year < 2000 || year > 2100) {
+            Log.e(logTag, "Año fuera de rango: $year en $dateStr")
+            return null
+        }
+
+        Log.d(logTag, "Fecha parseada correctamente: $dateStr -> ${calendar.time}")
+        calendar
+    } catch (e: java.text.ParseException) {
+        Log.e(logTag, "ParseException: formato inválido: $dateStr", e)
+        null
+    } catch (e: Exception) {
+        Log.e(logTag, "Excepción inesperada parseando $dateStr", e)
+        null
+    }
+}
+
+fun verificarDuplicadoImportSeguro(
+    uid: String,
+    sourceGroupId: String,
+    sourceSubjectId: String,
+    onResult: (isDuplicate: Boolean, errorMsg: String?) -> Unit
+) {
+    if (uid.isBlank() || sourceGroupId.isBlank() || sourceSubjectId.isBlank()) {
+        Log.e("ImportDedup", "Parámetros incompletos para verificar duplicado")
+        onResult(false, "Error interno: parámetros incompletos")
+        return
+    }
+
+    try {
+        groupImportsRef(uid).get()
+            .addOnSuccessListener { snapshot ->
+                var isDuplicate = false
+                var duplicateDetails = ""
+
+                for (childSnapshot in snapshot.children) {
+                    val importGroupId = childSnapshot.child("sourceGroupId").getValue(String::class.java) ?: continue
+                    val importSubjectId = childSnapshot.child("sourceSubjectId").getValue(String::class.java) ?: continue
+
+                    if (importGroupId == sourceGroupId && importSubjectId == sourceSubjectId) {
+                        isDuplicate = true
+                        val importDate = childSnapshot.child("importedAt").getValue(Long::class.java) ?: 0L
+                        val subjectName = childSnapshot.child("subjectName").getValue(String::class.java) ?: "desconocida"
+                        duplicateDetails = "Importada: $subjectName el ${formatDate(importDate)}"
+                        break
+                    }
+                }
+
+                if (isDuplicate) {
+                    Log.w(
+                        "ImportDedup",
+                        "Importación duplicada detectada: grupo=$sourceGroupId, asignatura=$sourceSubjectId. $duplicateDetails"
+                    )
+                    onResult(true, "Ya importaste esta asignatura de este grupo. $duplicateDetails")
+                } else {
+                    Log.d("ImportDedup", "Import verificado como nuevo (grupo=$sourceGroupId, asignatura=$sourceSubjectId)")
+                    onResult(false, null)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("ImportDedup", "Error verificando duplicados", e)
+                onResult(false, "Error al verificar duplicados: ${e.message?.take(60)}")
+            }
+    } catch (e: Exception) {
+        Log.e("ImportDedup", "Excepción en verificarDuplicadoImportSeguro", e)
+        onResult(false, "Error inesperado: ${e.message?.take(60)}")
+    }
+}
+
+private fun formatDate(timestamp: Long): String {
+    if (timestamp == 0L) return "desconocida"
+    return try {
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        dateFormat.format(timestamp)
+    } catch (e: Exception) {
+        "desconocida"
+    }
+}
+
+fun isPremiumValid(expiresAt: Long?): Boolean {
+    if (expiresAt == null || expiresAt <= 0) {
+        Log.d("PremiumCheck", "Premium sin expiración válida: expiresAt=$expiresAt")
+        return false
+    }
+
+    val now = System.currentTimeMillis()
+    val isValid = expiresAt > now
+
+    if (isValid) {
+        val daysRemaining = (expiresAt - now) / (1000 * 60 * 60 * 24)
+        Log.d("PremiumCheck", "Premium válido. Expira en $daysRemaining días")
+    } else {
+        val daysExpired = (now - expiresAt) / (1000 * 60 * 60 * 24)
+        Log.w("PremiumCheck", "Premium expirado hace $daysExpired días")
+    }
+
+    return isValid
+}
+
+fun salirDeGrupoConCleanup(
+    uid: String,
+    groupId: String,
+    actorName: String? = null,
+    actorPhotoUrl: String? = null,
+    onResult: (Boolean) -> Unit
+) {
+    if (uid.isBlank() || groupId.isBlank()) {
+        Log.e("GroupLeave", "IDs incompletos")
+        onResult(false)
+        return
+    }
+
+    try {
+        logFeedEvent(
+            groupId = groupId,
+            type = GroupFeedEventType.LEAVE,
+            actorUid = uid,
+            actorName = actorName,
+            actorPhotoUrl = actorPhotoUrl
+        )
+
+        val updates = mapOf(
+            "/${ROOT_NODE}/groupMembers/$groupId/$uid" to null,
+            "/${ROOT_NODE}/userGroups/$uid/$groupId" to null,
+            "/${ROOT_NODE}/groups/$groupId/memberCount" to ServerValue.increment(-1)
+        )
+
+        db().updateChildren(updates)
+            .addOnSuccessListener {
+                Log.d("GroupLeave", "Usuario $uid removido de grupo $groupId")
+
+                deleteCascadeGroupImports(uid, groupId) { cascadeSuccess ->
+                    if (cascadeSuccess) {
+                        Log.d("GroupLeave", "Imports del grupo $groupId eliminados para usuario $uid")
+                    } else {
+                        Log.w("GroupLeave", "Algunos imports no se eliminaron (pero usuario fue removido)")
+                    }
+                    onResult(true)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("GroupLeave", "Error removiendo usuario de grupo", e)
+                onResult(false)
+            }
+    } catch (e: Exception) {
+        Log.e("GroupLeave", "Excepción en salirDeGrupoConCleanup", e)
+        onResult(false)
+    }
+}
+
+private fun deleteCascadeGroupImports(
+    uid: String,
+    groupId: String,
+    onComplete: (Boolean) -> Unit
+) {
+    if (uid.isBlank() || groupId.isBlank()) {
+        onComplete(false)
+        return
+    }
+
+    try {
+        groupImportsRef(uid).get()
+            .addOnSuccessListener { snapshot ->
+                val toDelete = mutableListOf<String>()
+
+                for (child in snapshot.children) {
+                    val sourceGroupId = child.child("sourceGroupId").getValue(String::class.java)
+                    if (sourceGroupId == groupId) {
+                        val importId = child.key ?: continue
+                        toDelete.add(importId)
+                    }
+                }
+
+                if (toDelete.isEmpty()) {
+                    Log.d("CascadeDelete", "No hay imports para eliminar de grupo $groupId")
+                    onComplete(true)
+                    return@addOnSuccessListener
+                }
+
+                Log.d("CascadeDelete", "Eliminando ${toDelete.size} imports del grupo $groupId")
+                val batchUpdates = mutableMapOf<String, Any?>()
+                toDelete.forEach { importId ->
+                    batchUpdates["/${ROOT_NODE}/users/$uid/groupImports/$importId"] = null
+                }
+
+                db().updateChildren(batchUpdates)
+                    .addOnSuccessListener {
+                        Log.d("CascadeDelete", "Eliminados ${toDelete.size} imports correctamente")
+                        onComplete(true)
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("CascadeDelete", "Error en cascade delete de imports", e)
+                        onComplete(false)
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e("CascadeDelete", "Error leyendo imports para cascade delete", e)
+                onComplete(false)
+            }
+    } catch (e: Exception) {
+        Log.e("CascadeDelete", "Excepción en deleteCascadeGroupImports", e)
+        onComplete(false)
+    }
 }

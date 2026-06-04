@@ -79,7 +79,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.edutrack.Inicio.rememberAniosState
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
@@ -87,7 +88,6 @@ import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.RequiredGradeResult
 import com.example.edutrack.domain.calculateRequiredGrade
-import com.example.edutrack.domain.rememberUserPlan
 import com.example.edutrack.notasRef
 import com.example.edutrack.gestures.swipeBackGesture
 import com.google.firebase.database.DataSnapshot
@@ -98,8 +98,8 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> Unit = {}) {
-    val anios by rememberAniosState(userId)
-    val userPlan by rememberUserPlan(userId)
+    val anios = LocalAnios.current
+    val userPlan = LocalUserPlan.current
     var selectedAnio by remember { mutableStateOf<Anio?>(null) }
     var selectedAsignatura by remember { mutableStateOf<Asignatura?>(null) }
     var anioMenuExpanded by remember { mutableStateOf(false) }

@@ -1,6 +1,6 @@
 package com.example.edutrack.dataclass
 
-enum class GroupFeedEventType { JOIN, LEAVE, SHARE, UNSHARE, IMPORT }
+enum class GroupFeedEventType { JOIN, LEAVE, SHARE, UNSHARE, IMPORT, RESOURCE, EXAM }
 
 data class GroupFeedEvent(
     var id: String? = null,

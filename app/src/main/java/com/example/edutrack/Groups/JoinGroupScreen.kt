@@ -55,10 +55,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.edutrack.Perfil.rememberUsuarioState
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.domain.PlanManager
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUserGroups
+import com.example.edutrack.ui.LocalUsuario
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.unirseAGrupoPorCodigo
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
@@ -72,9 +73,9 @@ fun UnirseGrupoScreen(
     onPaywall: () -> Unit = {},
     onGroupJoined: () -> Unit = {}
 ) {
-    val userGroups by rememberUserGroupsState(userId)
-    val userPlan by rememberUserPlan(userId)
-    val usuario by rememberUsuarioState(userId)
+    val userGroups = LocalUserGroups.current
+    val userPlan = LocalUserPlan.current
+    val usuario = LocalUsuario.current
 
     var showUpgrade by remember { mutableStateOf(false) }
     var inviteCode by remember { mutableStateOf("") }

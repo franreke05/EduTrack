@@ -60,13 +60,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.EditarUsuario
-import com.example.edutrack.Inicio.rememberAniosState
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalUsuario
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.borrarUsuarioCompleto
 import com.example.edutrack.domain.PremiumCache
 import com.example.edutrack.domain.UserPlan
-import com.example.edutrack.domain.rememberPremiumCache
-import com.example.edutrack.domain.rememberUserPlan
-import com.example.edutrack.premiumCacheRef
+import com.example.edutrack.ui.LocalPremiumCache
 import com.example.edutrack.ui.theme.EduTrackTheme
 import com.example.edutrack.gestures.swipeBackGesture
 import kotlinx.coroutines.launch
@@ -82,10 +82,10 @@ fun CuerpoPerfil(
     onPaywall: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val usuario by rememberUsuarioState(userId)
-    val anios by rememberAniosState(userId)
-    val userPlan by rememberUserPlan(userId)
-    val premiumCache by rememberPremiumCache(userId)
+    val usuario = LocalUsuario.current
+    val anios = LocalAnios.current
+    val userPlan = LocalUserPlan.current
+    val premiumCache = LocalPremiumCache.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()

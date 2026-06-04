@@ -69,7 +69,8 @@ import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.UserGroup
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUserGroups
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.gestures.swipeBackGesture
 import kotlinx.coroutines.delay
 import kotlin.math.absoluteValue
@@ -84,8 +85,8 @@ fun GruposScreen(
     onUnirseGrupo: () -> Unit = {},
     onGrupoDetalle: (String) -> Unit = {}
 ) {
-    val userGroups by rememberUserGroupsState(userId)
-    val userPlan by rememberUserPlan(userId)
+    val userGroups = LocalUserGroups.current
+    val userPlan = LocalUserPlan.current
     var showCreateUpgrade by remember { mutableStateOf(false) }
     var showJoinUpgrade by remember { mutableStateOf(false) }
 

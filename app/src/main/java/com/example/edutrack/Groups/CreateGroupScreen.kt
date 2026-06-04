@@ -47,10 +47,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.Premium.UpgradeSheet
-import com.example.edutrack.Perfil.rememberUsuarioState
 import com.example.edutrack.crearGrupo
 import com.example.edutrack.domain.PlanManager
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUsuario
+import com.example.edutrack.ui.LocalUserPlan
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,9 +63,9 @@ fun CrearGrupoScreen(
     onPaywall: () -> Unit = {},
     onGroupCreated: (groupId: String) -> Unit = {}
 ) {
-    val userPlan by rememberUserPlan(userId)
+    val userPlan = LocalUserPlan.current
     val canCreate = PlanManager.canCreateGroup(userPlan)
-    val usuario by rememberUsuarioState(userId)
+    val usuario = LocalUsuario.current
 
     var showUpgrade by remember { mutableStateOf(false) }
     var nombre by remember { mutableStateOf("") }

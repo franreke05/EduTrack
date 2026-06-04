@@ -1,21 +1,76 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ── Stack traces legibles en producción ──────────────────────────────────────
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── Kotlin ────────────────────────────────────────────────────────────────────
+-keepclassmembers class **$WhenMappings { <fields>; }
+-keep class kotlin.Metadata { *; }
+-keepclassmembers class kotlin.Lazy { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── Data classes usadas como modelos de Firebase (no ofuscar campos) ──────────
+-keep class com.example.edutrack.dataclass.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── Firebase Auth ─────────────────────────────────────────────────────────────
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+
+# ── Firebase Realtime Database ────────────────────────────────────────────────
+-keep class com.google.firebase.database.** { *; }
+-keepclassmembers class * {
+    @com.google.firebase.database.PropertyName <fields>;
+    @com.google.firebase.database.PropertyName <methods>;
+}
+# Evitar que R8 elimine getters/setters de clases deserializadas por Firebase
+-keepclassmembers class com.example.edutrack.** {
+    public <init>();
+    public <fields>;
+    public <methods>;
+}
+
+# ── Firebase Storage ──────────────────────────────────────────────────────────
+-keep class com.google.firebase.storage.** { *; }
+
+# ── Google Play Billing ───────────────────────────────────────────────────────
+-keep class com.android.billingclient.** { *; }
+-keepclassmembers class com.android.billingclient.** { *; }
+
+# ── Google Credential Manager / Sign-In ──────────────────────────────────────
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class androidx.credentials.** { *; }
+-keepclassmembers class androidx.credentials.** { *; }
+
+# ── ZXing (QR codes) ─────────────────────────────────────────────────────────
+-keep class com.google.zxing.** { *; }
+
+# ── Coil ──────────────────────────────────────────────────────────────────────
+-keep class coil.** { *; }
+-keepclassmembers class coil.** { *; }
+
+# ── DataStore ─────────────────────────────────────────────────────────────────
+-keep class androidx.datastore.** { *; }
+
+# ── AdMob ─────────────────────────────────────────────────────────────────────
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.ads.** { *; }
+
+# ── Jetpack Compose (salvaguardas extra sobre el plugin) ──────────────────────
+-keep class androidx.compose.** { *; }
+-keepclassmembers class androidx.compose.** { *; }
+
+# ── Enums (necesario para when-expressions) ───────────────────────────────────
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ── Serializable ─────────────────────────────────────────────────────────────
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}

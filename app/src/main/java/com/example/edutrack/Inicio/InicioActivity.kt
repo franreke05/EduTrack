@@ -104,7 +104,8 @@ import com.example.edutrack.dataclass.Examen
 import com.example.edutrack.examenesRef
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalUserPlan
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -152,8 +153,8 @@ fun CuerpoInicio(
     onPaywall: () -> Unit = {},
     onGrupos: () -> Unit = {}
 ) {
-    val aniosFromFirebase by rememberAniosState(userId)
-    val userPlan by rememberUserPlan(userId)
+    val aniosFromFirebase = LocalAnios.current
+    val userPlan = LocalUserPlan.current
 
     CuerpoInicioContent(
         modifier = modifier,
@@ -985,104 +986,60 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
     // Cargar exámenes de Firebase
     val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
     DisposableEffect(anios, userId, currentMonth, currentYear) {
-        if (userId.isNullOrEmpty() || anios.isEmpty()) {
+        val validAnios = anios.filter { !it.id.isNullOrEmpty() }
+        if (userId.isNullOrEmpty() || validAnios.isEmpty()) {
             examensByDay.value = emptyMap()
             daysWithExams.value = emptySet()
-            onDispose {}
         } else {
             val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
             val daysWithExamsTemp = mutableSetOf<Int>()
-            var yearsCompleted = 0
-            val totalYears = anios.size
+            var aniosCompleted = 0
+            val totalAnios = validAnios.size
 
-            anios.forEach { anio ->
-                if (anio.id.isNullOrEmpty()) {
-                    yearsCompleted++
-                    return@forEach
-                }
-
-                val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
-                anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        val asignaturaCount = snapshot.childrenCount.toInt()
-                        var asignaturasProcessed = 0
-
-                        if (asignaturaCount == 0) {
-                            yearsCompleted++
-                            if (yearsCompleted == totalYears) {
-                                examensByDay.value = examensByDayTemp
-                                daysWithExams.value = daysWithExamsTemp
-                            }
-                        } else {
-                            snapshot.children.forEach { asigSnapshot ->
-                                val asigId = asigSnapshot.key ?: return@forEach
-                                val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
-                                examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                                    override fun onDataChange(exSnapshot: DataSnapshot) {
-                                        exSnapshot.children.forEach { examenSnapshot ->
-                                            val examen = examenSnapshot.getValue(Examen::class.java)
-                                            if (examen != null &&
-                                                examen.fecha.isNotBlank() &&
-                                                examen.nombre.isNotBlank() &&
-                                                !examen.nombre.equals("prueba", ignoreCase = true)) {
-                                                try {
-                                                    val parts = examen.fecha.split("/")
-                                                    if (parts.size == 3) {
-                                                        val day = parts[0].toInt()
-                                                        val month = parts[1].toInt()
-                                                        val year = parts[2].toInt()
-
-                                                        if (month == currentMonth && year == currentYear) {
-                                                            val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                            examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
-                                                                Pair(examen.nombre, horaDisplay)
-                                                            )
-                                                            daysWithExamsTemp.add(day)
-                                                        }
-                                                    }
-                                                } catch (e: Exception) {
-                                                    // Fecha inválida
-                                                }
+            validAnios.forEach { anio ->
+                com.example.edutrack.asignaturasRef(userId, anio.id!!)
+                    .get()
+                    .addOnSuccessListener { asigSnapshot ->
+                        asigSnapshot.children.forEach { asigNode ->
+                            asigNode.child("examenes").children.forEach { examenNode ->
+                                val examen = examenNode.getValue(Examen::class.java)
+                                if (examen != null &&
+                                    examen.fecha.isNotBlank() &&
+                                    examen.nombre.isNotBlank() &&
+                                    !examen.nombre.equals("prueba", ignoreCase = true)) {
+                                    try {
+                                        val parts = examen.fecha.split("/")
+                                        if (parts.size == 3) {
+                                            val day = parts[0].toInt()
+                                            val month = parts[1].toInt()
+                                            val year = parts[2].toInt()
+                                            if (month == currentMonth && year == currentYear) {
+                                                val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                                examensByDayTemp.getOrPut(day) { mutableListOf() }
+                                                    .add(Pair(examen.nombre, horaDisplay))
+                                                daysWithExamsTemp.add(day)
                                             }
                                         }
-
-                                        asignaturasProcessed++
-                                        if (asignaturasProcessed == asignaturaCount) {
-                                            yearsCompleted++
-                                            if (yearsCompleted == totalYears) {
-                                                examensByDay.value = examensByDayTemp
-                                                daysWithExams.value = daysWithExamsTemp
-                                            }
-                                        }
-                                    }
-
-                                    override fun onCancelled(error: DatabaseError) {
-                                        asignaturasProcessed++
-                                        if (asignaturasProcessed == asignaturaCount) {
-                                            yearsCompleted++
-                                            if (yearsCompleted == totalYears) {
-                                                examensByDay.value = examensByDayTemp
-                                                daysWithExams.value = daysWithExamsTemp
-                                            }
-                                        }
-                                    }
-                                })
+                                    } catch (_: Exception) {}
+                                }
                             }
                         }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        yearsCompleted++
-                        if (yearsCompleted == totalYears) {
+                        aniosCompleted++
+                        if (aniosCompleted == totalAnios) {
                             examensByDay.value = examensByDayTemp
                             daysWithExams.value = daysWithExamsTemp
                         }
                     }
-                })
+                    .addOnFailureListener {
+                        aniosCompleted++
+                        if (aniosCompleted == totalAnios) {
+                            examensByDay.value = examensByDayTemp
+                            daysWithExams.value = daysWithExamsTemp
+                        }
+                    }
             }
-
-            onDispose {}
         }
+        onDispose {}
     }
 
     val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
@@ -1377,114 +1334,61 @@ private fun CalendarioBottomSheet(
     val examensByDay = remember { mutableStateOf<Map<Int, List<Pair<String, String>>>>(emptyMap()) }
     val allDaysInMonth = remember { mutableStateOf(setOf<Int>()) }
 
-    // Cargar exámenes desde Firebase en tiempo real
     DisposableEffect(anios, userId, currentMonth, currentYear) {
-        if (userId.isNullOrEmpty() || anios.isEmpty()) {
+        val validAnios = anios.filter { !it.id.isNullOrEmpty() }
+        if (userId.isNullOrEmpty() || validAnios.isEmpty()) {
             examensByDay.value = emptyMap()
             allDaysInMonth.value = emptySet()
-            onDispose {}
         } else {
             val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
             val allDaysTemp = mutableSetOf<Int>()
-            var yearsCompleted = 0
-            val totalYears = anios.size
+            var aniosCompleted = 0
+            val totalAnios = validAnios.size
 
-            anios.forEach { anio ->
-                if (anio.id.isNullOrEmpty()) {
-                    yearsCompleted++
-                    return@forEach
-                }
-
-                val anioRef = com.example.edutrack.aniosRef(userId!!).child(anio.id!!)
-                anioRef.child("asignaturas").addListenerForSingleValueEvent(object : ValueEventListener {
-                    override fun onDataChange(snapshot: DataSnapshot) {
-                        android.util.Log.d("CalendarioBottomSheet", "Loaded asignaturas: ${snapshot.childrenCount} found")
-                        val asignaturaCount = snapshot.childrenCount.toInt()
-                        var asignaturasProcessed = 0
-
-                        if (asignaturaCount == 0) {
-                            yearsCompleted++
-                            if (yearsCompleted == totalYears) {
-                                examensByDay.value = examensByDayTemp
-                                allDaysInMonth.value = allDaysTemp
-                                android.util.Log.d("CalendarioBottomSheet", "✓✓ Calendar FINAL: ${examensByDayTemp.size} days loaded")
-                            }
-                        } else {
-                            snapshot.children.forEach { asigSnapshot ->
-                                val asigId = asigSnapshot.key ?: return@forEach
-
-                                android.util.Log.d("CalendarioBottomSheet", "  Iniciando listener para asignatura: $asigId")
-                                val examenesRef = com.example.edutrack.examenesRef(userId!!, anio.id!!, asigId)
-                                examenesRef.addListenerForSingleValueEvent(object : ValueEventListener {
-                                    override fun onDataChange(exSnapshot: DataSnapshot) {
-                                        exSnapshot.children.forEach { examenSnapshot ->
-                                            val examen = examenSnapshot.getValue(Examen::class.java)
-                                            if (examen != null &&
-                                                examen.fecha.isNotBlank() &&
-                                                examen.nombre.isNotBlank() &&
-                                                !examen.nombre.equals("prueba", ignoreCase = true)) {
-                                                try {
-                                                    val parts = examen.fecha.split("/")
-                                                    if (parts.size == 3) {
-                                                        val day = parts[0].toInt()
-                                                        val month = parts[1].toInt()
-                                                        val year = parts[2].toInt()
-
-                                                        if (month == currentMonth && year == currentYear) {
-                                                            val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                            examensByDayTemp.getOrPut(day) { mutableListOf() }.add(
-                                                                Pair(examen.nombre, horaDisplay)
-                                                            )
-                                                            allDaysTemp.add(day)
-                                                            android.util.Log.d("CalendarioBottomSheet", "✓ Exam loaded: ${examen.nombre} day $day")
-                                                        }
-                                                    }
-                                                } catch (e: Exception) {
-                                                    android.util.Log.e("CalendarioBottomSheet", "Parse error: ${e.message}")
-                                                }
+            validAnios.forEach { anio ->
+                com.example.edutrack.asignaturasRef(userId, anio.id!!)
+                    .get()
+                    .addOnSuccessListener { asigSnapshot ->
+                        asigSnapshot.children.forEach { asigNode ->
+                            asigNode.child("examenes").children.forEach { examenNode ->
+                                val examen = examenNode.getValue(Examen::class.java)
+                                if (examen != null &&
+                                    examen.fecha.isNotBlank() &&
+                                    examen.nombre.isNotBlank() &&
+                                    !examen.nombre.equals("prueba", ignoreCase = true)) {
+                                    try {
+                                        val parts = examen.fecha.split("/")
+                                        if (parts.size == 3) {
+                                            val day = parts[0].toInt()
+                                            val month = parts[1].toInt()
+                                            val year = parts[2].toInt()
+                                            if (month == currentMonth && year == currentYear) {
+                                                val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                                examensByDayTemp.getOrPut(day) { mutableListOf() }
+                                                    .add(Pair(examen.nombre, horaDisplay))
+                                                allDaysTemp.add(day)
                                             }
                                         }
-
-                                        asignaturasProcessed++
-                                        if (asignaturasProcessed == asignaturaCount) {
-                                            yearsCompleted++
-                                            if (yearsCompleted == totalYears) {
-                                                examensByDay.value = examensByDayTemp
-                                                allDaysInMonth.value = allDaysTemp
-                                                android.util.Log.d("CalendarioBottomSheet", "✓✓ Calendar FINAL: ${examensByDayTemp.size} days loaded")
-                                            }
-                                        }
-                                    }
-
-                                    override fun onCancelled(error: DatabaseError) {
-                                        android.util.Log.e("CalendarioBottomSheet", "Error loading examenes: ${error.message}")
-                                        asignaturasProcessed++
-                                        if (asignaturasProcessed == asignaturaCount) {
-                                            yearsCompleted++
-                                            if (yearsCompleted == totalYears) {
-                                                examensByDay.value = examensByDayTemp
-                                                allDaysInMonth.value = allDaysTemp
-                                            }
-                                        }
-                                    }
-                                })
+                                    } catch (_: Exception) {}
+                                }
                             }
                         }
-                    }
-
-                    override fun onCancelled(error: DatabaseError) {
-                        android.util.Log.e("CalendarioBottomSheet", "❌ Error loading asignaturas: ${error.message}")
-                        yearsCompleted++
-                        if (yearsCompleted == totalYears) {
+                        aniosCompleted++
+                        if (aniosCompleted == totalAnios) {
                             examensByDay.value = examensByDayTemp
                             allDaysInMonth.value = allDaysTemp
                         }
                     }
-                })
+                    .addOnFailureListener {
+                        aniosCompleted++
+                        if (aniosCompleted == totalAnios) {
+                            examensByDay.value = examensByDayTemp
+                            allDaysInMonth.value = allDaysTemp
+                        }
+                    }
             }
-
-            onDispose {}
         }
+        onDispose {}
     }
 
     androidx.compose.material3.ModalBottomSheet(

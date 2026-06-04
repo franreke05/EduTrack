@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.RemoveCircleOutline
@@ -199,6 +201,8 @@ private fun colorForType(type: GroupFeedEventType?) = when (type) {
     GroupFeedEventType.SHARE -> MaterialTheme.colorScheme.tertiary
     GroupFeedEventType.UNSHARE -> MaterialTheme.colorScheme.error
     GroupFeedEventType.IMPORT -> MaterialTheme.colorScheme.secondary
+    GroupFeedEventType.RESOURCE -> MaterialTheme.colorScheme.tertiary
+    GroupFeedEventType.EXAM -> MaterialTheme.colorScheme.error
     null -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
@@ -208,6 +212,8 @@ private fun iconForType(type: GroupFeedEventType?): ImageVector = when (type) {
     GroupFeedEventType.SHARE -> Icons.Default.Share
     GroupFeedEventType.UNSHARE -> Icons.Default.RemoveCircleOutline
     GroupFeedEventType.IMPORT -> Icons.Default.Download
+    GroupFeedEventType.RESOURCE -> Icons.AutoMirrored.Filled.MenuBook
+    GroupFeedEventType.EXAM -> Icons.Default.CalendarMonth
     null -> Icons.Default.History
 }
 
@@ -220,6 +226,8 @@ private fun messageForEvent(event: GroupFeedEvent, type: GroupFeedEventType?): S
         GroupFeedEventType.SHARE -> target?.let { "$name compartió $it" } ?: "$name compartió una asignatura"
         GroupFeedEventType.UNSHARE -> target?.let { "$name quitó $it" } ?: "$name eliminó una asignatura compartida"
         GroupFeedEventType.IMPORT -> target?.let { "$name importó $it" } ?: "$name importó una asignatura"
+        GroupFeedEventType.RESOURCE -> target?.let { "$name publicó un recurso: $it" } ?: "$name publicó un recurso"
+        GroupFeedEventType.EXAM -> target?.let { "$name anunció un examen: $it" } ?: "$name anunció un examen"
         null -> "Actividad del grupo"
     }
 }

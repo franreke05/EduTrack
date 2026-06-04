@@ -50,8 +50,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,9 +69,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.GroupSharedSubject
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.eliminarAsignaturaCompartida
 import com.example.edutrack.salirDeGrupo
 import kotlinx.coroutines.launch
@@ -90,7 +91,7 @@ fun GrupoDetalleScreen(
     val group by rememberGroupState(groupId)
     val members by rememberGroupMembersState(groupId)
     val sharedSubjects by rememberGroupSharedSubjectsState(groupId)
-    val userPlan by rememberUserPlan(userId)
+    val userPlan = LocalUserPlan.current
 
     var selectedTab by remember { mutableStateOf(0) }
     var showLeaveDialog by remember { mutableStateOf(false) }
@@ -160,7 +161,7 @@ fun GrupoDetalleScreen(
             val hPad = if (isTablet) (maxWidth - 600.dp) / 2 else 16.dp
             val tabletSidePad = if (isTablet) (maxWidth - 600.dp) / 2 else 0.dp
             Column(modifier = Modifier.fillMaxSize()) {
-                TabRow(selectedTabIndex = selectedTab) {
+                ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
@@ -171,10 +172,38 @@ fun GrupoDetalleScreen(
                         onClick = { selectedTab = 1 },
                         text = { Text("Novedades", fontWeight = FontWeight.SemiBold) }
                     )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = { Text("Recursos", fontWeight = FontWeight.SemiBold) }
+                    )
+                    Tab(
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 },
+                        text = { Text("Exámenes", fontWeight = FontWeight.SemiBold) }
+                    )
                 }
                 when (selectedTab) {
                     1 -> GroupFeedTab(
                         groupId = groupId,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = tabletSidePad)
+                    )
+                    2 -> GroupResourcesTab(
+                        groupId = groupId,
+                        userId = userId,
+                        isAdmin = isAdmin,
+                        myMember = myMember,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = tabletSidePad)
+                    )
+                    3 -> GroupExamsTab(
+                        groupId = groupId,
+                        userId = userId,
+                        isAdmin = isAdmin,
+                        myMember = myMember,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = tabletSidePad)

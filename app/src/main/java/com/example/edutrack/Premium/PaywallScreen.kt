@@ -45,7 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.premiumCacheRef
 import com.example.edutrack.domain.UserPlan
-import com.example.edutrack.domain.rememberUserPlan
+import com.example.edutrack.ui.LocalUserPlan
 
 private val benefits = listOf(
     "Simulador completo de nota necesaria",
@@ -81,7 +81,7 @@ fun PaywallScreen(
     var selectedPlan by remember { mutableStateOf("annual") }
     var isPurchasing by remember { mutableStateOf(false) }
     val colorScheme = MaterialTheme.colorScheme
-    val userPlan by rememberUserPlan(userId)
+    val userPlan = LocalUserPlan.current
     val isAlreadyPremium = userPlan == UserPlan.PREMIUM
 
     Surface(
