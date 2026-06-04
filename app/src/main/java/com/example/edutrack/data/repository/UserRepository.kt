@@ -186,7 +186,7 @@ class UserRepository(private val database: FirebaseDatabase) {
      */
     fun userExists(userId: String): Flow<Boolean> = callbackFlow {
         val ref = profileRef(userId)
-        val listener = ref.addListenerForSingleValueEvent(object : com.google.firebase.database.ValueEventListener {
+        val listener = object : com.google.firebase.database.ValueEventListener {
             override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 trySend(snapshot.exists())
                 close()
@@ -196,7 +196,8 @@ class UserRepository(private val database: FirebaseDatabase) {
                 Log.e(TAG, "Error verificando existencia de usuario: ${error.message}")
                 close(error.toException())
             }
-        })
+        }
+        ref.addListenerForSingleValueEvent(listener)
 
         awaitClose {
             ref.removeEventListener(listener)

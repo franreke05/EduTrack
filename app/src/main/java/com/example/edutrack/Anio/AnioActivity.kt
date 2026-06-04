@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -60,6 +61,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -339,7 +341,7 @@ fun AnioScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     if (anioLleno) {
                         snackbarScope.launch {
@@ -349,9 +351,13 @@ fun AnioScreen(
                         showAsignaturaSheet = true
                     }
                 },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(50)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir asignatura", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Asignatura", fontWeight = FontWeight.Bold)
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -668,7 +674,8 @@ fun AnioScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 150.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 96.dp)
                     ) {
                         itemsIndexed(asignaturasFiltradas) { index, asignatura ->
                             var visible by remember { mutableStateOf(false) }
@@ -909,7 +916,18 @@ fun AsignaturaCard(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val statusLabel = when {
+                media == null -> "Sin nota"
+                media >= notaMinAprobado + 2.0 -> "Notable"
+                media >= notaMinAprobado -> "Aprobado"
+                else -> "Suspenso"
+            }
+
+            // Chips: cada uno toma solo lo que necesita, sin medir en absoluto
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 val creditos = asignatura.creditos ?: 0
                 if (creditos > 0) {
                     Surface(
@@ -931,7 +949,7 @@ fun AsignaturaCard(
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = tipo.take(3),
+                            text = abbreviatePeriodo(tipo),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = colorScheme.onSurfaceVariant,
@@ -940,8 +958,53 @@ fun AsignaturaCard(
                     }
                 }
             }
+
+            // Dot de estado en su propia fila — sin competir por espacio
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(6.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(mediaColor)
+                )
+                Text(
+                    text = statusLabel,
+                    color = mediaColor,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Barra de progreso de la nota
+            val noteProgress = media?.div(10.0)?.toFloat()?.coerceIn(0f, 1f) ?: 0f
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(mediaColor.copy(alpha = 0.15f))
+            ) {
+                if (media != null) {
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(noteProgress)
+                            .background(mediaColor, RoundedCornerShape(50))
+                    )
+                }
+            }
         }
     }
+}
+
+private fun abbreviatePeriodo(tipo: String): String = when {
+    tipo.startsWith("Cuatrimestre", ignoreCase = true) -> "Cuatrim."
+    tipo.startsWith("Trimestre", ignoreCase = true) -> "Trimest."
+    tipo.equals("Anual", ignoreCase = true) -> "Anual"
+    else -> tipo.take(6)
 }
 
 @Composable
@@ -1379,7 +1442,7 @@ fun AnioScreenPreview() {
             lista_asignaturas = mockAsignaturas.associateBy { it.id ?: it.nombre ?: it.toString() },
             numero_asignaturas = 20
         )
-        AnioScreen(anio = mockAnio, pageIndex = 0)
+        AnioScreen(anio = mockAnio, pageIndex = 12)
     }
 }
 @Composable

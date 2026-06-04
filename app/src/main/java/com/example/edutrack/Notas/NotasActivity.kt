@@ -89,14 +89,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.edutrack.Inicio.SelectorDeFecha
 import com.example.edutrack.borrarAsignaturaCompleta
 import com.example.edutrack.domain.PlanManager
@@ -276,14 +290,18 @@ fun NotasScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     notaEnEdicion = null
                     showNotaSheet = true
                 },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(50)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir nota", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Añadir nota", fontWeight = FontWeight.Bold)
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -311,68 +329,180 @@ fun NotasScreen(
                     )
                 }
                 item {
-                    EncabezadoNotas(
-                        nombre = asignaturaNombre,
-                        promedio = promedio,
-                        porcentajeTotal = porcentajeTotal,
-                    )
-                }
-                item {
+                    val promedioColor = when {
+                        porcentajeTotal <= 0.0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                        promedio >= 7.0 -> MaterialTheme.colorScheme.tertiary
+                        promedio >= 5.0 -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.error
+                    }
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            "Exámenes próximos",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        IconButton(onClick = { examenEnEdicion = null; showExamenSheet = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = "Agregar examen")
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(promedioColor.copy(alpha = 0.09f), RoundedCornerShape(14.dp))
+                                .padding(vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                if (porcentajeTotal > 0) String.format("%.2f", promedio) else "—",
+                                color = promedioColor,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text("Media global", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                        }
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.09f), RoundedCornerShape(14.dp))
+                                .padding(vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${String.format("%.0f", porcentajeTotal)}%",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text("Evaluado", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                        }
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.09f), RoundedCornerShape(14.dp))
+                                .padding(vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${notasState.value.size}",
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text("Notas", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                         }
                     }
                 }
-                if (examenesState.value.isEmpty()) {
-                    item {
-                        Text(
-                            "Sin exámenes programados",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                } else {
-                    items(examenesState.value, key = { it.id }) { examen ->
-                        Card(
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(0.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        // Header
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { examenEnEdicion = examen; showExamenSheet = true },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            ),
-                            shape = MaterialTheme.shapes.large
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(9.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.DateRange, null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(17.dp))
+                                }
+                                Text(
+                                    "Próximos exámenes",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (examenesState.value.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .background(MaterialTheme.colorScheme.primaryContainer)
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            "${examenesState.value.size}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(
+                                onClick = { examenEnEdicion = null; showExamenSheet = true },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Agregar examen",
+                                    tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        if (examenesState.value.isEmpty()) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        examen.nombre,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.DateRange, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(18.dp))
+                                Text(
+                                    "Sin exámenes — toca + para añadir",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            examenesState.value.forEachIndexed { idx, examen ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { examenEnEdicion = examen; showExamenSheet = true }
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Date compact badge
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        val parts = examen.fecha.split("/")
                                         Text(
-                                            examen.fecha,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            parts.getOrNull(0) ?: examen.fecha,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                        if (parts.size >= 2) {
+                                            Text(
+                                                "/${parts[1]}",
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            examen.nombre,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                         if (examen.hora.isNotEmpty()) {
                                             Text(
@@ -382,15 +512,31 @@ fun NotasScreen(
                                             )
                                         }
                                     }
+                                    IconButton(
+                                        onClick = { examenEnEdicion = examen; showExamenSheet = true },
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            ExamReminderScheduler.cancel(context, examen)
+                                            examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
+                                        },
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.error)
+                                    }
                                 }
-                                IconButton(onClick = { examenEnEdicion = examen; showExamenSheet = true }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Editar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                IconButton(onClick = {
-                                    ExamReminderScheduler.cancel(context, examen)
-                                    examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
-                                }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar examen", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                                if (idx < examenesState.value.lastIndex) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    )
                                 }
                             }
                         }
@@ -581,24 +727,23 @@ fun NotasScreen(
     }
 }
 
-// Encabezado con media animada, barra de progreso y estado de la asignatura.
+// Encabezado con media animada, ring Canvas y barra de progreso.
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double) {
     val colorScheme = MaterialTheme.colorScheme
     val (estadoLabel, estadoColor) = when {
-        porcentajeTotal <= 0.0 -> "Sin notas" to colorScheme.onSurfaceVariant
-        promedio >= 7.0 -> "Excelente" to colorScheme.tertiary
-        promedio >= 5.0 -> "Aprobado" to colorScheme.tertiary
-        promedio >= 4.0 -> "En riesgo" to colorScheme.error
+        porcentajeTotal <= 0.0 -> "¡Empieza a calificar!" to colorScheme.onSurfaceVariant
+        promedio >= 7.0 -> "Buen ritmo" to colorScheme.tertiary
+        promedio >= 5.0 -> "Vas aprobando" to colorScheme.primary
+        promedio >= 4.0 -> "Necesita atención" to colorScheme.error
         else -> "Atención" to colorScheme.error
     }
     val promedioColor = when {
-        porcentajeTotal <= 0.0 -> colorScheme.onPrimaryContainer
+        porcentajeTotal <= 0.0 -> colorScheme.onSurfaceVariant
         promedio >= 7.0 -> colorScheme.tertiary
         promedio >= 5.0 -> colorScheme.primary
         else -> colorScheme.error
     }
-    val iniciales = abreviarNombre(nombre)
     val animatedPorcentaje by animateFloatAsState(
         targetValue = (porcentajeTotal / 100.0).toFloat().coerceIn(0f, 1f),
         animationSpec = tween(900),
@@ -612,70 +757,100 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = MaterialTheme.shapes.extraLarge,
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(0.dp),
+        border = BorderStroke(1.dp, colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(colorScheme.primary, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = iniciales,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onPrimary
+            // Ring Canvas con la media
+            Box(modifier = Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(96.dp)) {
+                    // Track
+                    drawArc(
+                        color = promedioColor.copy(alpha = 0.12f),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
                     )
+                    // Fill proporcional a la media (0-10 → 0-360°)
+                    if (promedio > 0) {
+                        drawArc(
+                            color = promedioColor,
+                            startAngle = -90f,
+                            sweepAngle = ((animatedPromedio / 10f) * 360f).coerceIn(0f, 360f),
+                            useCenter = false,
+                            style = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
                 }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = nombre,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = colorScheme.onPrimaryContainer,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = estadoLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = estadoColor,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = String.format("%.2f", animatedPromedio),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
                         color = promedioColor
                     )
                     Text(
-                        text = "${String.format("%.0f", porcentajeTotal)}% eval.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        text = "media",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             }
-            LinearProgressIndicator(
-                progress = { animatedPorcentaje },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp),
-                color = promedioColor,
-                trackColor = colorScheme.primary.copy(alpha = 0.2f)
-            )
+
+            // Columna derecha: status badge + progreso evaluado
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = nombre,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface,
+                    maxLines = 1
+                )
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(estadoColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        estadoLabel,
+                        color = estadoColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "${String.format("%.0f", porcentajeTotal)}% evaluado",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "${String.format("%.0f", (100 - porcentajeTotal).coerceAtLeast(0.0))}% restante",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { animatedPorcentaje },
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    color = promedioColor,
+                    trackColor = colorScheme.primary.copy(alpha = 0.12f)
+                )
+            }
         }
     }
 }
@@ -753,7 +928,7 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
@@ -774,11 +949,21 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface
                     )
-                    Text(
-                        text = estadoLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .background(progressColor, RoundedCornerShape(50))
+                        )
+                        Text(
+                            text = estadoLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (media != null) {
@@ -807,7 +992,8 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp),
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(50)),
                 color = progressColor,
                 trackColor = colorScheme.outline.copy(alpha = 0.15f)
             )
@@ -817,15 +1003,42 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
 
 @Composable
 private fun EmptyPeriodoState() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
+    val infinite = rememberInfiniteTransition(label = "empty")
+    val bob by infinite.animateFloat(
+        initialValue = 0f, targetValue = -18f,
+        animationSpec = infiniteRepeatable(
+            tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse
+        ),
+        label = "bob"
+    )
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .graphicsLayer { translationY = bob }
+                .size(56.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(26.dp)
+            )
+        }
         Text(
-            text = "Sin notas — pulsa + para añadir",
+            "¡Sin notas aún!",
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            "Pulsa + para añadir tu primera nota",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
@@ -841,43 +1054,56 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
         notaVal >= 5.0 -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.error
     }
-
-    Card(
+    val cardShape = RoundedCornerShape(16.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditar() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(2.dp)
+            .clip(cardShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onEditar() }
     ) {
+        // Left accent bar
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(4.dp)
+                .matchParentSize()
+                .background(noteColor.copy(alpha = 0.7f), RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Grade circle
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .background(noteColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                    .size(50.dp)
+                    .background(noteColor.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = String.format("%.1f", notaVal),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = noteColor
                 )
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = nota.nombre ?: "Examen",
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (!nota.fecha.isNullOrBlank()) {
                         Text(
                             text = nota.fecha,
@@ -885,18 +1111,30 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        text = "${nota.porcentaje ?: 0.0}%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${nota.porcentaje?.toInt() ?: 0}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
-            IconButton(onClick = onEditar, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Edit, contentDescription = "Editar", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(onClick = onEditar, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Edit, contentDescription = "Editar",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = onEliminar, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+            IconButton(onClick = onEliminar, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error)
             }
         }
     }

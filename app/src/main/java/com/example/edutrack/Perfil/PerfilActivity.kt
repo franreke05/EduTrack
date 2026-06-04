@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,13 +16,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.WorkspacePremium
 import coil.compose.AsyncImage
 import com.google.firebase.storage.FirebaseStorage
 import androidx.compose.material3.AlertDialog
@@ -34,8 +42,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,10 +62,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.edutrack.EditarUsuario
 import com.example.edutrack.ui.LocalAnios
 import com.example.edutrack.ui.LocalUsuario
@@ -93,6 +104,7 @@ fun CuerpoPerfil(
     val nombreEditable = remember(usuario) { mutableStateOf(usuario?.nombre ?: "") }
     var isUploadingPhoto by remember { mutableStateOf(false) }
 
+    // ── Lógica: subir foto a Firebase Storage y actualizar perfil ──────────
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -108,11 +120,8 @@ fun CuerpoPerfil(
                 EditarUsuario(userId, mapOf("photoUrl" to downloadUri.toString())) { success ->
                     isUploadingPhoto = false
                     coroutineScope.launch {
-                        if (success) {
-                            snackbarHostState.showSnackbar("Foto actualizada")
-                        } else {
-                            snackbarHostState.showSnackbar("Error actualizando la foto")
-                        }
+                        if (success) snackbarHostState.showSnackbar("Foto actualizada")
+                        else snackbarHostState.showSnackbar("Error actualizando la foto")
                     }
                 }
             }
@@ -127,17 +136,18 @@ fun CuerpoPerfil(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Mi perfil") },
+                title = { Text("Mi perfil", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onFinish) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
                     }
                 },
                 actions = {
+                    // ── Lógica: guardar cambios de nombre ──────────────────
                     IconButton(onClick = {
                         usuario?.id?.let { uid ->
                             val updates = mutableMapOf<String, Any>()
-                            if (nombreEditable.value != usuario?.nombre) {
+                            if (nombreEditable.value != usuario.nombre) {
                                 updates["nombre"] = nombreEditable.value
                             }
                             if (updates.isNotEmpty()) {
@@ -155,7 +165,10 @@ fun CuerpoPerfil(
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Configuración")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { innerPadding ->
@@ -177,46 +190,60 @@ fun CuerpoPerfil(
                         .padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Avatar card centrado
+
+                    // ── Avatar hero ────────────────────────────────────────
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(8.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                            shape = MaterialTheme.shapes.extraLarge,
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
                             elevation = CardDefaults.cardElevation(0.dp)
                         ) {
-                            Column(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 28.dp, horizontal = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(96.dp)
-                                        .clickable { photoPickerLauncher.launch("image/*") }
-                                ) {
-                                    if (!usuario?.photoUrl.isNullOrBlank()) {
-                                        AsyncImage(
-                                            model = usuario?.photoUrl,
-                                            contentDescription = "Foto de perfil",
-                                            modifier = Modifier
-                                                .size(96.dp)
-                                                .clip(CircleShape),
-                                            contentScale = ContentScale.Crop
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                            )
                                         )
-                                    } else {
-                                        Surface(
-                                            modifier = Modifier
-                                                .size(96.dp)
-                                                .clip(CircleShape),
-                                            color = MaterialTheme.colorScheme.primary
-                                        ) {
+                                    )
+                                    .padding(vertical = 28.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // Avatar clickable
+                                    Box(
+                                        modifier = Modifier
+                                            .size(96.dp)
+                                            .clickable { photoPickerLauncher.launch("image/*") }
+                                    ) {
+                                        if (!usuario.photoUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = usuario.photoUrl,
+                                                contentDescription = "Foto de perfil",
+                                                modifier = Modifier
+                                                    .size(96.dp)
+                                                    .clip(CircleShape)
+                                                    .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
                                             Box(
-                                                contentAlignment = Alignment.Center,
-                                                modifier = Modifier.fillMaxSize()
+                                                modifier = Modifier
+                                                    .size(96.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary)
+                                                    .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 if (isUploadingPhoto) {
                                                     CircularProgressIndicator(
@@ -226,7 +253,7 @@ fun CuerpoPerfil(
                                                     )
                                                 } else {
                                                     Text(
-                                                        text = (usuario?.nombre ?: "U").take(1).uppercase(),
+                                                        text = (usuario.nombre ?: "U").take(1).uppercase(),
                                                         style = MaterialTheme.typography.headlineLarge,
                                                         fontWeight = FontWeight.Bold,
                                                         color = MaterialTheme.colorScheme.onPrimary
@@ -234,66 +261,89 @@ fun CuerpoPerfil(
                                                 }
                                             }
                                         }
+                                        // Botón cámara overlay
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .align(Alignment.BottomEnd)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surface),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isUploadingPhoto) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    strokeWidth = 1.5.dp
+                                                )
+                                            } else {
+                                                Icon(
+                                                    Icons.Default.CameraAlt,
+                                                    contentDescription = "Cambiar foto",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
                                     }
+
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = usuario.nombre ?: "",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            text = usuario.email ?: "",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
+                                        )
+                                    }
+
+                                    // Badge plan
+                                    val isPremium = userPlan == UserPlan.PREMIUM
                                     Box(
                                         modifier = Modifier
-                                            .size(28.dp)
-                                            .align(Alignment.BottomEnd)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surface),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isUploadingPhoto) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                strokeWidth = 1.5.dp
+                                            .clip(RoundedCornerShape(50))
+                                            .background(
+                                                if (isPremium) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.surfaceVariant
                                             )
-                                        } else {
+                                            .padding(horizontal = 14.dp, vertical = 5.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
                                             Icon(
-                                                Icons.Default.CameraAlt,
-                                                contentDescription = "Cambiar foto",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
+                                                if (isPremium) Icons.Rounded.Star else Icons.Rounded.School,
+                                                contentDescription = null,
+                                                tint = if (isPremium) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = if (isPremium) "Premium" else "Plan Gratis",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isPremium) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     }
                                 }
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = usuario?.nombre ?: "",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = usuario?.email ?: "",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                    )
-                                }
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(20.dp))
                     }
 
-                    // Información de la cuenta
+                    // ── Información de la cuenta ───────────────────────────
                     item {
-                        Text(
-                            text = "Información de la cuenta",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 4.dp, bottom = 6.dp)
-                        )
+                        SectionLabel("Información de la cuenta")
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
                             elevation = CardDefaults.cardElevation(0.dp)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -306,7 +356,7 @@ fun CuerpoPerfil(
                                         .padding(top = 12.dp)
                                 )
                                 OutlinedTextField(
-                                    value = usuario?.email ?: "",
+                                    value = usuario.email ?: "",
                                     onValueChange = {},
                                     label = { Text("Email") },
                                     readOnly = true,
@@ -316,73 +366,77 @@ fun CuerpoPerfil(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(20.dp))
                     }
 
-                    // Mis cursos
+                    // ── Mis cursos ─────────────────────────────────────────
                     item {
-                        Text(
-                            text = "Mis cursos",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 4.dp, bottom = 6.dp)
-                        )
-                        if (anios.isEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.extraLarge,
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(0.dp)
-                            ) {
+                        SectionLabel("Mis cursos")
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            if (anios.isEmpty()) {
                                 Text(
-                                    text = "No hay años escolares registrados.",
+                                    text = "No hay cursos registrados.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(16.dp)
                                 )
-                            }
-                        } else {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.extraLarge,
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(0.dp)
-                            ) {
-                                anios.forEachIndexed { index, anio ->
-                                    ListItem(
-                                        headlineContent = {
+                            } else {
+                                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                    anios.forEachIndexed { index, anio ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primaryContainer,
+                                                        RoundedCornerShape(10.dp)
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Rounded.School,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(Modifier.width(12.dp))
                                             Text(
                                                 text = anio.nombre ?: "",
-                                                style = MaterialTheme.typography.bodyLarge
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f)
                                             )
-                                        },
-                                        colors = ListItemDefaults.colors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        )
-                                    )
-                                    if (index < anios.lastIndex) {
-                                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+                                        }
+                                        if (index < anios.lastIndex) {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(horizontal = 16.dp),
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(20.dp))
                     }
 
-                    // Mi plan
+                    // ── Mi plan ────────────────────────────────────────────
                     item {
-                        Text(
-                            text = "Mi plan",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 4.dp, bottom = 6.dp)
-                        )
+                        SectionLabel("Mi plan")
                         MiPlanCard(
                             userPlan = userPlan,
                             premiumCache = premiumCache,
@@ -394,28 +448,27 @@ fun CuerpoPerfil(
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(Modifier.height(28.dp))
                     }
 
-                    // Acciones de cuenta
+                    // ── Acciones de cuenta ─────────────────────────────────
                     item {
                         OutlinedButton(
                             onClick = { showDeleteDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)
+                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.08f)
                             )
                         ) {
-                            Text("Eliminar cuenta")
+                            Text("Eliminar cuenta", fontWeight = FontWeight.SemiBold)
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = onLogout,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -427,12 +480,13 @@ fun CuerpoPerfil(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(Modifier.height(32.dp))
                     }
                 }
             }
         }
 
+        // ── Dialog: confirmar eliminación de cuenta ────────────────────────
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
@@ -469,6 +523,19 @@ fun CuerpoPerfil(
 }
 
 @Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, bottom = 8.dp)
+    )
+}
+
+@Composable
 private fun MiPlanCard(
     userPlan: UserPlan,
     premiumCache: PremiumCache = PremiumCache(),
@@ -478,6 +545,7 @@ private fun MiPlanCard(
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
 
+    // ── Dialog: gestionar suscripción (redirige a Google Play) ────────────
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
@@ -500,6 +568,7 @@ private fun MiPlanCard(
     }
 
     if (userPlan == UserPlan.PREMIUM) {
+        // ── Estado Premium ─────────────────────────────────────────────────
         val renewalText = premiumCache.expiresAt?.let {
             val sdf = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("es", "ES"))
             "Se renueva el ${sdf.format(java.util.Date(it))}"
@@ -507,47 +576,55 @@ private fun MiPlanCard(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Premium activo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Rounded.WorkspacePremium, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                        Text(
+                            text = "Premium activo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                     Surface(
                         color = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.small
+                        shape = RoundedCornerShape(50)
                     ) {
                         Text(
                             text = "Premium",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 }
 
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(
-                        text = renewalText ?: "Suscripción activa",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                if (renewalText != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = renewalText,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
                 }
 
                 val premiumFeatures = listOf(
@@ -556,14 +633,18 @@ private fun MiPlanCard(
                     "Crear y gestionar grupos"
                 )
                 premiumFeatures.forEach { feature ->
-                    Text(
-                        text = "• $feature",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        Text(
+                            text = feature,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 TextButton(
                     onClick = { showCancelDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -574,9 +655,10 @@ private fun MiPlanCard(
             }
         }
     } else {
+        // ── Estado Gratis ──────────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
@@ -594,16 +676,17 @@ private fun MiPlanCard(
                     )
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.small
+                        shape = RoundedCornerShape(50)
                     ) {
                         Text(
                             text = "Gratis",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 }
+
                 val freeFeatures = listOf(
                     "Hasta 2 cursos",
                     "Notas ilimitadas",
@@ -612,21 +695,30 @@ private fun MiPlanCard(
                     "Anuncios suaves"
                 )
                 freeFeatures.forEach { feature ->
-                    Text(
-                        text = "• $feature",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Rounded.Block, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(14.dp))
+                        Text(
+                            text = feature,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(Modifier.height(4.dp))
                 Button(
                     onClick = onPaywall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    shape = MaterialTheme.shapes.extraLarge
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("Ver Premium", fontWeight = FontWeight.Bold)
+                    Icon(Icons.Rounded.WorkspacePremium, contentDescription = null,
+                        tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Ver Premium", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

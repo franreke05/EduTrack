@@ -227,19 +227,18 @@ class SubjectRepository(private val database: FirebaseDatabase) {
      */
     fun getSubjectCount(userId: String, anioId: String): Flow<Int> = callbackFlow {
         val ref = asignaturasRef(userId, anioId)
-        val listener = ref.addListenerForSingleValueEvent(
-            object : com.google.firebase.database.ValueEventListener {
-                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                    trySend(snapshot.childrenCount.toInt())
-                    close()
-                }
-
-                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                    Log.e(TAG, "Error contando asignaturas: ${error.message}")
-                    close(error.toException())
-                }
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                trySend(snapshot.childrenCount.toInt())
+                close()
             }
-        )
+
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                Log.e(TAG, "Error contando asignaturas: ${error.message}")
+                close(error.toException())
+            }
+        }
+        ref.addListenerForSingleValueEvent(listener)
 
         awaitClose {
             ref.removeEventListener(listener)

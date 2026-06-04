@@ -29,7 +29,7 @@ import com.example.edutrack.Groups.CrearGrupoScreen
 import com.example.edutrack.Groups.GrupoDetalleScreen
 import com.example.edutrack.Groups.GruposScreen
 import com.example.edutrack.Groups.UnirseGrupoScreen
-import com.example.edutrack.Registro.e.RegisteerScreen
+import com.example.edutrack.Registro.RegisteerScreen
 import com.example.edutrack.Anio.AnioRoute
 import com.example.edutrack.Inicio.CreacionAnioScreen
 import com.example.edutrack.Onboarding.OnboardingScreen

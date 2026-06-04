@@ -106,6 +106,7 @@ import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.UserPlan
 import com.example.edutrack.ui.LocalAnios
 import com.example.edutrack.ui.LocalUserPlan
+import com.example.edutrack.ui.LocalUsuario
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -358,44 +359,70 @@ private fun InstagramTopBar(
         launch { alpha.animateTo(1f, animationSpec = tween(400)) }
     }
 
+    val usuario = LocalUsuario.current
+    val nombre = usuario?.nombre?.takeIf { it.isNotBlank() }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = "Edutrack",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            if (isPremium) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Premium",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+        Column(modifier = Modifier.weight(1f)) {
+            if (nombre != null) {
+                Text(
+                    text = "¡Hola, $nombre! 👋",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Edutrack",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (isPremium) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "Premium",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
         IconButton(onClick = onGrupos) {
             Icon(Icons.Default.Group, contentDescription = "Grupos", tint = MaterialTheme.colorScheme.onBackground)
         }
-        IconButton(onClick = onPerfil) {
-            Icon(Icons.Default.Person, contentDescription = "Perfil", tint = MaterialTheme.colorScheme.onBackground)
+        // Avatar con inicial en lugar de icono genérico
+        Box(
+            modifier = Modifier
+                .padding(end = 4.dp)
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable { onPerfil() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = nombre?.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -561,64 +588,91 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Media global
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.TrendingUp, null,
+                    tint = colorScheme.primary, modifier = Modifier.size(16.dp)
+                )
                 Text(
-                    text = "Resumen académico",
-                    style = MaterialTheme.typography.labelSmall,
+                    "Resumen académico",
+                    style = MaterialTheme.typography.labelMedium,
                     color = colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (mediaGlobal != null) String.format("%.2f", animatedMedia) else "--",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = mediaColor
-                )
-                Text(
-                    text = "media global",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.SemiBold
                 )
             }
-
-            // Stats laterales
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+            // 3 mini-stats con color propio
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                StatBadge(label = "${anios.size}", sublabel = if (anios.size == 1) "curso" else "cursos", color = colorScheme.primary)
-                StatBadge(label = "$totalAsignaturas", sublabel = "asignaturas", color = colorScheme.tertiary)
-                Surface(
-                    onClick = onSimulador,
-                    color = colorScheme.primary.copy(alpha = 0.10f),
-                    shape = RoundedCornerShape(12.dp)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.TrendingUp,
-                            contentDescription = null,
-                            tint = colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Simulador",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.primary
-                        )
-                    }
+                    Text("${anios.size}", color = colorScheme.primary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(if (anios.size == 1) "Curso" else "Cursos", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(colorScheme.tertiary.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("$totalAsignaturas", color = colorScheme.tertiary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Asignaturas", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(mediaColor.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        if (mediaGlobal != null) String.format("%.1f", animatedMedia) else "—",
+                        color = mediaColor, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold
+                    )
+                    Text("Media", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            // CTA simulador
+            Surface(
+                onClick = onSimulador,
+                color = colorScheme.primary.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.TrendingUp, null,
+                        tint = colorScheme.primary, modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        "Ir al simulador",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Default.ChevronRight, null,
+                        tint = colorScheme.primary, modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
@@ -943,23 +997,30 @@ private fun SimuladorFeedCard(onSimulador: () -> Unit) {
                     color = colorScheme.onPrimary.copy(alpha = 0.85f),
                     lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Abrir simulador",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onPrimary
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Abrir simulador",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1135,15 +1196,34 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                     }
                 }
             } else {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(colorScheme.primaryContainer, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.DateRange, null,
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                     Text(
-                        text = "Sin exámenes programados",
+                        "Sin exámenes este mes",
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        "Añade fechas de examen en tus asignaturas",
+                        style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant
                     )
                 }
