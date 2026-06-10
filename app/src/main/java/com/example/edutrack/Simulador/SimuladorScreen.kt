@@ -14,8 +14,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,10 +29,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,12 +45,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -54,10 +56,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -70,17 +75,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.edutrack.ui.LocalAnios
-import com.example.edutrack.ui.LocalUserPlan
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
@@ -88,8 +95,10 @@ import com.example.edutrack.dataclass.Notas
 import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.domain.RequiredGradeResult
 import com.example.edutrack.domain.calculateRequiredGrade
-import com.example.edutrack.notasRef
 import com.example.edutrack.gestures.swipeBackGesture
+import com.example.edutrack.notasRef
+import com.example.edutrack.ui.LocalAnios
+import com.example.edutrack.ui.LocalUserPlan
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -168,7 +177,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
         animationSpec = tween(600)
     )
 
-    // CHANGE 1: Hero breathing glow infinite transition
+    // Hero breathing glow infinite transition
     val infiniteTransition = rememberInfiniteTransition(label = "heroPulse")
     val heroGlow by infiniteTransition.animateFloat(
         initialValue = 0.75f,
@@ -180,20 +189,19 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
         label = "heroGlow"
     )
 
+    val cs = MaterialTheme.colorScheme
+
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = cs.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Simulador", fontWeight = FontWeight.Bold) },
+            TopAppBar(
+                title = { Text("Simulador", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.background)
             )
         }
     ) { innerPadding ->
@@ -210,359 +218,414 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-            // Hero header with stagger entrance
-            AnimatedVisibility(
-                visible = heroVisible,
-                enter = fadeIn(tween(400)) + slideInVertically { it / 4 }
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = heroGlow)
-                    ),
-                    shape = MaterialTheme.shapes.extraLarge
+                // Hero header with stagger entrance
+                AnimatedVisibility(
+                    visible = heroVisible,
+                    enter = fadeIn(tween(400)) + slideInVertically { it / 4 }
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { alpha = heroGlow },
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Calculate,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = heroGlow * 0.8f),
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "¿Qué nota necesitas en el examen?",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "Selecciona curso y asignatura. Solo dinos el peso del examen y tu objetivo.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
-
-            // Main content with stagger entrance
-            AnimatedVisibility(
-                visible = contentVisible,
-                enter = fadeIn(tween(350)) + slideInVertically { it / 5 }
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    if (anios.isEmpty()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = MaterialTheme.shapes.large
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(listOf(cs.primary, cs.tertiary)),
+                                    MaterialTheme.shapes.extraLarge
+                                )
+                                .padding(24.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "Sin cursos todavía",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Crea un curso y añade asignaturas para que el simulador pueda calcular qué nota necesitas.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    } else {
-                        // Course selector (only when more than one)
-                        if (anios.size > 1) {
-                            SimSectionLabel("Curso")
-                            ExposedDropdownMenuBox(
-                                expanded = anioMenuExpanded,
-                                onExpandedChange = { anioMenuExpanded = it }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedAnio?.nombre ?: "Selecciona un curso",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = anioMenuExpanded)
-                                    },
-                                    shape = MaterialTheme.shapes.large
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = anioMenuExpanded,
-                                    onDismissRequest = { anioMenuExpanded = false }
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color.White.copy(alpha = 0.2f)
                                 ) {
-                                    anios.forEach { anio ->
-                                        DropdownMenuItem(
-                                            text = { Text(anio.nombre ?: "Curso") },
-                                            onClick = {
-                                                selectedAnio = anio
-                                                anioMenuExpanded = false
-                                            }
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Calculate,
+                                            null,
+                                            Modifier.size(32.dp),
+                                            tint = Color.White
                                         )
                                     }
                                 }
-                            }
-                        }
-
-                        // Subject selector — CHANGE 2: CourseCirclesRow replaces AsignaturaSelectCard list
-                        if (selectedAnio != null) {
-                            val asignaturas = selectedAnio?.lista_asignaturas?.values?.toList().orEmpty()
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                SimSectionLabel("Asignatura")
-                                if (anios.size == 1) {
-                                    Text(
-                                        text = selectedAnio?.nombre ?: "",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            if (asignaturas.isEmpty()) {
                                 Text(
-                                    text = "Este curso no tiene asignaturas aún.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    "¿Qué nota necesitas\nen el examen?",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
                                 )
-                            } else {
-                                CourseCirclesRow(
-                                    asignaturas = asignaturas,
-                                    selectedId = selectedAsignatura?.id,
-                                    notaMinima = notaMinimaAnio,
-                                    onSelect = { selectedAsignatura = it }
+                                Text(
+                                    "Selecciona asignatura, indica el peso del examen\ny te decimos exactamente lo que necesitas.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.85f)
                                 )
                             }
                         }
+                    }
+                }
 
-                        // Period selector (only when subject has multiple periods)
-                        if (selectedAsignatura != null && numeroPeriodos > 1) {
-                            SimSectionLabel(tipoPeriodo)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                (1..numeroPeriodos).forEach { p ->
-                                    FilterChip(
-                                        selected = periodoSel == p,
-                                        onClick = { periodoSel = p; examPct = "" },
-                                        label = { Text("$tipoPeriodo $p") },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        // "Situación actual" card — replaces old "Evaluaciones registradas"
-                        if (selectedAsignatura != null && notasPeriodo.isNotEmpty()) {
-                            val avgColor = when {
-                                currentPartialAvg == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                                currentPartialAvg >= 7.0 -> MaterialTheme.colorScheme.tertiary
-                                currentPartialAvg >= notaMinimaAnio -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.error
-                            }
-                            SimSectionLabel("Situación actual")
+                // Main content with stagger entrance
+                AnimatedVisibility(
+                    visible = contentVisible,
+                    enter = fadeIn(tween(350)) + slideInVertically { it / 5 }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        if (anios.isEmpty()) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                colors = CardDefaults.cardColors(containerColor = cs.surfaceVariant),
                                 shape = MaterialTheme.shapes.extraLarge
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(20.dp),
+                                    modifier = Modifier.padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    // Top row: current average + evaluated %
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Bottom
+                                    Surface(
+                                        modifier = Modifier.size(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = cs.primaryContainer
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                text = "Media actual",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = if (currentPartialAvg != null) String.format("%.2f", currentPartialAvg) else "--",
-                                                style = MaterialTheme.typography.displaySmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (currentPartialAvg != null) avgColor else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = "de lo evaluado hasta ahora",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Column(
-                                            horizontalAlignment = Alignment.End,
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            Text(
-                                                text = "${usedWeight.toInt()}%",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = "evaluado",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Default.Calculate,
+                                                null,
+                                                Modifier.size(28.dp),
+                                                tint = cs.primary
                                             )
                                         }
                                     }
-                                    // Progress bar
-                                    LinearProgressIndicator(
-                                        progress = { animatedUsedWeight },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    Text(
+                                        "Sin cursos todavía",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
                                     )
-                                    // Notes list
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                                    notasPeriodo.sortedBy { it.nombre }.forEach { nota ->
+                                    Text(
+                                        "Crea un curso y añade asignaturas para calcular qué nota necesitas.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = cs.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            // Course selector (only when more than one)
+                            if (anios.size > 1) {
+                                SectionHeader("Curso")
+                                ExposedDropdownMenuBox(
+                                    expanded = anioMenuExpanded,
+                                    onExpandedChange = { anioMenuExpanded = it }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedAnio?.nombre ?: "Selecciona un curso",
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = anioMenuExpanded)
+                                        },
+                                        shape = MaterialTheme.shapes.large
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = anioMenuExpanded,
+                                        onDismissRequest = { anioMenuExpanded = false }
+                                    ) {
+                                        anios.forEach { anio ->
+                                            DropdownMenuItem(
+                                                text = { Text(anio.nombre ?: "Curso") },
+                                                onClick = {
+                                                    selectedAnio = anio
+                                                    anioMenuExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Subject selector — CourseCirclesRow
+                            if (selectedAnio != null) {
+                                val asignaturas = selectedAnio?.lista_asignaturas?.values?.toList().orEmpty()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    SectionHeader("Asignatura")
+                                    if (anios.size == 1) {
+                                        Text(
+                                            text = selectedAnio?.nombre ?: "",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = cs.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (asignaturas.isEmpty()) {
+                                    Text(
+                                        text = "Este curso no tiene asignaturas aún.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = cs.onSurfaceVariant
+                                    )
+                                } else {
+                                    CourseCirclesRow(
+                                        asignaturas = asignaturas,
+                                        selectedId = selectedAsignatura?.id,
+                                        notaMinima = notaMinimaAnio,
+                                        onSelect = { selectedAsignatura = it }
+                                    )
+                                }
+                            }
+
+                            // Period selector (only when subject has multiple periods)
+                            if (selectedAsignatura != null && numeroPeriodos > 1) {
+                                SectionHeader(tipoPeriodo)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    (1..numeroPeriodos).forEach { p ->
+                                        FilterChip(
+                                            selected = periodoSel == p,
+                                            onClick = { periodoSel = p; examPct = "" },
+                                            label = { Text("$tipoPeriodo $p") },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = cs.primary,
+                                                selectedLabelColor = cs.onPrimary
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+
+                            // "Situación actual" card
+                            if (selectedAsignatura != null && notasPeriodo.isNotEmpty()) {
+                                val avgColor = when {
+                                    currentPartialAvg == null -> cs.onSurfaceVariant
+                                    currentPartialAvg >= 7.0 -> cs.tertiary
+                                    currentPartialAvg >= notaMinimaAnio -> cs.primary
+                                    else -> cs.error
+                                }
+                                SectionHeader("Situación actual")
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = cs.surface),
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        // Top row: current average + evaluated %
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalAlignment = Alignment.Bottom
                                         ) {
-                                            Text(
-                                                text = nota.nombre?.ifBlank { "Evaluación" } ?: "Evaluación",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.weight(1f)
-                                            )
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "Media actual",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = cs.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    text = if (currentPartialAvg != null) String.format("%.2f", currentPartialAvg) else "--",
+                                                    style = MaterialTheme.typography.displaySmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (currentPartialAvg != null) avgColor else cs.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    text = "de lo evaluado hasta ahora",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = cs.onSurfaceVariant
+                                                )
+                                            }
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${usedWeight.toInt()}%",
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = cs.onSurfaceVariant
+                                                )
+                                                Text(
+                                                    text = "evaluado",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = cs.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        // Progress bar
+                                        LinearProgressIndicator(
+                                            progress = { animatedUsedWeight },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(50)),
+                                            color = cs.primary,
+                                            trackColor = cs.outlineVariant.copy(alpha = 0.3f)
+                                        )
+                                        // Notes list
+                                        HorizontalDivider(color = cs.outline.copy(alpha = 0.3f))
+                                        notasPeriodo.sortedBy { it.nombre }.forEach { nota ->
                                             val notaVal = nota.nota ?: 0.0
                                             val notaColor = when {
-                                                notaVal >= 7.0 -> MaterialTheme.colorScheme.tertiary
-                                                notaVal >= notaMinimaAnio -> MaterialTheme.colorScheme.primary
-                                                else -> MaterialTheme.colorScheme.error
+                                                notaVal >= 7.0 -> cs.tertiary
+                                                notaVal >= notaMinimaAnio -> cs.primary
+                                                else -> cs.error
                                             }
-                                            Text(
-                                                text = "${nota.nota} · ${nota.porcentaje?.toInt()}%",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = notaColor
-                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(
+                                                        cs.surfaceVariant.copy(alpha = 0.4f),
+                                                        RoundedCornerShape(8.dp)
+                                                    )
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    Modifier
+                                                        .width(4.dp)
+                                                        .height(32.dp)
+                                                        .clip(CircleShape)
+                                                        .background(notaColor)
+                                                )
+                                                Text(
+                                                    text = nota.nombre?.ifBlank { "Evaluación" } ?: "Evaluación",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Text(
+                                                    text = "${nota.nota} · ${nota.porcentaje?.toInt()}%",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = notaColor
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        // Exam input + target (appears once subject is selected)
-                        if (selectedAsignatura != null) {
-                            SimSectionLabel("El examen")
-                            OutlinedTextField(
-                                value = examPct,
-                                onValueChange = { v ->
-                                    if (v.length <= 3 && v.all { it.isDigit() }) {
-                                        examPct = v
-                                        examPctAutoFilled = true
-                                    }
-                                },
-                                label = { Text("¿Qué % representa el examen?") },
-                                placeholder = { Text("ej. 40") },
-                                suffix = { Text("%") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.large,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                isError = examOverflow,
-                                supportingText = when {
-                                    examOverflow -> {
-                                        {
-                                            Text(
-                                                "El total supera el 100 % (ya evaluado: ${usedWeight.toInt()} %)",
-                                                color = MaterialTheme.colorScheme.error
-                                            )
-                                        }
-                                    }
-                                    notasPeriodo.isEmpty() && examPct.isBlank() -> {
-                                        {
-                                            Text(
-                                                "Sin evaluaciones previas: el examen cubrirá el % que indiques",
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                    else -> null
-                                }
-                            )
-
-                            Text(
-                                text = "Nota objetivo",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Row(
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                (5..10).forEach { n ->
-                                    val isLocked = !PlanManager.canUseCustomTargets(userPlan) && n > 5
-                                    FilterChip(
-                                        selected = objetivo == n,
-                                        onClick = {
-                                            if (isLocked) showTargetUpgrade = true
-                                            else objetivo = n
-                                        },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                        ),
-                                        label = {
-                                            if (isLocked) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Lock,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(12.dp)
-                                                    )
-                                                    Text("$n", maxLines = 1, softWrap = false)
+                            // Exam input + target (appears once subject is selected)
+                            if (selectedAsignatura != null) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = cs.surface),
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    elevation = CardDefaults.cardElevation(1.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        SectionHeader("El examen")
+                                        OutlinedTextField(
+                                            value = examPct,
+                                            onValueChange = { v ->
+                                                if (v.length <= 3 && v.all { it.isDigit() }) {
+                                                    examPct = v
+                                                    examPctAutoFilled = true
                                                 }
-                                            } else {
-                                                Text("$n", maxLines = 1, softWrap = false)
+                                            },
+                                            label = { Text("¿Qué % representa el examen?") },
+                                            placeholder = { Text("ej. 40") },
+                                            suffix = { Text("%") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            shape = MaterialTheme.shapes.large,
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            isError = examOverflow,
+                                            supportingText = when {
+                                                examOverflow -> {
+                                                    {
+                                                        Text(
+                                                            "El total supera el 100 % (ya evaluado: ${usedWeight.toInt()} %)",
+                                                            color = cs.error
+                                                        )
+                                                    }
+                                                }
+                                                notasPeriodo.isEmpty() && examPct.isBlank() -> {
+                                                    {
+                                                        Text(
+                                                            "Sin evaluaciones previas: el examen cubrirá el % que indiques",
+                                                            color = cs.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+                                                else -> null
+                                            }
+                                        )
+
+                                        Text(
+                                            text = "Nota objetivo",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = cs.onSurfaceVariant
+                                        )
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            (5..10).forEach { n ->
+                                                val isLocked = !PlanManager.canUseCustomTargets(userPlan) && n > 5
+                                                FilterChip(
+                                                    selected = objetivo == n,
+                                                    onClick = {
+                                                        if (isLocked) showTargetUpgrade = true
+                                                        else objetivo = n
+                                                    },
+                                                    colors = FilterChipDefaults.filterChipColors(
+                                                        selectedContainerColor = cs.primary,
+                                                        selectedLabelColor = cs.onPrimary
+                                                    ),
+                                                    label = {
+                                                        if (isLocked) {
+                                                            Row(
+                                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    Icons.Default.Lock,
+                                                                    contentDescription = null,
+                                                                    modifier = Modifier.size(12.dp)
+                                                                )
+                                                                Text("$n", maxLines = 1, softWrap = false)
+                                                            }
+                                                        } else {
+                                                            Text("$n", maxLines = 1, softWrap = false)
+                                                        }
+                                                    }
+                                                )
                                             }
                                         }
+                                    }
+                                }
+
+                                resultado?.let { SimResultadoCard(it) }
+
+                                // Scenario table: shown when exam weight is set and no overflow
+                                if (examWeightParsed != null && examWeightParsed > 0 && !examOverflow) {
+                                    SimScenarioTable(
+                                        currentWeightedPoints = currentWeightedPoints,
+                                        examWeight = examWeightParsed,
+                                        objetivo = objetivo,
+                                        notaMinimaAprobado = notaMinimaAnio
                                     )
                                 }
-                            }
-
-                            resultado?.let { SimResultadoCard(it) }
-
-                            // Scenario table: shown when exam weight is set and no overflow
-                            if (examWeightParsed != null && examWeightParsed > 0 && !examOverflow) {
-                                SimScenarioTable(
-                                    currentWeightedPoints = currentWeightedPoints,
-                                    examWeight = examWeightParsed,
-                                    objetivo = objetivo,
-                                    notaMinimaAprobado = notaMinimaAnio
-                                )
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
@@ -578,16 +641,19 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
 }
 
 @Composable
-private fun SimSectionLabel(text: String) {
+private fun SectionHeader(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, bottom = 6.dp, top = 8.dp)
     )
 }
 
-// CHANGE 2: CourseCirclesRow — replaces AsignaturaSelectCard list
+// CourseCirclesRow — ring chart subject selector
 @Composable
 private fun CourseCirclesRow(
     asignaturas: List<Asignatura>,
@@ -763,13 +829,13 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
     val cs = MaterialTheme.colorScheme
 
     val badgeLabel: String
-    val badgeContainerColor: androidx.compose.ui.graphics.Color
-    val badgeContentColor: androidx.compose.ui.graphics.Color
-    val cardContainerColor: androidx.compose.ui.graphics.Color
-    val cardContentColor: androidx.compose.ui.graphics.Color
+    val badgeContainerColor: Color
+    val badgeContentColor: Color
+    val cardContainerColor: Color
+    val cardContentColor: Color
     val titulo: String
     val cuerpo: String
-    val gradeDisplayColor: androidx.compose.ui.graphics.Color
+    val gradeDisplayColor: Color
 
     when (resultado) {
         is RequiredGradeResult.Needed -> {
@@ -809,7 +875,7 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
         }
     }
 
-    // CHANGE 3: Slower, more dramatic animation for gauge
+    // Slower, more dramatic animation for gauge
     val animatedGrade by animateFloatAsState(
         targetValue = if (resultado is RequiredGradeResult.Needed) resultado.grade.toFloat() else 0f,
         animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing)
@@ -818,7 +884,8 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = cardContainerColor),
-        shape = MaterialTheme.shapes.extraLarge
+        shape = MaterialTheme.shapes.extraLarge,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(color = badgeContainerColor, shape = MaterialTheme.shapes.extraLarge) {
@@ -830,7 +897,7 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )
             }
-            // CHANGE 3: Circular gauge replaces LinearProgressIndicator for Needed case
+            // Circular gauge for Needed case
             if (resultado is RequiredGradeResult.Needed) {
                 Box(
                     modifier = Modifier
@@ -890,7 +957,23 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
                     }
                 }
             }
-            Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = cardContentColor)
+            // AlreadyEnough: show check icon next to title
+            if (resultado == RequiredGradeResult.AlreadyEnough) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = gradeDisplayColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = cardContentColor)
+                }
+            } else {
+                Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = cardContentColor)
+            }
             Text(cuerpo, style = MaterialTheme.typography.bodyMedium, color = cardContentColor.copy(alpha = 0.85f))
         }
     }
@@ -910,7 +993,7 @@ private fun SimScenarioTable(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = cs.surface),
         shape = MaterialTheme.shapes.extraLarge,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -920,7 +1003,7 @@ private fun SimScenarioTable(
                 color = cs.primary
             )
             Spacer(Modifier.height(4.dp))
-            // CHANGE 4: Animated stagger for scenario table rows
+            // Animated stagger for scenario table rows
             grades.forEachIndexed { idx, g ->
                 var rowVisible by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { delay(idx * 60L + 80L); rowVisible = true }
@@ -945,17 +1028,22 @@ private fun SimScenarioTable(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Exam grade chip
-                            Surface(
-                                color = if (meetsMinima) cs.primaryContainer else cs.errorContainer,
-                                shape = MaterialTheme.shapes.small
+                            // Exam grade: colored dot + text
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                Box(
+                                    Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(if (meetsMinima) cs.primary else cs.error)
+                                )
                                 Text(
                                     text = if (g == g.toLong().toDouble()) "${g.toInt()}" else String.format("%.1f", g),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (meetsMinima) cs.onPrimaryContainer else cs.onErrorContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    color = if (meetsMinima) cs.primary else cs.error
                                 )
                             }
                             // Arrow + resulting average + icon
