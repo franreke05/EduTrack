@@ -110,8 +110,15 @@ import com.example.edutrack.ui.LocalUsuario
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.example.edutrack.data.SessionPrefs
+import com.example.edutrack.data.sessionDataStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 // Paleta de colores para anillos de stories (Instagram-style).
 private val storyRingColors = listOf(
@@ -1027,9 +1034,60 @@ private fun SimuladorFeedCard(onSimulador: () -> Unit) {
     }
 }
 
+private data class ExamenDelMes(val nombre: String, val hora: String, val anioId: String)
+
+// Carga exámenes del mes actual de Firebase para todos los años dados.
+// Extraído para evitar duplicación entre ExamenesFeedCard y CalendarioBottomSheet.
+@Composable
+private fun rememberExamenesMes(
+    anios: List<Anio>,
+    userId: String?,
+    currentMonth: Int,
+    currentYear: Int
+): androidx.compose.runtime.State<Map<Int, List<ExamenDelMes>>> {
+    val state = remember { androidx.compose.runtime.mutableStateOf<Map<Int, List<ExamenDelMes>>>(emptyMap()) }
+    DisposableEffect(anios, userId, currentMonth, currentYear) {
+        val validAnios = anios.filter { !it.id.isNullOrEmpty() }
+        if (userId.isNullOrEmpty() || validAnios.isEmpty()) {
+            state.value = emptyMap()
+        } else {
+            val temp = mutableMapOf<Int, MutableList<ExamenDelMes>>()
+            var completed = 0
+            validAnios.forEach { anio ->
+                com.example.edutrack.asignaturasRef(userId, anio.id!!)
+                    .get()
+                    .addOnSuccessListener { snap ->
+                        snap.children.forEach { asigNode ->
+                            asigNode.child("examenes").children.forEach { examenNode ->
+                                val examen = examenNode.getValue(Examen::class.java)
+                                if (examen != null && examen.fecha.isNotBlank() &&
+                                    examen.nombre.isNotBlank() &&
+                                    !examen.nombre.equals("prueba", ignoreCase = true)) {
+                                    try {
+                                        val parts = examen.fecha.split("/")
+                                        if (parts.size == 3 &&
+                                            parts[1].toInt() == currentMonth &&
+                                            parts[2].toInt() == currentYear) {
+                                            val hora = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
+                                            temp.getOrPut(parts[0].toInt()) { mutableListOf() }
+                                                .add(ExamenDelMes(examen.nombre, hora, anio.id!!))
+                                        }
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        }
+                        if (++completed == validAnios.size) state.value = temp
+                    }
+                    .addOnFailureListener { if (++completed == validAnios.size) state.value = temp }
+            }
+        }
+        onDispose {}
+    }
+    return state
+}
+
 @Composable
 private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Unit = {}) {
-    android.util.Log.d("ExamenesFeedCard", "RENDERIZANDO: anios=${anios.size}")
     val colorScheme = MaterialTheme.colorScheme
     var mostrarCalendario by remember { mutableStateOf(false) }
 
@@ -1040,68 +1098,9 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
     val currentYear = now.get(Calendar.YEAR)
     val currentDay = now.get(Calendar.DAY_OF_MONTH)
 
-    // Estructura: (nombre, hora)
-    val examensByDay = remember { mutableStateOf<Map<Int, List<Pair<String, String>>>>(emptyMap()) }
-    val daysWithExams = remember { mutableStateOf(setOf<Int>()) }
-
-    // Cargar exámenes de Firebase
     val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-    DisposableEffect(anios, userId, currentMonth, currentYear) {
-        val validAnios = anios.filter { !it.id.isNullOrEmpty() }
-        if (userId.isNullOrEmpty() || validAnios.isEmpty()) {
-            examensByDay.value = emptyMap()
-            daysWithExams.value = emptySet()
-        } else {
-            val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
-            val daysWithExamsTemp = mutableSetOf<Int>()
-            var aniosCompleted = 0
-            val totalAnios = validAnios.size
-
-            validAnios.forEach { anio ->
-                com.example.edutrack.asignaturasRef(userId, anio.id!!)
-                    .get()
-                    .addOnSuccessListener { asigSnapshot ->
-                        asigSnapshot.children.forEach { asigNode ->
-                            asigNode.child("examenes").children.forEach { examenNode ->
-                                val examen = examenNode.getValue(Examen::class.java)
-                                if (examen != null &&
-                                    examen.fecha.isNotBlank() &&
-                                    examen.nombre.isNotBlank() &&
-                                    !examen.nombre.equals("prueba", ignoreCase = true)) {
-                                    try {
-                                        val parts = examen.fecha.split("/")
-                                        if (parts.size == 3) {
-                                            val day = parts[0].toInt()
-                                            val month = parts[1].toInt()
-                                            val year = parts[2].toInt()
-                                            if (month == currentMonth && year == currentYear) {
-                                                val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                examensByDayTemp.getOrPut(day) { mutableListOf() }
-                                                    .add(Pair(examen.nombre, horaDisplay))
-                                                daysWithExamsTemp.add(day)
-                                            }
-                                        }
-                                    } catch (_: Exception) {}
-                                }
-                            }
-                        }
-                        aniosCompleted++
-                        if (aniosCompleted == totalAnios) {
-                            examensByDay.value = examensByDayTemp
-                            daysWithExams.value = daysWithExamsTemp
-                        }
-                    }
-                    .addOnFailureListener {
-                        aniosCompleted++
-                        if (aniosCompleted == totalAnios) {
-                            examensByDay.value = examensByDayTemp
-                            daysWithExams.value = daysWithExamsTemp
-                        }
-                    }
-            }
-        }
-        onDispose {}
-    }
+    val examensByDay by rememberExamenesMes(anios, userId, currentMonth, currentYear)
+    val daysWithExams = remember(examensByDay) { examensByDay.keys.toSet() }
 
     val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
     val yearStr = currentYear.toString()
@@ -1152,17 +1151,13 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                     }
                 }
                 TextButton(
-                    onClick = {
-                        android.util.Log.d("ExamenesFeedCard", "✓ CLICK en calendario")
-                        mostrarCalendario = true
-                    },
+                    onClick = { mostrarCalendario = true },
                     modifier = Modifier.size(width = 140.dp, height = 40.dp)
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Calendario", style = MaterialTheme.typography.labelSmall)
                 }
-                android.util.Log.d("ExamenesFeedCard", "Botón renderizado")
             }
 
             // Mini calendario de la semana actual
@@ -1174,21 +1169,21 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
             )
 
             // Timeline de exámenes de esta semana
-            if (examensByDay.value.isNotEmpty()) {
+            if (examensByDay.isNotEmpty()) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    val sortedDays = examensByDay.value.keys.sorted()
+                    val sortedDays = examensByDay.keys.sorted()
                     items(sortedDays.size, key = { index -> sortedDays[index] }) { index ->
                         val day = sortedDays[index]
-                        examensByDay.value[day]?.firstOrNull()?.let { (nombre, hora) ->
+                        examensByDay[day]?.firstOrNull()?.let { entry ->
                             val ringColor = storyRingColors[index % storyRingColors.size]
                             ExamenBadge(
-                                asignatura = nombre,
+                                asignatura = entry.nombre,
                                 dia = day.toString().padStart(2, '0'),
-                                hora = hora,
+                                hora = entry.hora,
                                 media = null,
                                 colors = ringColor
                             )
@@ -1395,11 +1390,6 @@ private fun CalendarioBottomSheet(
     onDismiss: () -> Unit,
     onNavAsignatura: (String?) -> Unit
 ) {
-    android.util.Log.d("CalendarioBottomSheet", "INIT: anios=${anios.size}, userId=$userId")
-    anios.forEachIndexed { idx, anio ->
-        android.util.Log.d("CalendarioBottomSheet", "  Year $idx: id=${anio.id}, num_asig=${anio.numero_asignaturas}")
-    }
-
     val colorScheme = MaterialTheme.colorScheme
     var selectedDay by remember { mutableStateOf<Int?>(null) }
 
@@ -1411,65 +1401,8 @@ private fun CalendarioBottomSheet(
     val monthName = now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
     val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-    val examensByDay = remember { mutableStateOf<Map<Int, List<Pair<String, String>>>>(emptyMap()) }
-    val allDaysInMonth = remember { mutableStateOf(setOf<Int>()) }
-
-    DisposableEffect(anios, userId, currentMonth, currentYear) {
-        val validAnios = anios.filter { !it.id.isNullOrEmpty() }
-        if (userId.isNullOrEmpty() || validAnios.isEmpty()) {
-            examensByDay.value = emptyMap()
-            allDaysInMonth.value = emptySet()
-        } else {
-            val examensByDayTemp = mutableMapOf<Int, MutableList<Pair<String, String>>>()
-            val allDaysTemp = mutableSetOf<Int>()
-            var aniosCompleted = 0
-            val totalAnios = validAnios.size
-
-            validAnios.forEach { anio ->
-                com.example.edutrack.asignaturasRef(userId, anio.id!!)
-                    .get()
-                    .addOnSuccessListener { asigSnapshot ->
-                        asigSnapshot.children.forEach { asigNode ->
-                            asigNode.child("examenes").children.forEach { examenNode ->
-                                val examen = examenNode.getValue(Examen::class.java)
-                                if (examen != null &&
-                                    examen.fecha.isNotBlank() &&
-                                    examen.nombre.isNotBlank() &&
-                                    !examen.nombre.equals("prueba", ignoreCase = true)) {
-                                    try {
-                                        val parts = examen.fecha.split("/")
-                                        if (parts.size == 3) {
-                                            val day = parts[0].toInt()
-                                            val month = parts[1].toInt()
-                                            val year = parts[2].toInt()
-                                            if (month == currentMonth && year == currentYear) {
-                                                val horaDisplay = examen.hora.takeIf { it.isNotBlank() } ?: "--:--"
-                                                examensByDayTemp.getOrPut(day) { mutableListOf() }
-                                                    .add(Pair(examen.nombre, horaDisplay))
-                                                allDaysTemp.add(day)
-                                            }
-                                        }
-                                    } catch (_: Exception) {}
-                                }
-                            }
-                        }
-                        aniosCompleted++
-                        if (aniosCompleted == totalAnios) {
-                            examensByDay.value = examensByDayTemp
-                            allDaysInMonth.value = allDaysTemp
-                        }
-                    }
-                    .addOnFailureListener {
-                        aniosCompleted++
-                        if (aniosCompleted == totalAnios) {
-                            examensByDay.value = examensByDayTemp
-                            allDaysInMonth.value = allDaysTemp
-                        }
-                    }
-            }
-        }
-        onDispose {}
-    }
+    val examensByDay by rememberExamenesMes(anios, userId, currentMonth, currentYear)
+    val allDaysInMonth = remember(examensByDay) { examensByDay.keys.toSet() }
 
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1536,9 +1469,9 @@ private fun CalendarioBottomSheet(
                 items(daysInMonth) { dayIdx ->
                     val day = dayIdx + 1
                     val isCurrentDay = day == now.get(Calendar.DAY_OF_MONTH)
-                    val hasExams = day in allDaysInMonth.value
+                    val hasExams = day in allDaysInMonth
                     val isSelected = day == selectedDay
-                    val examesForDay = examensByDay.value[day] ?: emptyList()
+                    val examesForDay = examensByDay[day] ?: emptyList()
 
                     Box(
                         modifier = Modifier
@@ -1581,13 +1514,13 @@ private fun CalendarioBottomSheet(
             HorizontalDivider(thickness = 0.5.dp, color = colorScheme.outlineVariant)
 
             // Exámenes del día seleccionado
-            if (selectedDay != null && selectedDay in examensByDay.value) {
+            if (selectedDay != null && selectedDay in examensByDay) {
                 Text(
                     text = "Exámenes del ${selectedDay} de ${monthName}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
-                examensByDay.value[selectedDay]?.forEach { (examen, hora) ->
+                examensByDay[selectedDay]?.forEach { entry ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1604,19 +1537,19 @@ private fun CalendarioBottomSheet(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = examen,
+                                    text = entry.nombre,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = colorScheme.onSurface
                                 )
                                 Text(
-                                    text = hora,
+                                    text = entry.hora,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = colorScheme.onSurfaceVariant
                                 )
                             }
                             TextButton(onClick = {
-                                // Solo cierra el calendario
+                                onNavAsignatura(entry.anioId)
                                 onDismiss()
                             }) {
                                 Text("Ver", style = MaterialTheme.typography.labelSmall)
@@ -1707,10 +1640,23 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
 // Mantiene el estado de anios en tiempo real desde Firebase.
 @Composable
 fun rememberAniosState(id_user: String?): State<List<Anio>> {
+    val context = LocalContext.current
     val aniosState = remember { mutableStateOf<List<Anio>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+    val cacheJson = remember { Json { ignoreUnknownKeys = true } }
 
     val resolvedUid = id_user?.takeIf { it.isNotBlank() }
         ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
+    // Muestra datos cacheados inmediatamente — sin esperar a Firebase
+    LaunchedEffect(resolvedUid) {
+        context.sessionDataStore.data.first()[SessionPrefs.ANIOS_JSON]?.let { json ->
+            runCatching { cacheJson.decodeFromString<List<Anio>>(json) }
+                .getOrNull()
+                ?.takeIf { it.isNotEmpty() && aniosState.value.isEmpty() }
+                ?.let { aniosState.value = it }
+        }
+    }
 
     DisposableEffect(resolvedUid) {
         if (resolvedUid.isNullOrEmpty()) {
@@ -1720,11 +1666,15 @@ fun rememberAniosState(id_user: String?): State<List<Anio>> {
             val ref = com.example.edutrack.aniosRef(resolvedUid)
             val valueEventListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    aniosState.value = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
+                    val list = snapshot.children.mapNotNull { parseAnioSnapshot(it) }
+                    aniosState.value = list
+                    scope.launch {
+                        context.sessionDataStore.edit {
+                            it[SessionPrefs.ANIOS_JSON] = cacheJson.encodeToString(list)
+                        }
+                    }
                 }
-                override fun onCancelled(error: DatabaseError) {
-                    android.util.Log.e("Firebase", "Error leyendo anios: ${error.message} code=${error.code}")
-                }
+                override fun onCancelled(error: DatabaseError) {}
             }
             ref.addValueEventListener(valueEventListener)
             onDispose { ref.removeEventListener(valueEventListener) }

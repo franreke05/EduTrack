@@ -21,6 +21,7 @@ object SessionPrefs {
     val IS_ONBOARDED = booleanPreferencesKey("is_onboarded")
     val LANGUAGE = stringPreferencesKey("language")
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+    val ANIOS_JSON = stringPreferencesKey("anios_json")
 }
 
 fun Context.userIdFlow(): Flow<String?> =

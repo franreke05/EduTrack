@@ -7,31 +7,21 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-/**
- * BillingManager: Gestiona suscripciones mediante Google Play Billing Library.
- *
- * IMPORTANTE:
- * - Este manager NO concede Premium localmente.
- * - Todas las compras se validan server-side mediante Cloud Function.
- * - El token de compra se envía al backend para verificación contra Google Play API.
- * - Solo si la verificación es exitosa, el usuario recibe Premium.
- *
- * TODO para PRODUCCIÓN:
- * 1. Reemplazar PRODUCT_IDS con IDs reales de Google Play Console
- * 2. Implementar launchBillingFlow() para mostrar Google Play Store
- * 3. Conectar onPurchaseSuccess() con Cloud Function verifyPremiumPurchase
- * 4. Manejar estados de suscripción: SUBSCRIPTION_STATE_ACTIVE, IN_GRACE_PERIOD, CANCELED, EXPIRED
- */
+// IDs reales de Google Play Console — registrar en Play Console antes del launch.
+// TODO: reemplazar por los IDs definitivos cuando estén aprobados en Play Console.
+const val PRODUCT_ID_MONTHLY = "edutrack_premium_monthly"
+const val PRODUCT_ID_ANNUAL = "edutrack_premium_annual"
 
-const val PRODUCT_ID_MONTHLY = "edutrack_premium_monthly"  // TODO: ID real de Play Console
-const val PRODUCT_ID_ANNUAL = "edutrack_premium_annual"    // TODO: ID real de Play Console
+private const val PACKAGE_NAME = "com.edutrack.app"
 
 interface BillingManagerListener {
     fun onBillingConnected()
@@ -48,18 +38,19 @@ class BillingManager(
 
     private var billingClient: BillingClient? = null
     private val scope = CoroutineScope(Dispatchers.Main)
+    private val functions = FirebaseFunctions.getInstance()
 
     fun connect() {
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
             .enablePendingPurchases()
             .build()
-
         billingClient?.startConnection(this)
     }
 
     fun disconnect() {
         billingClient?.endConnection()
+        billingClient = null
     }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
@@ -76,87 +67,116 @@ class BillingManager(
     }
 
     fun launchBillingFlow(activity: Activity, productId: String) {
-        // TODO: Implementar cuando se establezca conexión real con Play Console
-        /*
-        val queryProductDetailsParams = QueryProductDetailsParams.newBuilder()
-            .addProduct(productId, BillingClient.ProductType.SUBS)
+        val params = QueryProductDetailsParams.newBuilder()
+            .setProductList(
+                listOf(
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(productId)
+                        .setProductType(BillingClient.ProductType.SUBS)
+                        .build()
+                )
+            )
             .build()
 
-        billingClient?.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsList ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList.isNotEmpty()) {
-                val productDetails = productDetailsList[0]
-                val flowParams = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(
-                        listOf(
-                            BillingFlowParams.ProductDetailsParams.newBuilder()
-                                .setProductDetails(productDetails)
-                                .setOfferToken(productDetails.subscriptionOfferDetails?.get(0)?.offerToken ?: "")
-                                .build()
-                        )
-                    )
-                    .build()
-
-                billingClient?.launchBillingFlow(activity, flowParams)
-            } else {
+        billingClient?.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            if (billingResult.responseCode != BillingClient.BillingResponseCode.OK ||
+                productDetailsList.isEmpty()) {
                 listener.onPurchaseError(billingResult.responseCode, billingResult.debugMessage)
+                return@queryProductDetailsAsync
             }
+            val productDetails = productDetailsList[0]
+            val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                ?: run {
+                    listener.onPurchaseError(-1, "Sin oferta disponible para $productId")
+                    return@queryProductDetailsAsync
+                }
+            val flowParams = BillingFlowParams.newBuilder()
+                .setProductDetailsParamsList(
+                    listOf(
+                        BillingFlowParams.ProductDetailsParams.newBuilder()
+                            .setProductDetails(productDetails)
+                            .setOfferToken(offerToken)
+                            .build()
+                    )
+                )
+                .build()
+            billingClient?.launchBillingFlow(activity, flowParams)
         }
-        */
     }
 
-    override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<com.android.billingclient.api.Purchase>?) {
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            for (purchase in purchases) {
-                if (purchase.purchaseState == com.android.billingclient.api.Purchase.PurchaseState.PURCHASED) {
-                    // IMPORTANTE: NUNCA conceder Premium localmente
-                    // El token se envía al backend para verificación
-                    val productId = purchase.products.firstOrNull() ?: continue
-                    handlePurchase(productId, purchase.purchaseToken, purchase)
+    override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
+        when {
+            billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null -> {
+                purchases.forEach { purchase ->
+                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                        handlePurchase(purchase)
+                    }
                 }
             }
-        } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            listener.onPurchaseCanceled()
-        } else {
-            listener.onPurchaseError(billingResult.responseCode, billingResult.debugMessage)
+            billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED ->
+                listener.onPurchaseCanceled()
+            else ->
+                listener.onPurchaseError(billingResult.responseCode, billingResult.debugMessage)
         }
     }
 
-    private fun handlePurchase(productId: String, purchaseToken: String, purchase: com.android.billingclient.api.Purchase) {
-        // Reconocer la compra
+    private fun handlePurchase(purchase: Purchase) {
         scope.launch {
-            val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-                .setPurchaseToken(purchaseToken)
+            val ackParams = AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
                 .build()
+            billingClient?.acknowledgePurchase(ackParams) { result ->
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val productId = purchase.products.firstOrNull() ?: return@acknowledgePurchase
+                    verifyWithServer(productId, purchase.purchaseToken)
+                } else {
+                    listener.onPurchaseError(result.responseCode, "Error al confirmar compra")
+                }
+            }
+        }
+    }
 
-            billingClient?.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    // Enviar token al backend para verificación server-side
-                    // NO conceder Premium hasta que el backend confirme
+    // Envía el token al backend para validación server-side.
+    // NUNCA concede Premium localmente — solo el backend escribe premiumCache.
+    private fun verifyWithServer(productId: String, purchaseToken: String) {
+        val payload = hashMapOf(
+            "packageName" to PACKAGE_NAME,
+            "productId" to productId,
+            "purchaseToken" to purchaseToken
+        )
+        functions.getHttpsCallable("verifyPremiumPurchase")
+            .call(payload)
+            .addOnSuccessListener { result ->
+                @Suppress("UNCHECKED_CAST")
+                val data = result.data as? Map<String, Any>
+                val isPremium = data?.get("isPremium") as? Boolean ?: false
+                if (isPremium) {
                     listener.onPurchaseSuccess(productId, purchaseToken)
                 } else {
-                    listener.onPurchaseError(billingResult.responseCode, "Failed to acknowledge purchase")
+                    listener.onPurchaseError(-1, data?.get("message") as? String ?: "Verificación fallida")
                 }
             }
-        }
+            .addOnFailureListener { e ->
+                listener.onPurchaseError(-1, "Error de verificación: ${e.message}")
+            }
     }
 
+    // Restaura suscripciones activas al reconectar (ej: reinstalación de la app).
     private fun queryPurchases() {
-        // TODO: Restaurar compras previas
-        /*
         billingClient?.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
                 .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         ) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                for (purchase in purchases) {
-                    if (purchase.purchaseState == com.android.billingclient.api.Purchase.PurchaseState.PURCHASED) {
-                        val productId = purchase.products.firstOrNull() ?: continue
-                        listener.onPurchaseSuccess(productId, purchase.purchaseToken)
+                purchases.forEach { purchase ->
+                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                        val productId = purchase.products.firstOrNull() ?: return@forEach
+                        // Revalida contra el servidor para actualizar premiumCache
+                        verifyWithServer(productId, purchase.purchaseToken)
                     }
                 }
             }
         }
-        */
     }
 }

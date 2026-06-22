@@ -5,161 +5,99 @@ import { google } from "googleapis";
 admin.initializeApp();
 
 const db = admin.database();
-const auth = admin.auth();
+
+// Credenciales de Google Play: configurar en Firebase con:
+// firebase functions:config:set googleplay.credentials_json='<json_string>'
+// TODO antes del launch: crear cuenta de servicio en Google Cloud Console con
+// permiso "Google Play Android Developer" y pegar el JSON aquí.
+function getAndroidPublisher() {
+  const credentialsJson = functions.config().googleplay?.credentials_json;
+  if (!credentialsJson) throw new Error("GOOGLEPLAY_CREDENTIALS no configuradas");
+  const credentials = JSON.parse(credentialsJson);
+  return google.androidpublisher({
+    version: "v3",
+    auth: new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+    }),
+  });
+}
 
 /**
- * verifyPremiumPurchase: Valida una compra de Premium contra Google Play API
- *
- * IMPORTANTE:
- * - Solo el usuario autenticado puede llamar esta función
- * - El backend valida el token contra Google Play Developer API
- * - Solo estados ACTIVE o IN_GRACE_PERIOD son aceptados
- * - El resultado se escribe en premiumCache del usuario
- * - El cliente NUNCA recibe el token completo de vuelta
- *
- * Parámetros:
- * - packageName: string (debe ser "com.edutrack.app")
- * - productId: string (ID del producto suscrito)
- * - purchaseToken: string (token de la compra)
- *
- * Retorna:
- * {
- *   success: boolean
- *   isPremium: boolean
- *   expiresAt: number (timestamp)
- *   message: string
- * }
+ * verifyPremiumPurchase: Valida una compra contra Google Play API y escribe
+ * premiumCache en RTDB. El cliente NUNCA recibe el token completo.
  */
 export const verifyPremiumPurchase = functions.https.onCall(
   async (data, context) => {
-    // Verificar autenticación
-    if (!context.auth || !context.auth.uid) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "El usuario debe estar autenticado"
-      );
+    if (!context.auth?.uid) {
+      throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado");
     }
 
     const uid = context.auth.uid;
-    const { packageName, productId, purchaseToken } = data;
+    const { packageName, productId, purchaseToken } = data as {
+      packageName: string;
+      productId: string;
+      purchaseToken: string;
+    };
 
-    // Validar parámetros
     if (packageName !== "com.edutrack.app") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Package name incorrecto"
-      );
+      throw new functions.https.HttpsError("invalid-argument", "Package name incorrecto");
     }
-
     if (!productId || !purchaseToken) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "productId y purchaseToken son requeridos"
-      );
+      throw new functions.https.HttpsError("invalid-argument", "productId y purchaseToken requeridos");
     }
 
     try {
-      // TODO: Configurar credenciales de Google Play Developer API
-      // 1. Crear cuenta de servicio en Google Cloud Console
-      // 2. Descargar JSON de credenciales
-      // 3. Configurar variable de entorno: GOOGLE_PLAY_CREDENTIALS_PATH
-      // 4. Hacer que el código abajo funcione con autenticación real
+      const androidpublisher = getAndroidPublisher();
 
-      /*
-      const androidpublisher = google.androidpublisher({
-        version: 'v3',
-        auth: new google.auth.GoogleAuth({
-          keyFilename: process.env.GOOGLE_PLAY_CREDENTIALS_PATH,
-        }),
-      });
-
-      const subscriptionResponse = await androidpublisher.purchases.subscriptionsv2.get({
-        packageName: packageName,
+      const { data: subscription } = await androidpublisher.purchases.subscriptionsv2.get({
+        packageName,
         subscriptionId: productId,
         token: purchaseToken,
       });
 
-      const subscription = subscriptionResponse.data;
+      const validStates = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"];
+      const isActive = validStates.includes(subscription.subscriptionState ?? "");
 
-      // Validar estado de suscripción
-      const validStates = ['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD'];
-      if (!validStates.includes(subscription.subscriptionState || '')) {
+      if (!isActive) {
         await db.ref(`Edutrack/users/${uid}/premiumCache`).set({
           isPremium: false,
           validatedAt: Date.now(),
-          source: 'google_play_server',
         });
-
-        return {
-          success: false,
-          isPremium: false,
-          message: 'Suscripción no está activa',
-        };
+        return { success: false, isPremium: false, message: "Suscripción no activa" };
       }
 
-      // Calcular fecha de expiración
-      const expiryTimeMillis = subscription.expiryTimeMillis ?
-        parseInt(subscription.expiryTimeMillis, 10) :
-        Date.now() + (365 * 24 * 60 * 60 * 1000);
+      // lineItems[0].expiryTime es ISO 8601 string en subscriptionsv2
+      const expiryTimeMillis = subscription.lineItems?.[0]?.expiryTime
+        ? new Date(subscription.lineItems[0].expiryTime).getTime()
+        : Date.now() + 30 * 24 * 60 * 60 * 1000; // fallback: +30 días
 
-      // Escribir resultado en database (SOLO desde backend)
       await db.ref(`Edutrack/users/${uid}/premiumCache`).set({
         isPremium: true,
-        productId: productId,
+        productId,
         expiresAt: expiryTimeMillis,
         validatedAt: Date.now(),
-        source: 'google_play_server',
       });
 
-      return {
-        success: true,
-        isPremium: true,
-        expiresAt: expiryTimeMillis,
-        message: 'Suscripción verificada exitosamente',
-      };
-      */
-
-      // PLACEHOLDER: Retornar error hasta que se configure
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Google Play API no está configurada aún. Contacta al administrador."
-      );
+      return { success: true, isPremium: true, expiresAt: expiryTimeMillis, message: "OK" };
     } catch (error: any) {
-      console.error("Error verificando compra:", error);
+      // Si las credenciales no están configuradas, devuelve error claro
+      const msg = error.message ?? "Error desconocido";
+      functions.logger.error("verifyPremiumPurchase error:", msg);
 
-      // Log para debugging (nunca exponer token completo)
-      await db
-        .ref(`Edutrack/users/${uid}/premiumCache`)
-        .update({
-          isPremium: false,
-          validatedAt: Date.now(),
-          source: "google_play_server",
-        });
+      await db.ref(`Edutrack/users/${uid}/premiumCache`).update({
+        isPremium: false,
+        validatedAt: Date.now(),
+      });
 
-      throw new functions.https.HttpsError(
-        "internal",
-        "Error verificando suscripción: " + (error.message || "Unknown error")
-      );
+      throw new functions.https.HttpsError("internal", msg);
     }
   }
 );
 
-/**
- * Función auxiliar: Verificar integridad del database
- * Ejecutar manualmente: firebase functions:shell
- * > healthCheck()
- */
-export const healthCheck = functions.https.onCall(async (data, context) => {
+export const healthCheck = functions.https.onCall(async (_data, context) => {
   if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Usuario no autenticado"
-    );
+    throw new functions.https.HttpsError("unauthenticated", "No autenticado");
   }
-
-  return {
-    status: "ok",
-    timestamp: Date.now(),
-    message: "Cloud Functions están activas",
-  };
+  return { status: "ok", timestamp: Date.now() };
 });

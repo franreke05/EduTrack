@@ -1,8 +1,10 @@
 package com.example.edutrack.Notas
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.CalendarContract
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,6 +47,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -521,6 +524,14 @@ fun NotasScreen(
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     IconButton(
+                                        onClick = { addExamToCalendar(context, examen, asignaturaNombre) },
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Icon(Icons.Default.EventAvailable, null,
+                                            modifier = Modifier.size(15.dp),
+                                            tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    IconButton(
                                         onClick = {
                                             ExamReminderScheduler.cancel(context, examen)
                                             examenesRef(userId, anioId ?: "", asignaturaId).child(examen.id).removeValue()
@@ -634,8 +645,8 @@ fun NotasScreen(
                 },
                 onSave = { nota ->
                     val isEditing = notaEnEdicion != null
-                    val limitReached = !isEditing && userPlan != UserPlan.PREMIUM &&
-                        notasState.value.count { it.creadoEn > System.currentTimeMillis() - 86_400_000L } >= 10
+                    val notesToday = notasState.value.count { it.creadoEn > System.currentTimeMillis() - 86_400_000L }
+                    val limitReached = !isEditing && !PlanManager.canAddNoteToday(userPlan, notesToday)
                     if (limitReached) {
                         showNotaSheet = false
                         notaEnEdicion = null
@@ -1104,9 +1115,10 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!nota.fecha.isNullOrBlank()) {
+                    val fecha = nota.fecha
+                    if (!fecha.isNullOrBlank()) {
                         Text(
-                            text = nota.fecha,
+                            text = fecha,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1506,9 +1518,31 @@ private fun calcularResumenNotas(notas: List<Notas>): ResumenNotas {
 
 private fun actualizarMediaAsignatura(userId: String, anioId: String?, asignaturaId: String, resumen: ResumenNotas) {
     if (userId.isBlank() || anioId.isNullOrBlank() || asignaturaId.isBlank()) return
-    val ref = com.example.edutrack.asignaturaRef(userId, anioId, asignaturaId)
-    ref.child("media").setValue(resumen.media)
-    ref.child("numero_notas").setValue(resumen.totalNotas)
+    com.example.edutrack.asignaturaRef(userId, anioId, asignaturaId)
+        .updateChildren(mapOf("media" to resumen.media, "numero_notas" to resumen.totalNotas))
+}
+
+// Abre el Calendar nativo con el examen pre-rellenado — sin permisos requeridos.
+private fun addExamToCalendar(context: android.content.Context, examen: Examen, asignaturaNombre: String) {
+    val parts = examen.fecha.split("/")
+    if (parts.size != 3) return
+    val cal = java.util.Calendar.getInstance().apply {
+        set(parts[2].toInt(), parts[1].toInt() - 1, parts[0].toInt())
+        val hora = examen.hora.split(":")
+        set(java.util.Calendar.HOUR_OF_DAY, hora.getOrNull(0)?.toIntOrNull() ?: 9)
+        set(java.util.Calendar.MINUTE, hora.getOrNull(1)?.toIntOrNull() ?: 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }
+    context.startActivity(
+        Intent(Intent.ACTION_INSERT).apply {
+            data = CalendarContract.Events.CONTENT_URI
+            putExtra(CalendarContract.Events.TITLE, "${examen.nombre} — $asignaturaNombre")
+            putExtra(CalendarContract.Events.DTSTART, cal.timeInMillis)
+            putExtra(CalendarContract.Events.DTEND, cal.timeInMillis + 2 * 60 * 60 * 1000L)
+            putExtra(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+        }
+    )
 }
 
 @Composable

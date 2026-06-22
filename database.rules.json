@@ -4,8 +4,9 @@
       "users": {
         "$userId": {
           ".read": "auth != null && auth.uid == $userId",
-          ".write": "auth != null && auth.uid == $userId",
+
           "profile": {
+            ".write": "auth != null && auth.uid == $userId",
             ".validate": "newData.hasChildren(['id', 'nombre', 'email'])",
             "id": {
               ".validate": "newData.isString() && newData.val() == $userId"
@@ -20,8 +21,8 @@
               ".validate": false
             }
           },
+
           "premiumCache": {
-            ".read": "auth != null && auth.uid == $userId",
             ".write": false,
             ".validate": "newData.hasChildren(['isPremium']) || !newData.exists()",
             "isPremium": {
@@ -40,7 +41,9 @@
               ".validate": "!newData.exists() || (newData.isString() && newData.val() == 'google_play_server')"
             }
           },
+
           "groupImports": {
+            ".write": "auth != null && auth.uid == $userId",
             "_meta": {
               "$monthKey": {
                 "count": {
@@ -73,7 +76,9 @@
               }
             }
           },
+
           "anios": {
+            ".write": "auth != null && auth.uid == $userId",
             "$anioId": {
               ".validate": "newData.hasChildren(['id', 'nombre'])",
               "id": {

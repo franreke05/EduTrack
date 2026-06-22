@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
     id("com.google.gms.google-services")
 }
@@ -51,6 +51,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":composeApp"))
+
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.ui.text)
     // Core & Lifecycle
@@ -86,6 +88,7 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.database.ktx)
     implementation(libs.firebase.storage.ktx)
+    implementation(libs.firebase.functions.ktx)
     implementation(libs.play.services.auth)
 
     // Google Play Billing — TODO: conectar BillingClient en PaywallScreen antes de producción abierta
@@ -101,6 +104,7 @@ dependencies {
 
     // ZXing core para generación de códigos QR de invitación.
     implementation(libs.zxing.core)
+    implementation(libs.kotlinx.serialization.json)
 
     // Testing
     testImplementation(libs.junit)

@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "EduTrack"
 include(":app")
+include(":composeApp")
  

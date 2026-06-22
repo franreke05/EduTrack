@@ -1362,9 +1362,10 @@ private fun PublicarAsignaturaDialog(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                if (asignatura.media != null && asignatura.media > 0.0) {
+                val media = asignatura.media
+                if (media != null && media > 0.0) {
                     Text(
-                        text = "Media: ${String.format("%.1f", asignatura.media)}",
+                        text = "Media: ${String.format("%.1f", media)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

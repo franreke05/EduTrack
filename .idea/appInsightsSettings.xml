@@ -9,7 +9,7 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.edutrack" />
+                  <option name="appId" value="com.edutrack.app" />
                   <option name="mobileSdkAppId" value="1:5200891311:android:69700665b0e677f4a1b35a" />
                   <option name="projectId" value="edutrack-5579f" />
                   <option name="projectNumber" value="5200891311" />

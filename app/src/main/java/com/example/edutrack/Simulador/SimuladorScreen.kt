@@ -88,6 +88,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
@@ -609,7 +612,13 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                     }
                                 }
 
-                                resultado?.let { SimResultadoCard(it) }
+                                resultado?.let {
+                                    SimResultadoCard(
+                                        resultado = it,
+                                        asignaturaName = selectedAsignatura?.nombre ?: "",
+                                        objetivo = objetivo
+                                    )
+                                }
 
                                 // Scenario table: shown when exam weight is set and no overflow
                                 if (examWeightParsed != null && examWeightParsed > 0 && !examOverflow) {
@@ -825,8 +834,13 @@ private fun SubjectRingItem(
 }
 
 @Composable
-private fun SimResultadoCard(resultado: RequiredGradeResult) {
+private fun SimResultadoCard(
+    resultado: RequiredGradeResult,
+    asignaturaName: String = "",
+    objetivo: Int = 5
+) {
     val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
 
     val badgeLabel: String
     val badgeContainerColor: Color
@@ -975,6 +989,33 @@ private fun SimResultadoCard(resultado: RequiredGradeResult) {
                 Text(titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = cardContentColor)
             }
             Text(cuerpo, style = MaterialTheme.typography.bodyMedium, color = cardContentColor.copy(alpha = 0.85f))
+
+            val shareText = when (resultado) {
+                is RequiredGradeResult.Needed -> "Necesito un ${"%.2f".format(resultado.grade)} para aprobar $asignaturaName con objetivo $objetivo — EduTrack 📊"
+                RequiredGradeResult.AlreadyEnough -> "¡Tengo el aprobado asegurado en $asignaturaName! — EduTrack 📊"
+                RequiredGradeResult.Impossible -> "Con las notas que llevo no puedo pasar $asignaturaName aunque saque un 10. A por la ordinaria... — EduTrack"
+                else -> null
+            }
+            if (shareText != null) {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    IconButton(onClick = {
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                },
+                                "Compartir resultado"
+                            )
+                        )
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = "Compartir", tint = cardContentColor.copy(alpha = 0.6f))
+                    }
+                }
+            }
         }
     }
 }

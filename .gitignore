@@ -5,6 +5,7 @@
 *.dex
 /build/
 app/build/
+composeApp/build/
 
 # Gradle
 .gradle/
@@ -41,3 +42,10 @@ TERMS_DRAFT.md
 TODO_SETUP.md
 
 .ai
+
+# Kotlin build cache
+.kotlin/
+
+# Xcode user data
+iosApp/iosApp.xcodeproj/xcuserdata/
+iosApp/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
