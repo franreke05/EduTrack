@@ -16,6 +16,8 @@ local.properties
 .idea/workspace.xml
 .idea/markdown.xml
 .idea/caches/
+.idea/deploymentTargetSelector.xml
+.idea/appInsightsSettings.xml
 *.iml
 *.iws
 *.ids
@@ -49,3 +51,7 @@ TODO_SETUP.md
 # Xcode user data
 iosApp/iosApp.xcodeproj/xcuserdata/
 iosApp/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
+
+# iOS local config / Firebase secrets (add real files manually)
+iosApp/Configuration/Config.local.xcconfig
+iosApp/iosApp/GoogleService-Info.plist

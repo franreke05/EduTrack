@@ -114,6 +114,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.example.edutrack.data.SessionPrefs
 import com.example.edutrack.data.sessionDataStore
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -1163,7 +1164,7 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
             // Mini calendario de la semana actual
             MiniCalendarGrid(
                 currentDay = currentDay,
-                daysWithExams = daysWithExams.value,
+                daysWithExams = daysWithExams,
                 currentMonth = currentMonth,
                 currentYear = currentYear
             )

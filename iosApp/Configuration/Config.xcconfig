@@ -1,0 +1,9 @@
+TEAM_ID=
+
+PRODUCT_NAME=EduTrack
+PRODUCT_BUNDLE_IDENTIFIER=com.edutrack.app$(TEAM_ID)
+APP_SECRET=
+#include? "Config.local.xcconfig"
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
