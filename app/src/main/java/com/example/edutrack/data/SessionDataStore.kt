@@ -3,6 +3,7 @@ package com.example.edutrack.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,8 @@ object SessionPrefs {
     val LANGUAGE = stringPreferencesKey("language")
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     val ANIOS_JSON = stringPreferencesKey("anios_json")
+    val PREMIUM_IS_PREMIUM = booleanPreferencesKey("premium_is_premium")
+    val PREMIUM_EXPIRES_AT = longPreferencesKey("premium_expires_at")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
