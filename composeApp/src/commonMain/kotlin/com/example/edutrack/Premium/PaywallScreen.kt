@@ -436,7 +436,7 @@ private fun TrustRow() {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TrustItem(Icons.Rounded.Star,     "4,9 ★",        "12K reseñas")
+        TrustItem(Icons.Rounded.Star,     "Top Educación", "Play Store")
         TrustItem(Icons.Rounded.Verified, "Pago seguro",  "Google Play")
         TrustItem(Icons.Rounded.Cancel,   "Sin permanencia", "Cancela cuando quieras")
     }
