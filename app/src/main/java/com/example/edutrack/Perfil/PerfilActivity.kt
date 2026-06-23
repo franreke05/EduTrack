@@ -65,7 +65,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.edutrack.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -120,14 +122,14 @@ fun CuerpoPerfil(
                 EditarUsuario(userId, mapOf("photoUrl" to downloadUri.toString())) { success ->
                     isUploadingPhoto = false
                     coroutineScope.launch {
-                        if (success) snackbarHostState.showSnackbar("Foto actualizada")
-                        else snackbarHostState.showSnackbar("Error actualizando la foto")
+                        if (success) snackbarHostState.showSnackbar(context.getString(R.string.perfil_photo_updated))
+                        else snackbarHostState.showSnackbar(context.getString(R.string.perfil_photo_error))
                     }
                 }
             }
             .addOnFailureListener {
                 isUploadingPhoto = false
-                coroutineScope.launch { snackbarHostState.showSnackbar("Error subiendo la foto") }
+                coroutineScope.launch { snackbarHostState.showSnackbar(context.getString(R.string.perfil_photo_upload_error)) }
             }
     }
 
@@ -136,10 +138,10 @@ fun CuerpoPerfil(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Mi perfil", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.perfil_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onFinish) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.perfil_back_cd))
                     }
                 },
                 actions = {
@@ -153,17 +155,17 @@ fun CuerpoPerfil(
                             if (updates.isNotEmpty()) {
                                 EditarUsuario(uid, updates) { success ->
                                     coroutineScope.launch {
-                                        if (success) snackbarHostState.showSnackbar("Perfil actualizado correctamente")
-                                        else snackbarHostState.showSnackbar("Error al actualizar el perfil")
+                                        if (success) snackbarHostState.showSnackbar(context.getString(R.string.perfil_profile_updated))
+                                        else snackbarHostState.showSnackbar(context.getString(R.string.perfil_profile_error))
                                     }
                                 }
                             }
                         }
                     }) {
-                        Icon(Icons.Default.Save, contentDescription = "Guardar")
+                        Icon(Icons.Default.Save, contentDescription = stringResource(R.string.perfil_save_cd))
                     }
                     IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configuración")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.perfil_settings_cd))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -229,7 +231,7 @@ fun CuerpoPerfil(
                                         if (!usuario.photoUrl.isNullOrBlank()) {
                                             AsyncImage(
                                                 model = usuario.photoUrl,
-                                                contentDescription = "Foto de perfil",
+                                                contentDescription = stringResource(R.string.perfil_photo_cd),
                                                 modifier = Modifier
                                                     .size(96.dp)
                                                     .clip(CircleShape)
@@ -278,7 +280,7 @@ fun CuerpoPerfil(
                                             } else {
                                                 Icon(
                                                     Icons.Default.CameraAlt,
-                                                    contentDescription = "Cambiar foto",
+                                                    contentDescription = stringResource(R.string.perfil_change_photo_cd),
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(16.dp)
                                                 )
@@ -322,7 +324,7 @@ fun CuerpoPerfil(
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Text(
-                                                text = if (isPremium) "Premium" else "Plan Gratis",
+                                                text = if (isPremium) stringResource(R.string.perfil_premium_badge) else stringResource(R.string.perfil_free_badge),
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = if (isPremium) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -337,7 +339,7 @@ fun CuerpoPerfil(
 
                     // ── Información de la cuenta ───────────────────────────
                     item {
-                        SectionLabel("Información de la cuenta")
+                        SectionLabel(stringResource(R.string.perfil_account_info))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -350,7 +352,7 @@ fun CuerpoPerfil(
                                 OutlinedTextField(
                                     value = nombreEditable.value,
                                     onValueChange = { nombreEditable.value = it },
-                                    label = { Text("Nombre") },
+                                    label = { Text(stringResource(R.string.perfil_name_label)) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 12.dp)
@@ -358,7 +360,7 @@ fun CuerpoPerfil(
                                 OutlinedTextField(
                                     value = usuario.email ?: "",
                                     onValueChange = {},
-                                    label = { Text("Email") },
+                                    label = { Text(stringResource(R.string.perfil_email_label)) },
                                     readOnly = true,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -371,7 +373,7 @@ fun CuerpoPerfil(
 
                     // ── Mis cursos ─────────────────────────────────────────
                     item {
-                        SectionLabel("Mis cursos")
+                        SectionLabel(stringResource(R.string.perfil_my_courses))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -382,7 +384,7 @@ fun CuerpoPerfil(
                         ) {
                             if (anios.isEmpty()) {
                                 Text(
-                                    text = "No hay cursos registrados.",
+                                    text = stringResource(R.string.perfil_no_courses),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(16.dp)
@@ -436,7 +438,7 @@ fun CuerpoPerfil(
 
                     // ── Mi plan ────────────────────────────────────────────
                     item {
-                        SectionLabel("Mi plan")
+                        SectionLabel(stringResource(R.string.perfil_my_plan))
                         MiPlanCard(
                             userPlan = userPlan,
                             premiumCache = premiumCache,
@@ -444,7 +446,7 @@ fun CuerpoPerfil(
                             onPaywall = onPaywall,
                             onCancelSubscription = {
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Suscripción cancelada")
+                                    snackbarHostState.showSnackbar(context.getString(R.string.perfil_cancel_subscription_snackbar))
                                 }
                             }
                         )
@@ -462,7 +464,7 @@ fun CuerpoPerfil(
                                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.08f)
                             )
                         ) {
-                            Text("Eliminar cuenta", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.perfil_delete_account_btn), fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(Modifier.height(12.dp))
                         Button(
@@ -475,7 +477,7 @@ fun CuerpoPerfil(
                             )
                         ) {
                             Text(
-                                text = "Cerrar sesión",
+                                text = stringResource(R.string.perfil_logout_btn),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -490,9 +492,9 @@ fun CuerpoPerfil(
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
-                title = { Text("¿Eliminar tu cuenta?") },
+                title = { Text(stringResource(R.string.perfil_delete_confirm_title)) },
                 text = {
-                    Text("Esta acción es permanente. Se borrarán todos tus datos, incluidos los años y asignaturas. ¿Estás seguro?")
+                    Text(stringResource(R.string.perfil_delete_confirm_msg))
                 },
                 confirmButton = {
                     Button(
@@ -509,12 +511,12 @@ fun CuerpoPerfil(
                             contentColor = MaterialTheme.colorScheme.onError
                         )
                     ) {
-                        Text("Sí, eliminar todo")
+                        Text(stringResource(R.string.perfil_confirm_delete_btn))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Cancelar")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             )
@@ -549,8 +551,8 @@ private fun MiPlanCard(
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
-            title = { Text("Gestionar suscripción") },
-            text = { Text("Las suscripciones se gestionan directamente desde Google Play. Abre la aplicación de Google Play para cancelar o cambiar tu plan.") },
+            title = { Text(stringResource(R.string.perfil_manage_subscription)) },
+            text = { Text(stringResource(R.string.perfil_manage_subscription_msg)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -559,19 +561,20 @@ private fun MiPlanCard(
                         showCancelDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) { Text("Abrir Google Play") }
+                ) { Text(stringResource(R.string.perfil_open_google_play)) }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) { Text("Cerrar") }
+                TextButton(onClick = { showCancelDialog = false }) { Text(stringResource(R.string.action_close)) }
             }
         )
     }
 
     if (userPlan == UserPlan.PREMIUM) {
         // ── Estado Premium ─────────────────────────────────────────────────
+        val renewalFmt = stringResource(R.string.perfil_renewal_text)
         val renewalText = premiumCache.expiresAt?.let {
             val sdf = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("es", "ES"))
-            "Se renueva el ${sdf.format(java.util.Date(it))}"
+            renewalFmt.format(sdf.format(java.util.Date(it)))
         }
 
         Card(
@@ -592,7 +595,7 @@ private fun MiPlanCard(
                         Icon(Icons.Rounded.WorkspacePremium, contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                         Text(
-                            text = "Premium activo",
+                            text = stringResource(R.string.perfil_premium_active),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -603,7 +606,7 @@ private fun MiPlanCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = "Premium",
+                            text = stringResource(R.string.perfil_premium_badge),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary,
@@ -628,9 +631,13 @@ private fun MiPlanCard(
                 }
 
                 val premiumFeatures = listOf(
-                    "Sin anuncios", "Cursos ilimitados", "Simulador completo",
-                    "Estadísticas avanzadas", "Recordatorios", "Exportación PDF",
-                    "Crear y gestionar grupos"
+                    stringResource(R.string.perfil_feat_no_ads),
+                    stringResource(R.string.perfil_feat_unlimited_courses),
+                    stringResource(R.string.perfil_feat_simulator),
+                    stringResource(R.string.perfil_feat_stats),
+                    stringResource(R.string.perfil_feat_reminders),
+                    stringResource(R.string.perfil_feat_pdf),
+                    stringResource(R.string.perfil_feat_groups)
                 )
                 premiumFeatures.forEach { feature ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -650,7 +657,7 @@ private fun MiPlanCard(
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Cancelar suscripción", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.perfil_cancel_subscription_btn), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -669,7 +676,7 @@ private fun MiPlanCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Plan actual: Gratis",
+                        text = stringResource(R.string.perfil_current_plan_free),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -679,7 +686,7 @@ private fun MiPlanCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = "Gratis",
+                            text = stringResource(R.string.perfil_free_badge),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -688,11 +695,11 @@ private fun MiPlanCard(
                 }
 
                 val freeFeatures = listOf(
-                    "Hasta 2 cursos",
-                    "Notas ilimitadas",
-                    "Cálculo básico para aprobar",
-                    "1 grupo de estudio",
-                    "Anuncios suaves"
+                    stringResource(R.string.perfil_free_feat_courses),
+                    stringResource(R.string.perfil_free_feat_notes),
+                    stringResource(R.string.perfil_free_feat_calc),
+                    stringResource(R.string.perfil_free_feat_group),
+                    stringResource(R.string.perfil_free_feat_ads)
                 )
                 freeFeatures.forEach { feature ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -718,7 +725,7 @@ private fun MiPlanCard(
                     Icon(Icons.Rounded.WorkspacePremium, contentDescription = null,
                         tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Ver Premium", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(stringResource(R.string.perfil_see_premium_btn), fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

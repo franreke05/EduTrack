@@ -47,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.example.edutrack.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -101,18 +103,18 @@ fun CreacionAnioScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Nuevo curso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Configura cómo se evalúa", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.creacion_anio_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.creacion_anio_subtitle), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onFinish) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.creacion_anio_back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = ::guardar) {
-                        Icon(Icons.Default.Done, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Done, contentDescription = stringResource(R.string.creacion_anio_save_cd), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             )
@@ -129,14 +131,14 @@ fun CreacionAnioScreen(
             // Sección 1: Información básica
             FormSection(
                 icon = Icons.Default.Edit,
-                title = "Información básica",
-                subtitle = "Nombre y descripción del curso"
+                title = stringResource(R.string.creacion_anio_section1_title),
+                subtitle = stringResource(R.string.creacion_anio_section1_subtitle)
             ) {
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre del curso") },
-                    placeholder = { Text("ej. 2024-2025 o Segundo de carrera") },
+                    label = { Text(stringResource(R.string.creacion_anio_field_nombre)) },
+                    placeholder = { Text(stringResource(R.string.creacion_anio_field_nombre_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -144,7 +146,7 @@ fun CreacionAnioScreen(
                 OutlinedTextField(
                     value = descripcion,
                     onValueChange = { descripcion = it },
-                    label = { Text("Descripción (opcional)") },
+                    label = { Text(stringResource(R.string.creacion_anio_field_descripcion)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4
@@ -154,18 +156,18 @@ fun CreacionAnioScreen(
             // Sección 2: Periodo académico
             FormSection(
                 icon = Icons.Default.CalendarMonth,
-                title = "Periodo académico",
-                subtitle = "Fechas de inicio y fin del curso"
+                title = stringResource(R.string.creacion_anio_section2_title),
+                subtitle = stringResource(R.string.creacion_anio_section2_subtitle)
             ) {
                 OutlinedTextField(
                     value = fechaInicio,
                     onValueChange = {},
-                    label = { Text("Fecha de inicio") },
+                    label = { Text(stringResource(R.string.creacion_anio_field_fecha_inicio)) },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         IconButton(onClick = { mostrarDialoginicio = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.creacion_anio_date_cd), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 )
@@ -173,12 +175,12 @@ fun CreacionAnioScreen(
                 OutlinedTextField(
                     value = fechaFin,
                     onValueChange = {},
-                    label = { Text("Fecha de fin") },
+                    label = { Text(stringResource(R.string.creacion_anio_field_fecha_fin)) },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         IconButton(onClick = { mostrarDialogfin = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.creacion_anio_date_cd), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 )
@@ -187,8 +189,8 @@ fun CreacionAnioScreen(
             // Sección 3: Asignaturas
             FormSection(
                 icon = Icons.Default.FormatListNumbered,
-                title = "Asignaturas del curso",
-                subtitle = "Número total de asignaturas (máx. 20)"
+                title = stringResource(R.string.creacion_anio_section3_title),
+                subtitle = stringResource(R.string.creacion_anio_section3_subtitle)
             ) {
                 OutlinedTextField(
                     value = numero_asignaturas,
@@ -200,7 +202,7 @@ fun CreacionAnioScreen(
                             }
                         }
                     },
-                    label = { Text("Número de asignaturas") },
+                    label = { Text(stringResource(R.string.creacion_anio_field_num_asig)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
@@ -210,8 +212,8 @@ fun CreacionAnioScreen(
             // Sección 4: Tipo de periodo
             FormSection(
                 icon = Icons.Default.DateRange,
-                title = "Tipo de periodo",
-                subtitle = "Define cómo se dividen las asignaturas del curso"
+                title = stringResource(R.string.creacion_anio_section4_title),
+                subtitle = stringResource(R.string.creacion_anio_section4_subtitle)
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Cuatrimestre", "Trimestre").forEach { opcion ->
@@ -236,19 +238,19 @@ fun CreacionAnioScreen(
             // Sección 5: Cálculo de medias
             FormSection(
                 icon = Icons.Default.Calculate,
-                title = "Cálculo de medias",
-                subtitle = "Configura cómo se calculan las notas"
+                title = stringResource(R.string.creacion_anio_section5_title),
+                subtitle = stringResource(R.string.creacion_anio_section5_subtitle)
             ) {
                 // Nota mínima para aprobar
                 Text(
-                    text = "Nota mínima para aprobar",
+                    text = stringResource(R.string.creacion_anio_nota_minima_label),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "En España la nota de corte habitual es 5.0. Algunas universidades usan 6.0.",
+                    text = stringResource(R.string.creacion_anio_nota_minima_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -279,14 +281,14 @@ fun CreacionAnioScreen(
 
                 // Tipo de ponderación
                 Text(
-                    text = "Tipo de ponderación",
+                    text = stringResource(R.string.creacion_anio_ponderacion_label),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "La ponderación por créditos sigue el sistema ECTS (estándar europeo).",
+                    text = stringResource(R.string.creacion_anio_ponderacion_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -297,7 +299,7 @@ fun CreacionAnioScreen(
                         onClick = { tipoPonderacion = "creditos" },
                         label = {
                             Text(
-                                "Por créditos ECTS",
+                                stringResource(R.string.creacion_anio_ponderacion_creditos),
                                 fontWeight = if (tipoPonderacion == "creditos") FontWeight.Bold else FontWeight.Normal
                             )
                         },
@@ -311,7 +313,7 @@ fun CreacionAnioScreen(
                         onClick = { tipoPonderacion = "simple" },
                         label = {
                             Text(
-                                "Media simple",
+                                stringResource(R.string.creacion_anio_ponderacion_simple),
                                 fontWeight = if (tipoPonderacion == "simple") FontWeight.Bold else FontWeight.Normal
                             )
                         },
@@ -330,9 +332,9 @@ fun CreacionAnioScreen(
                 ) {
                     Text(
                         text = if (tipoPonderacion == "creditos")
-                            "Σ (nota × créditos) ÷ total créditos"
+                            stringResource(R.string.creacion_anio_formula_creditos)
                         else
-                            "Σ notas ÷ número de asignaturas",
+                            stringResource(R.string.creacion_anio_formula_simple),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Medium,
@@ -352,7 +354,7 @@ fun CreacionAnioScreen(
             ) {
                 Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Crear curso", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.creacion_anio_btn_crear), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

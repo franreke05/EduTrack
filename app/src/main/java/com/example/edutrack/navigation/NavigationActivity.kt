@@ -1,7 +1,9 @@
 package com.example.edutrack.navigation
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import com.example.edutrack.utils.wrapWithLocale
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import com.example.edutrack.Groups.CrearGrupoScreen
 import com.example.edutrack.Groups.GrupoDetalleScreen
 import com.example.edutrack.Groups.GruposScreen
 import com.example.edutrack.Groups.UnirseGrupoScreen
+import com.example.edutrack.Registro.ForgotPasswordScreen
 import com.example.edutrack.Registro.RegisteerScreen
 import com.example.edutrack.Anio.AnioRoute
 import com.example.edutrack.Inicio.CreacionAnioScreen
@@ -57,6 +60,7 @@ import com.example.edutrack.ui.LocalUserPlan
 
 // Maneja la navegacion principal y el estado de sesion.
 class NavigationActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
     // Configura el contenido Compose y las rutas de navegacion.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,6 +129,7 @@ class NavigationActivity : ComponentActivity() {
                     composable("login") {
                         RegisteerScreen(
                             isLoadingOverride = null,
+                            onForgotPassword = { navController.navigate("forgot_password") },
                             onAuthSuccess = { uid ->
                                 scope.launch { context.setUserSession(uid) }
                                 val destination = if (isOnboarded) "inicio" else "onboarding"
@@ -133,6 +138,9 @@ class NavigationActivity : ComponentActivity() {
                                 }
                             }
                         )
+                    }
+                    composable("forgot_password") {
+                        ForgotPasswordScreen(onBack = { navController.popBackStack() })
                     }
                     composable("onboarding") {
                         OnboardingScreen(
@@ -212,7 +220,8 @@ class NavigationActivity : ComponentActivity() {
                             userId = userId,
                             groupId = groupId,
                             onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") }
+                            onPaywall = { navController.navigate("paywall") },
+                            onNavigateToAnio = { anioId -> navController.navigate("anio/$anioId") }
                         )
                     }
                     composable(

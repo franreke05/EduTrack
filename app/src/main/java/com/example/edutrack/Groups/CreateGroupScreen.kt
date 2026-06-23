@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -14,11 +16,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,8 +49,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.R
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.crearGrupo
 import com.example.edutrack.domain.PlanManager
@@ -66,12 +74,15 @@ fun CrearGrupoScreen(
     val userPlan = LocalUserPlan.current
     val canCreate = PlanManager.canCreateGroup(userPlan)
     val usuario = LocalUsuario.current
+    val context = LocalContext.current
 
     var showUpgrade by remember { mutableStateOf(false) }
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var isPrivate by remember { mutableStateOf(false) }
+    var groupType by remember { mutableStateOf("STUDY") }
     var isLoading by remember { mutableStateOf(false) }
+    var section0Visible by remember { mutableStateOf(false) }
     var section1Visible by remember { mutableStateOf(false) }
     var section2Visible by remember { mutableStateOf(false) }
     var section3Visible by remember { mutableStateOf(false) }
@@ -79,6 +90,7 @@ fun CrearGrupoScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
+        delay(50L); section0Visible = true
         delay(80L); section1Visible = true
         delay(80L); section2Visible = true
         delay(80L); section3Visible = true
@@ -86,7 +98,7 @@ fun CrearGrupoScreen(
 
     fun guardar() {
         if (nombre.isBlank()) {
-            scope.launch { snackbarHostState.showSnackbar("El nombre es obligatorio") }
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.error_name_required)) }
             return
         }
         if (!canCreate) {
@@ -104,13 +116,14 @@ fun CrearGrupoScreen(
             description = descripcion.trim(),
             isPrivate = isPrivate,
             ownerDisplayName = displayName,
-            ownerPhotoUrl = usuario?.photoUrl
+            ownerPhotoUrl = usuario?.photoUrl,
+            type = groupType
         ) { groupId ->
             isLoading = false
             if (groupId != null) {
                 onGroupCreated(groupId)
             } else {
-                scope.launch { snackbarHostState.showSnackbar("Error al crear el grupo") }
+                scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.group_error_create)) }
             }
         }
     }
@@ -129,7 +142,7 @@ fun CrearGrupoScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Crear grupo", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.group_create), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -170,6 +183,42 @@ fun CrearGrupoScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 AnimatedVisibility(
+                    visible = section0Visible,
+                    enter = fadeIn(tween(300)) + slideInVertically { it / 4 }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Tipo de grupo",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            GroupTypeCard(
+                                selected = groupType == "CLASSROOM",
+                                icon = Icons.Default.School,
+                                title = stringResource(R.string.group_type_classroom),
+                                description = stringResource(R.string.group_type_classroom_desc),
+                                modifier = Modifier.weight(1f),
+                                onClick = { groupType = "CLASSROOM" }
+                            )
+                            GroupTypeCard(
+                                selected = groupType == "STUDY",
+                                icon = Icons.Default.Groups,
+                                title = stringResource(R.string.group_type_study),
+                                description = stringResource(R.string.group_type_study_desc),
+                                modifier = Modifier.weight(1f),
+                                onClick = { groupType = "STUDY" }
+                            )
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
                     visible = section1Visible,
                     enter = fadeIn(tween(350)) + slideInVertically { it / 3 }
                 ) {
@@ -191,7 +240,7 @@ fun CrearGrupoScreen(
                                 OutlinedTextField(
                                     value = nombre,
                                     onValueChange = { if (it.length <= 50) nombre = it },
-                                    label = { Text("Nombre del grupo") },
+                                    label = { Text(stringResource(R.string.group_name_hint)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                     shape = MaterialTheme.shapes.large,
@@ -209,7 +258,7 @@ fun CrearGrupoScreen(
                                 OutlinedTextField(
                                     value = descripcion,
                                     onValueChange = { descripcion = it },
-                                    label = { Text("Descripción (opcional)") },
+                                    label = { Text(stringResource(R.string.group_description_hint)) },
                                     modifier = Modifier.fillMaxWidth(),
                                     maxLines = 3,
                                     shape = MaterialTheme.shapes.large
@@ -246,12 +295,12 @@ fun CrearGrupoScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Grupo privado",
+                                        text = stringResource(R.string.group_private),
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "Solo puedes unirte con código de invitación",
+                                        text = stringResource(R.string.group_private_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -274,12 +323,12 @@ fun CrearGrupoScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Se generará un código de invitación automáticamente.",
+                                    text = stringResource(R.string.group_code_auto),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Compártelo con tus compañeros para que se unan.",
+                                    text = stringResource(R.string.group_code_share),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                 )
@@ -305,13 +354,57 @@ fun CrearGrupoScreen(
                             } else {
                                 Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.size(8.dp))
-                                Text("Crear grupo", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                Text(stringResource(R.string.group_create), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                             }
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun GroupTypeCard(
+    selected: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val bgColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+
+    Card(
+        modifier = modifier
+            .border(width = if (selected) 2.dp else 1.dp, color = borderColor, shape = MaterialTheme.shapes.large)
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = bgColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(28.dp)
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

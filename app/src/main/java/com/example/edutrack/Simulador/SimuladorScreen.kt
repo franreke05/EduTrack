@@ -91,7 +91,9 @@ import androidx.compose.ui.unit.dp
 import android.content.Intent
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.example.edutrack.Premium.UpgradeSheet
+import com.example.edutrack.R
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.Notas
@@ -198,7 +200,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
         containerColor = cs.background,
         topBar = {
             TopAppBar(
-                title = { Text("Simulador", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.simulator_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
@@ -258,13 +260,13 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                     }
                                 }
                                 Text(
-                                    "¿Qué nota necesitas\nen el examen?",
+                                    stringResource(R.string.simulador_hero_title),
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
                                 )
                                 Text(
-                                    "Selecciona asignatura, indica el peso del examen\ny te decimos exactamente lo que necesitas.",
+                                    stringResource(R.string.simulador_hero_subtitle),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.White.copy(alpha = 0.85f)
                                 )
@@ -305,12 +307,12 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                         }
                                     }
                                     Text(
-                                        "Sin cursos todavía",
+                                        stringResource(R.string.simulador_no_courses),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        "Crea un curso y añade asignaturas para calcular qué nota necesitas.",
+                                        stringResource(R.string.simulador_no_courses_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = cs.onSurfaceVariant,
                                         textAlign = TextAlign.Center
@@ -320,13 +322,13 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                         } else {
                             // Course selector (only when more than one)
                             if (anios.size > 1) {
-                                SectionHeader("Curso")
+                                SectionHeader(stringResource(R.string.simulador_course_label))
                                 ExposedDropdownMenuBox(
                                     expanded = anioMenuExpanded,
                                     onExpandedChange = { anioMenuExpanded = it }
                                 ) {
                                     OutlinedTextField(
-                                        value = selectedAnio?.nombre ?: "Selecciona un curso",
+                                        value = selectedAnio?.nombre ?: stringResource(R.string.simulador_select_course),
                                         onValueChange = {},
                                         readOnly = true,
                                         modifier = Modifier
@@ -362,7 +364,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.Bottom
                                 ) {
-                                    SectionHeader("Asignatura")
+                                    SectionHeader(stringResource(R.string.simulador_subject_label))
                                     if (anios.size == 1) {
                                         Text(
                                             text = selectedAnio?.nombre ?: "",
@@ -373,7 +375,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                 }
                                 if (asignaturas.isEmpty()) {
                                     Text(
-                                        text = "Este curso no tiene asignaturas aún.",
+                                        text = stringResource(R.string.simulador_no_subjects),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = cs.onSurfaceVariant
                                     )
@@ -413,7 +415,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                     currentPartialAvg >= notaMinimaAnio -> cs.primary
                                     else -> cs.error
                                 }
-                                SectionHeader("Situación actual")
+                                SectionHeader(stringResource(R.string.simulador_current_situation))
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(containerColor = cs.surface),
@@ -432,7 +434,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                         ) {
                                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                                 Text(
-                                                    text = "Media actual",
+                                                    text = stringResource(R.string.simulador_current_avg),
                                                     style = MaterialTheme.typography.labelMedium,
                                                     color = cs.onSurfaceVariant
                                                 )
@@ -443,7 +445,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                     color = if (currentPartialAvg != null) avgColor else cs.onSurfaceVariant
                                                 )
                                                 Text(
-                                                    text = "de lo evaluado hasta ahora",
+                                                    text = stringResource(R.string.simulador_evaluated_so_far),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = cs.onSurfaceVariant
                                                 )
@@ -459,7 +461,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                     color = cs.onSurfaceVariant
                                                 )
                                                 Text(
-                                                    text = "evaluado",
+                                                    text = stringResource(R.string.simulador_evaluated_label),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = cs.onSurfaceVariant
                                                 )
@@ -502,7 +504,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                         .background(notaColor)
                                                 )
                                                 Text(
-                                                    text = nota.nombre?.ifBlank { "Evaluación" } ?: "Evaluación",
+                                                    text = nota.nombre?.ifBlank { stringResource(R.string.simulador_evaluation_label) } ?: stringResource(R.string.simulador_evaluation_label),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     modifier = Modifier.weight(1f)
                                                 )
@@ -530,7 +532,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                         modifier = Modifier.padding(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        SectionHeader("El examen")
+                                        SectionHeader(stringResource(R.string.simulador_exam_section))
                                         OutlinedTextField(
                                             value = examPct,
                                             onValueChange = { v ->
@@ -539,8 +541,8 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                     examPctAutoFilled = true
                                                 }
                                             },
-                                            label = { Text("¿Qué % representa el examen?") },
-                                            placeholder = { Text("ej. 40") },
+                                            label = { Text(stringResource(R.string.simulador_exam_pct_label)) },
+                                            placeholder = { Text(stringResource(R.string.simulador_exam_pct_placeholder)) },
                                             suffix = { Text("%") },
                                             modifier = Modifier.fillMaxWidth(),
                                             singleLine = true,
@@ -551,7 +553,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                 examOverflow -> {
                                                     {
                                                         Text(
-                                                            "El total supera el 100 % (ya evaluado: ${usedWeight.toInt()} %)",
+                                                            stringResource(R.string.simulador_exam_pct_overflow, usedWeight.toInt()),
                                                             color = cs.error
                                                         )
                                                     }
@@ -559,7 +561,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                                 notasPeriodo.isEmpty() && examPct.isBlank() -> {
                                                     {
                                                         Text(
-                                                            "Sin evaluaciones previas: el examen cubrirá el % que indiques",
+                                                            stringResource(R.string.simulador_exam_no_prev),
                                                             color = cs.onSurfaceVariant
                                                         )
                                                     }
@@ -569,7 +571,7 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
                                         )
 
                                         Text(
-                                            text = "Nota objetivo",
+                                            text = stringResource(R.string.simulador_target_label),
                                             style = MaterialTheme.typography.labelLarge,
                                             color = cs.onSurfaceVariant
                                         )
@@ -641,8 +643,8 @@ fun SimuladorScreen(userId: String?, onBack: () -> Unit = {}, onPaywall: () -> U
 
     if (showTargetUpgrade) {
         UpgradeSheet(
-            title = "Objetivos personalizados",
-            message = "Los objetivos personalizados son Premium. Gratis puedes calcular qué necesitas para aprobar con objetivo 5.",
+            title = stringResource(R.string.simulador_custom_targets_title),
+            message = stringResource(R.string.simulador_custom_targets_msg),
             onUpgrade = onPaywall,
             onDismiss = { showTargetUpgrade = false }
         )
@@ -851,40 +853,49 @@ private fun SimResultadoCard(
     val cuerpo: String
     val gradeDisplayColor: Color
 
+    val strComfortable = stringResource(R.string.simulador_badge_comfortable)
+    val strReachable = stringResource(R.string.simulador_badge_reachable)
+    val strDemanding = stringResource(R.string.simulador_badge_demanding)
+    val strLimit = stringResource(R.string.simulador_badge_limit)
+    val strBodyComfortable = stringResource(R.string.simulador_body_comfortable)
+    val strBodyReachable = stringResource(R.string.simulador_body_reachable)
+    val strBodyDemanding = stringResource(R.string.simulador_body_demanding)
+    val strBodyLimit = stringResource(R.string.simulador_body_limit)
+
     when (resultado) {
         is RequiredGradeResult.Needed -> {
             val g = resultado.grade
-            badgeLabel = when { g <= 5.0 -> "Cómodo"; g <= 7.0 -> "Alcanzable"; g <= 9.0 -> "Exigente"; else -> "Límite" }
+            badgeLabel = when { g <= 5.0 -> strComfortable; g <= 7.0 -> strReachable; g <= 9.0 -> strDemanding; else -> strLimit }
             badgeContainerColor = when { g <= 5.0 -> cs.tertiaryContainer; g <= 7.0 -> cs.primaryContainer; g <= 9.0 -> cs.secondaryContainer; else -> cs.errorContainer }
             badgeContentColor = when { g <= 5.0 -> cs.onTertiaryContainer; g <= 7.0 -> cs.onPrimaryContainer; g <= 9.0 -> cs.onSecondaryContainer; else -> cs.onErrorContainer }
             cardContainerColor = cs.surface
             cardContentColor = cs.onSurface
-            titulo = "Nota necesaria en el examen"
-            cuerpo = when { g <= 5.0 -> "Está bien encaminado. Sigue repasando y llegarás tranquilo."; g <= 7.0 -> "Al alcance con un buen repaso. Organiza bien el tiempo de estudio."; g <= 9.0 -> "Es exigente. Centra todo el esfuerzo en este examen."; else -> "Solo tienes margen mínimo. Máximo rendimiento el día del examen." }
+            titulo = stringResource(R.string.simulador_grade_needed)
+            cuerpo = when { g <= 5.0 -> strBodyComfortable; g <= 7.0 -> strBodyReachable; g <= 9.0 -> strBodyDemanding; else -> strBodyLimit }
             gradeDisplayColor = when { g <= 7.0 -> cs.tertiary; g <= 9.0 -> cs.primary; else -> cs.error }
         }
         RequiredGradeResult.AlreadyEnough -> {
-            badgeLabel = "Aprobado asegurado"; badgeContainerColor = cs.tertiaryContainer; badgeContentColor = cs.onTertiaryContainer
+            badgeLabel = stringResource(R.string.simulador_badge_secured); badgeContainerColor = cs.tertiaryContainer; badgeContentColor = cs.onTertiaryContainer
             cardContainerColor = cs.tertiaryContainer; cardContentColor = cs.onTertiaryContainer
-            titulo = "¡Ya tienes suficiente!"; cuerpo = "Con las notas que llevas ya superas tu objetivo aunque suspendieras el examen."
+            titulo = stringResource(R.string.simulador_already_enough_title); cuerpo = stringResource(R.string.simulador_already_enough_body)
             gradeDisplayColor = cs.tertiary
         }
         RequiredGradeResult.Impossible -> {
-            badgeLabel = "Imposible"; badgeContainerColor = cs.errorContainer; badgeContentColor = cs.onErrorContainer
+            badgeLabel = stringResource(R.string.simulador_badge_impossible); badgeContainerColor = cs.errorContainer; badgeContentColor = cs.onErrorContainer
             cardContainerColor = cs.errorContainer; cardContentColor = cs.onErrorContainer
-            titulo = "No es posible con este examen"; cuerpo = "Aunque saques un 10 no llegas al objetivo. Prueba a bajar la nota objetivo o revisa el porcentaje del examen."
+            titulo = stringResource(R.string.simulador_impossible_title); cuerpo = stringResource(R.string.simulador_impossible_body)
             gradeDisplayColor = cs.error
         }
         RequiredGradeResult.Completed -> {
-            badgeLabel = "Periodo cerrado"; badgeContainerColor = cs.surfaceVariant; badgeContentColor = cs.onSurfaceVariant
+            badgeLabel = stringResource(R.string.simulador_badge_closed); badgeContainerColor = cs.surfaceVariant; badgeContentColor = cs.onSurfaceVariant
             cardContainerColor = cs.surfaceVariant; cardContentColor = cs.onSurfaceVariant
-            titulo = "Periodo cerrado"; cuerpo = "El 100 % ya está evaluado. No hay margen para este examen."
+            titulo = stringResource(R.string.simulador_closed_title); cuerpo = stringResource(R.string.simulador_closed_body)
             gradeDisplayColor = cs.onSurfaceVariant
         }
         RequiredGradeResult.InvalidData -> {
-            badgeLabel = "Error"; badgeContainerColor = cs.errorContainer; badgeContentColor = cs.onErrorContainer
+            badgeLabel = stringResource(R.string.simulador_badge_error); badgeContainerColor = cs.errorContainer; badgeContentColor = cs.onErrorContainer
             cardContainerColor = cs.errorContainer; cardContentColor = cs.onErrorContainer
-            titulo = "Datos no válidos"; cuerpo = "Comprueba que el objetivo esté entre 0 y 10."
+            titulo = stringResource(R.string.simulador_invalid_title); cuerpo = stringResource(R.string.simulador_invalid_body)
             gradeDisplayColor = cs.error
         }
     }
@@ -964,7 +975,7 @@ private fun SimResultadoCard(
                             color = gradeDisplayColor
                         )
                         Text(
-                            text = "/ 10",
+                            text = stringResource(R.string.simulador_avg_grade_slash),
                             style = MaterialTheme.typography.bodyMedium,
                             color = cardContentColor.copy(alpha = 0.6f)
                         )
@@ -990,13 +1001,18 @@ private fun SimResultadoCard(
             }
             Text(cuerpo, style = MaterialTheme.typography.bodyMedium, color = cardContentColor.copy(alpha = 0.85f))
 
+            val shareNeeded = stringResource(R.string.simulador_share_needed)
+            val shareAlready = stringResource(R.string.simulador_share_already)
+            val shareImpossible = stringResource(R.string.simulador_share_impossible)
             val shareText = when (resultado) {
-                is RequiredGradeResult.Needed -> "Necesito un ${"%.2f".format(resultado.grade)} para aprobar $asignaturaName con objetivo $objetivo — EduTrack 📊"
-                RequiredGradeResult.AlreadyEnough -> "¡Tengo el aprobado asegurado en $asignaturaName! — EduTrack 📊"
-                RequiredGradeResult.Impossible -> "Con las notas que llevo no puedo pasar $asignaturaName aunque saque un 10. A por la ordinaria... — EduTrack"
+                is RequiredGradeResult.Needed -> shareNeeded.format("%.2f".format(resultado.grade), asignaturaName, objetivo)
+                RequiredGradeResult.AlreadyEnough -> shareAlready.format(asignaturaName)
+                RequiredGradeResult.Impossible -> shareImpossible.format(asignaturaName)
                 else -> null
             }
             if (shareText != null) {
+                val shareResultTitle = stringResource(R.string.simulador_share_result_title)
+                val shareResultCd = stringResource(R.string.simulador_share_cd)
                 androidx.compose.foundation.layout.Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.CenterEnd
@@ -1008,11 +1024,11 @@ private fun SimResultadoCard(
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_TEXT, shareText)
                                 },
-                                "Compartir resultado"
+                                shareResultTitle
                             )
                         )
                     }) {
-                        Icon(Icons.Default.Share, contentDescription = "Compartir", tint = cardContentColor.copy(alpha = 0.6f))
+                        Icon(Icons.Default.Share, contentDescription = shareResultCd, tint = cardContentColor.copy(alpha = 0.6f))
                     }
                 }
             }
@@ -1038,7 +1054,7 @@ private fun SimScenarioTable(
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "¿Qué pasa si sacas en el examen?",
+                stringResource(R.string.simulador_scenario_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = cs.primary
@@ -1094,7 +1110,7 @@ private fun SimScenarioTable(
                             ) {
                                 Text("→", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
                                 Text(
-                                    text = "media ${String.format("%.2f", resultingAvg)}",
+                                    text = "${stringResource(R.string.notas_media_label)} ${String.format("%.2f", resultingAvg)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = rowColor

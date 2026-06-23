@@ -64,6 +64,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.edutrack.R
 import com.example.edutrack.Premium.UpgradeSheet
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.UserGroup
@@ -358,9 +360,9 @@ private fun hslToColor(h: Float, s: Float, l: Float): Color {
 @Composable
 private fun GrupoCard(userGroup: UserGroup, onClick: () -> Unit) {
     val roleLabel = when (userGroup.role) {
-        GroupRole.OWNER.name -> "Propietario"
-        GroupRole.ADMIN.name -> "Admin"
-        else -> "Miembro"
+        GroupRole.OWNER.name -> stringResource(R.string.group_role_owner)
+        GroupRole.ADMIN.name -> stringResource(R.string.group_role_admin)
+        else -> stringResource(R.string.group_role_member)
     }
     val roleIcon: ImageVector = when (userGroup.role) {
         GroupRole.OWNER.name -> Icons.Default.Star
@@ -499,7 +501,7 @@ private fun GruposBottomActionBar(
             ) {
                 Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Unirme", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.action_join), fontWeight = FontWeight.SemiBold)
             }
             Button(
                 onClick = onCrear,
@@ -518,7 +520,7 @@ private fun GruposBottomActionBar(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Crear", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.action_create), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -575,7 +577,7 @@ private fun GruposEmptyState(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Unirme con código", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.group_join), fontWeight = FontWeight.SemiBold)
                 }
                 FilledTonalButton(
                     onClick = onCrear,
@@ -590,7 +592,7 @@ private fun GruposEmptyState(
                         Spacer(modifier = Modifier.width(8.dp))
                     }
                     Text(
-                        text = if (canCreate) "Crear grupo" else "Crear grupo (Premium)",
+                        text = if (canCreate) stringResource(R.string.group_create) else stringResource(R.string.group_create) + " (Premium)",
                         fontWeight = FontWeight.SemiBold
                     )
                 }

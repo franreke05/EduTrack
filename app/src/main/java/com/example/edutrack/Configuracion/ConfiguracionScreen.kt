@@ -1,9 +1,11 @@
 package com.example.edutrack.Configuracion
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import com.example.edutrack.utils.saveLang
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +58,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.edutrack.R
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.data.darkModeFlow
 import com.example.edutrack.data.languageFlow
@@ -95,7 +99,10 @@ fun ConfiguracionScreen(
             currentLanguage = language,
             onSelect = { lang ->
                 scope.launch { context.setLanguage(lang) }
+                context.saveLang(lang)
                 showLanguageDialog = false
+                // Recrea la activity para que el nuevo locale se aplique de inmediato
+                (context as? Activity)?.recreate()
             },
             onDismiss = { showLanguageDialog = false }
         )
@@ -105,10 +112,10 @@ fun ConfiguracionScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Configuración", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.config_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.config_back_cd))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -134,20 +141,20 @@ fun ConfiguracionScreen(
 
                 // ── Apariencia ─────────────────────────────────────────────
                 item {
-                    SectionHeader("Apariencia")
+                    SectionHeader(stringResource(R.string.config_section_appearance))
                     SettingsCard {
                         SettingToggleItem(
                             icon = Icons.Rounded.DarkMode,
-                            title = "Modo oscuro",
-                            subtitle = if (isDarkMode) "Activado" else "Desactivado",
+                            title = stringResource(R.string.config_dark_mode),
+                            subtitle = if (isDarkMode) stringResource(R.string.config_enabled) else stringResource(R.string.config_disabled),
                             checked = isDarkMode,
                             onToggle = { scope.launch { context.setDarkMode(!isDarkMode) } }
                         )
                         SettingsDivider()
                         SettingItem(
                             icon = Icons.Rounded.Language,
-                            title = "Idioma",
-                            subtitle = if (language == "es") "Español" else "English",
+                            title = stringResource(R.string.config_language),
+                            subtitle = if (language == "es") stringResource(R.string.config_lang_es) else stringResource(R.string.config_lang_en),
                             onClick = { showLanguageDialog = true }
                         )
                     }
@@ -155,12 +162,12 @@ fun ConfiguracionScreen(
 
                 // ── Notificaciones ─────────────────────────────────────────
                 item {
-                    SectionHeader("Notificaciones")
+                    SectionHeader(stringResource(R.string.config_section_notifications))
                     SettingsCard {
                         SettingToggleItem(
                             icon = Icons.Rounded.Notifications,
-                            title = "Notificaciones push",
-                            subtitle = if (notificationsEnabled) "Activadas" else "Desactivadas",
+                            title = stringResource(R.string.config_push_notifications),
+                            subtitle = if (notificationsEnabled) stringResource(R.string.config_enabled_plural) else stringResource(R.string.config_disabled_plural),
                             checked = notificationsEnabled,
                             onToggle = { scope.launch { context.setNotificationsEnabled(!notificationsEnabled) } }
                         )
@@ -169,17 +176,17 @@ fun ConfiguracionScreen(
 
                 // ── Privacidad y legal ─────────────────────────────────────
                 item {
-                    SectionHeader("Privacidad y legal")
+                    SectionHeader(stringResource(R.string.config_section_privacy))
                     SettingsCard {
                         SettingItem(
                             icon = Icons.Rounded.Lock,
-                            title = "Política de privacidad",
+                            title = stringResource(R.string.config_privacy_policy),
                             onClick = { context.openExternalUrl("https://edutrack.app/privacy") }
                         )
                         SettingsDivider()
                         SettingItem(
                             icon = Icons.Rounded.Gavel,
-                            title = "Términos de servicio",
+                            title = stringResource(R.string.config_terms_of_service),
                             onClick = { context.openExternalUrl("https://edutrack.app/terms") }
                         )
                     }
@@ -187,30 +194,30 @@ fun ConfiguracionScreen(
 
                 // ── Soporte ────────────────────────────────────────────────
                 item {
-                    SectionHeader("Soporte")
+                    SectionHeader(stringResource(R.string.config_section_support))
                     SettingsCard {
                         SettingItem(
                             icon = Icons.Rounded.Email,
-                            title = "Contactar soporte",
+                            title = stringResource(R.string.config_contact_support),
                             subtitle = SUPPORT_EMAIL,
-                            onClick = { context.openSupportEmail() }
+                            onClick = { context.openSupportEmail(context.getString(R.string.config_support_email_subject), context.getString(R.string.config_support_chooser)) }
                         )
                         SettingsDivider()
                         SettingItem(
                             icon = Icons.Rounded.Star,
-                            title = "Valorar la app",
-                            onClick = { context.openPlayStoreListing() }
+                            title = stringResource(R.string.config_rate_app),
+                            onClick = { context.openPlayStoreListing(context.getString(R.string.config_no_app_available)) }
                         )
                     }
                 }
 
                 // ── Acerca de ──────────────────────────────────────────────
                 item {
-                    SectionHeader("Acerca de")
+                    SectionHeader(stringResource(R.string.config_section_about))
                     SettingsCard {
                         SettingItem(
                             icon = Icons.Rounded.Info,
-                            title = "Versión",
+                            title = stringResource(R.string.config_version),
                             subtitle = versionName
                         )
                     }
@@ -373,10 +380,10 @@ private fun LanguageDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf("es" to "Español", "en" to "English")
+    val options = listOf("es" to stringResource(R.string.config_lang_es), "en" to stringResource(R.string.config_lang_en))
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Idioma") },
+        title = { Text(stringResource(R.string.config_language)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 options.forEach { (code, label) ->
@@ -400,7 +407,7 @@ private fun LanguageDialog(
                             )
                             if (!isEnabled) {
                                 Text(
-                                    text = "Próximamente",
+                                    text = stringResource(R.string.config_coming_soon),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -411,7 +418,7 @@ private fun LanguageDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cerrar") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         }
     )
 }
@@ -422,31 +429,31 @@ private fun Context.openExternalUrl(url: String) {
     startActivitySafely(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 }
 
-private fun Context.openSupportEmail() {
+private fun Context.openSupportEmail(emailSubject: String, chooserTitle: String) {
     val intent = Intent(Intent.ACTION_SENDTO).apply {
         data = Uri.parse("mailto:$SUPPORT_EMAIL")
         putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
-        putExtra(Intent.EXTRA_SUBJECT, "Soporte EduTrack")
+        putExtra(Intent.EXTRA_SUBJECT, emailSubject)
     }
-    startActivitySafely(Intent.createChooser(intent, "Contactar soporte"))
+    startActivitySafely(Intent.createChooser(intent, chooserTitle))
 }
 
-private fun Context.openPlayStoreListing() {
+private fun Context.openPlayStoreListing(noAppMsg: String) {
     val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$PLAY_STORE_PACKAGE_ID"))
     val webIntent = Intent(
         Intent.ACTION_VIEW,
         Uri.parse("https://play.google.com/store/apps/details?id=$PLAY_STORE_PACKAGE_ID")
     )
-    startActivitySafely(marketIntent, fallback = webIntent)
+    startActivitySafely(marketIntent, fallback = webIntent, noAppMsg = noAppMsg)
 }
 
-private fun Context.startActivitySafely(intent: Intent, fallback: Intent? = null) {
+private fun Context.startActivitySafely(intent: Intent, fallback: Intent? = null, noAppMsg: String = "") {
     val opened = runCatching { startActivity(intent); true }.getOrDefault(false)
     if (opened) return
     val fallbackOpened = fallback?.let {
         runCatching { startActivity(it); true }.getOrDefault(false)
     } ?: false
     if (!fallbackOpened) {
-        Toast.makeText(this, "No hay una aplicación disponible", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, noAppMsg, Toast.LENGTH_SHORT).show()
     }
 }

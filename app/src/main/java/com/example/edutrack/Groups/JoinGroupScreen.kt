@@ -51,8 +51,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.example.edutrack.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.Premium.UpgradeSheet
@@ -220,7 +222,7 @@ fun UnirseGrupoScreen(
                                 OutlinedTextField(
                                     value = inviteCode,
                                     onValueChange = { v -> inviteCode = v.uppercase().take(6) },
-                                    label = { Text("Código de invitación") },
+                                    label = { Text(stringResource(R.string.group_invite_code)) },
                                     placeholder = { Text("Ej. ABC123") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
@@ -297,7 +299,7 @@ fun UnirseGrupoScreen(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text("Unirme al grupo", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.group_join), fontWeight = FontWeight.Bold)
                             }
                         }
                     }

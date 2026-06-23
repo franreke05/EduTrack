@@ -38,8 +38,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.example.edutrack.R
 import androidx.compose.ui.unit.dp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -152,7 +154,7 @@ fun InviteQrSheet(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Copiar")
+                    Text(stringResource(R.string.action_copy))
                 }
                 FilledTonalButton(
                     onClick = {
@@ -169,7 +171,7 @@ fun InviteQrSheet(
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Compartir")
+                    Text(stringResource(R.string.action_share))
                 }
             }
             Spacer(modifier = Modifier.height(20.dp))

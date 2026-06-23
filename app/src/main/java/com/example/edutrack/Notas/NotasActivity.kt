@@ -1,6 +1,8 @@
 package com.example.edutrack.Notas
 
+import android.content.Context
 import android.Manifest
+import com.example.edutrack.utils.wrapWithLocale
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -108,7 +110,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.example.edutrack.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -137,6 +141,7 @@ import kotlinx.coroutines.launch
 
 // Activity que muestra la pantalla de notas de una asignatura.
 class NotasActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -149,7 +154,7 @@ class NotasActivity : ComponentActivity() {
         val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
         if (asignaturaId.isEmpty()) {
-            Toast.makeText(this, "Asignatura no encontrada.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.notas_subject_not_found), Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -220,7 +225,7 @@ fun NotasScreen(
                 notasLoaded = true
             }
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Error leyendo notas", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.notas_error_reading_grades), Toast.LENGTH_SHORT).show()
             }
         }
         notasRef.addValueEventListener(listener)
@@ -236,7 +241,7 @@ fun NotasScreen(
                 examenesState.value = lista
             }
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Error leyendo exámenes", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.notas_error_reading_exams), Toast.LENGTH_SHORT).show()
             }
         }
         examsRef.addValueEventListener(listener)
@@ -271,21 +276,21 @@ fun NotasScreen(
                 title = { Text(asignaturaNombre) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.notas_back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         snackbarScope.launch {
-                            snackbarHostState.showSnackbar("Gestiona notas con porcentaje por $tipoPeriodo")
+                            snackbarHostState.showSnackbar(context.getString(R.string.notas_info_snackbar, tipoPeriodo))
                         }
                     }) {
-                        Icon(Icons.Default.Info, contentDescription = "Información")
+                        Icon(Icons.Default.Info, contentDescription = stringResource(R.string.notas_info_cd))
                     }
                     IconButton(onClick = { showDeleteAsignatura = true }) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Eliminar asignatura",
+                            contentDescription = stringResource(R.string.notas_delete_subject_cd),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -304,7 +309,7 @@ fun NotasScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                Text("Añadir nota", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.notas_add_fab), fontWeight = FontWeight.Bold)
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -355,7 +360,7 @@ fun NotasScreen(
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
-                            Text("Media global", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            Text(stringResource(R.string.notas_global_average), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                         }
                         Column(
                             modifier = Modifier
@@ -370,7 +375,7 @@ fun NotasScreen(
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
-                            Text("Evaluado", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            Text(stringResource(R.string.notas_evaluated), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                         }
                         Column(
                             modifier = Modifier
@@ -385,7 +390,7 @@ fun NotasScreen(
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
-                            Text("Notas", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            Text(stringResource(R.string.notas_count), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                         }
                     }
                 }
@@ -420,7 +425,7 @@ fun NotasScreen(
                                         modifier = Modifier.size(17.dp))
                                 }
                                 Text(
-                                    "Próximos exámenes",
+                                    stringResource(R.string.notas_upcoming_exams),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -444,7 +449,7 @@ fun NotasScreen(
                                 onClick = { examenEnEdicion = null; showExamenSheet = true },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Agregar examen",
+                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.notas_add_exam_cd),
                                     tint = MaterialTheme.colorScheme.primary)
                             }
                         }
@@ -461,7 +466,7 @@ fun NotasScreen(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.size(18.dp))
                                 Text(
-                                    "Sin exámenes — toca + para añadir",
+                                    stringResource(R.string.notas_exam_empty_hint),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -703,13 +708,13 @@ fun NotasScreen(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
-                ) { Text("Eliminar") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm.value = null }) { Text("Cancelar") }
+                TextButton(onClick = { showDeleteConfirm.value = null }) { Text(stringResource(R.string.action_cancel)) }
             },
-            title = { Text("Eliminar nota") },
-            text = { Text("¿Seguro que deseas eliminar ${nota.nombre}?") }
+            title = { Text(stringResource(R.string.notas_delete_grade_title)) },
+            text = { Text(stringResource(R.string.notas_delete_grade_text, nota.nombre ?: "")) }
         )
     }
 
@@ -727,13 +732,13 @@ fun NotasScreen(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
-                ) { Text("Eliminar") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAsignatura = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDeleteAsignatura = false }) { Text(stringResource(R.string.action_cancel)) }
             },
-            title = { Text("Eliminar asignatura") },
-            text = { Text("¿Deseas eliminar toda la asignatura y sus notas?") }
+            title = { Text(stringResource(R.string.notas_delete_subject_title)) },
+            text = { Text(stringResource(R.string.notas_delete_subject_text)) }
         )
     }
 }
@@ -742,12 +747,17 @@ fun NotasScreen(
 @Composable
 private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: Double) {
     val colorScheme = MaterialTheme.colorScheme
+    val statusStart = stringResource(R.string.notas_status_start)
+    val statusGood = stringResource(R.string.notas_status_good)
+    val statusPassing = stringResource(R.string.notas_status_passing)
+    val statusAttention = stringResource(R.string.notas_status_attention)
+    val statusAlert = stringResource(R.string.notas_status_alert)
     val (estadoLabel, estadoColor) = when {
-        porcentajeTotal <= 0.0 -> "¡Empieza a calificar!" to colorScheme.onSurfaceVariant
-        promedio >= 7.0 -> "Buen ritmo" to colorScheme.tertiary
-        promedio >= 5.0 -> "Vas aprobando" to colorScheme.primary
-        promedio >= 4.0 -> "Necesita atención" to colorScheme.error
-        else -> "Atención" to colorScheme.error
+        porcentajeTotal <= 0.0 -> statusStart to colorScheme.onSurfaceVariant
+        promedio >= 7.0 -> statusGood to colorScheme.tertiary
+        promedio >= 5.0 -> statusPassing to colorScheme.primary
+        promedio >= 4.0 -> statusAttention to colorScheme.error
+        else -> statusAlert to colorScheme.error
     }
     val promedioColor = when {
         porcentajeTotal <= 0.0 -> colorScheme.onSurfaceVariant
@@ -810,7 +820,7 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
                         color = promedioColor
                     )
                     Text(
-                        text = "media",
+                        text = stringResource(R.string.notas_media_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant
                     )
@@ -845,12 +855,12 @@ private fun EncabezadoNotas(nombre: String, promedio: Double, porcentajeTotal: D
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        "${String.format("%.0f", porcentajeTotal)}% evaluado",
+                        stringResource(R.string.notas_evaluated_pct, String.format("%.0f", porcentajeTotal)),
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "${String.format("%.0f", (100 - porcentajeTotal).coerceAtLeast(0.0))}% restante",
+                        stringResource(R.string.notas_remaining_pct, String.format("%.0f", (100 - porcentajeTotal).coerceAtLeast(0.0))),
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
@@ -923,12 +933,17 @@ private fun ListaNotasPorPeriodo(
 @Composable
 private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
     val colorScheme = MaterialTheme.colorScheme
+    val strPending = stringResource(R.string.notas_status_pending)
+    val strComplete = stringResource(R.string.notas_status_complete)
+    val strWell = stringResource(R.string.notas_status_well)
+    val strRisk = stringResource(R.string.notas_status_risk)
+    val strOngoing = stringResource(R.string.notas_status_ongoing)
     val (estadoLabel, containerColor, progressColor) = when {
-        porcentaje <= 0.0 -> Triple("Pendiente", colorScheme.surfaceVariant, colorScheme.outline)
-        porcentaje >= 99.9 -> Triple("Completo", colorScheme.tertiaryContainer, colorScheme.tertiary)
-        media != null && media >= 5.0 -> Triple("Vas bien", colorScheme.secondaryContainer, colorScheme.secondary)
-        media != null -> Triple("En riesgo", colorScheme.errorContainer, colorScheme.error)
-        else -> Triple("En curso", colorScheme.surfaceVariant, colorScheme.primary)
+        porcentaje <= 0.0 -> Triple(strPending, colorScheme.surfaceVariant, colorScheme.outline)
+        porcentaje >= 99.9 -> Triple(strComplete, colorScheme.tertiaryContainer, colorScheme.tertiary)
+        media != null && media >= 5.0 -> Triple(strWell, colorScheme.secondaryContainer, colorScheme.secondary)
+        media != null -> Triple(strRisk, colorScheme.errorContainer, colorScheme.error)
+        else -> Triple(strOngoing, colorScheme.surfaceVariant, colorScheme.primary)
     }
     val animatedProgress by animateFloatAsState(
         targetValue = (porcentaje / 100.0).toFloat().coerceIn(0f, 1f),
@@ -985,7 +1000,7 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
                             )
-                            Text(text = "media", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
+                            Text(text = stringResource(R.string.notas_media_label), style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -995,7 +1010,7 @@ private fun PeriodoHeader(label: String, media: Double?, porcentaje: Double) {
                             fontWeight = FontWeight.Bold,
                             color = colorScheme.onSurface
                         )
-                        Text(text = "evaluado", style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
+                        Text(text = stringResource(R.string.notas_evaluated_label), style = MaterialTheme.typography.labelSmall, color = colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -1042,13 +1057,13 @@ private fun EmptyPeriodoState() {
             )
         }
         Text(
-            "¡Sin notas aún!",
+            stringResource(R.string.notas_empty_title),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Pulsa + para añadir tu primera nota",
+            stringResource(R.string.notas_empty_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -1139,12 +1154,12 @@ private fun NotaRow(nota: Notas, onEditar: () -> Unit, onEliminar: () -> Unit) {
                 }
             }
             IconButton(onClick = onEditar, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Edit, contentDescription = "Editar",
+                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.notas_edit_cd),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onEliminar, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.notas_delete_cd),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.error)
             }
@@ -1161,6 +1176,7 @@ private fun NotaSheetContent(
     onDismiss: () -> Unit,
     onSave: (Notas) -> Unit
 ) {
+    val context = LocalContext.current
     val nombre = remember { mutableStateOf(nota?.nombre ?: "") }
     val fecha = remember { mutableStateOf(nota?.fecha ?: "") }
     val periodo = remember { mutableStateOf(nota?.periodo ?: 1) }
@@ -1188,7 +1204,7 @@ private fun NotaSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = if (nota == null) "Agregar nota" else "Editar nota",
+            text = if (nota == null) stringResource(R.string.notas_add_title) else stringResource(R.string.notas_edit_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -1198,21 +1214,21 @@ private fun NotaSheetContent(
         OutlinedTextField(
             value = nombre.value,
             onValueChange = { nombre.value = it; nombreError = false },
-            label = { Text("Nombre del examen") },
+            label = { Text(stringResource(R.string.notas_exam_name_label)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = nombreError,
-            supportingText = if (nombreError) { { Text("Introduce el nombre del examen") } } else null
+            supportingText = if (nombreError) { { Text(stringResource(R.string.notas_exam_name_error)) } } else null
         )
 
         OutlinedTextField(
             value = fecha.value,
             onValueChange = {},
-            label = { Text("Fecha") },
+            label = { Text(stringResource(R.string.notas_exam_date_label)) },
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),
             isError = fechaError,
-            supportingText = if (fechaError) { { Text("La fecha es obligatoria") } } else null,
+            supportingText = if (fechaError) { { Text(stringResource(R.string.notas_date_required)) } } else null,
             trailingIcon = {
                 IconButton(onClick = { mostrarCalendario = true; fechaError = false }) {
                     Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1227,7 +1243,7 @@ private fun NotaSheetContent(
         }
 
         Text(
-            text = "Nota y porcentaje",
+            text = stringResource(R.string.notas_note_pct_label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold
@@ -1241,7 +1257,7 @@ private fun NotaSheetContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text("Nota", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.notas_note_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 WheelPicker(
                     items = notaItems,
                     initialIndex = notaIndex,
@@ -1267,7 +1283,7 @@ private fun NotaSheetContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text("Porcentaje", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.notas_pct_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 WheelPicker(
                     items = porcentajeItems,
                     initialIndex = porcentajeIndex,
@@ -1293,7 +1309,7 @@ private fun NotaSheetContent(
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "Periodo",
+                stringResource(R.string.notas_period_label),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -1303,7 +1319,7 @@ private fun NotaSheetContent(
                     FilterChip(
                         selected = periodo.value == p,
                         onClick = { periodo.value = p },
-                        label = { Text("Periodo $p") },
+                        label = { Text(stringResource(R.string.notas_period_chip, p)) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -1323,7 +1339,7 @@ private fun NotaSheetContent(
             OutlinedButton(
                 onClick = onDismiss,
                 modifier = Modifier.weight(1f)
-            ) { Text("Cancelar") }
+            ) { Text(stringResource(R.string.action_cancel)) }
             Button(
                 onClick = {
                     val notaDouble = notaIndex * 0.1
@@ -1340,7 +1356,7 @@ private fun NotaSheetContent(
                         .filter { it.periodo == periodo.value && it.id != nota?.id }
                         .sumOf { it.porcentaje ?: 0.0 }
                     if (porcentajeUsado + porcentajeDouble > 100.0 + 1e-6) {
-                        porcentajeError = "El porcentaje total del periodo superaría 100%"
+                        porcentajeError = context.getString(R.string.notas_pct_overflow)
                         return@Button
                     }
                     onSave(
@@ -1355,7 +1371,7 @@ private fun NotaSheetContent(
                     )
                 },
                 modifier = Modifier.weight(1f)
-            ) { Text("Guardar", fontWeight = FontWeight.SemiBold) }
+            ) { Text(stringResource(R.string.action_save), fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -1560,18 +1576,18 @@ fun ExamenesSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Exámenes próximos",
+                stringResource(R.string.notas_upcoming_exams),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             IconButton(onClick = onAddExamen, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar examen")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.notas_add_exam_cd))
             }
         }
 
         if (examenes.isEmpty()) {
             Text(
-                "Sin exámenes programados",
+                stringResource(R.string.exam_empty),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -1616,7 +1632,7 @@ fun ExamenesSection(
                                 }
                             }
                             IconButton(onClick = { onDeleteExamen(examen) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Delete, contentDescription = "Eliminar examen", tint = MaterialTheme.colorScheme.error)
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.notas_delete_exam_cd), tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -1633,6 +1649,7 @@ fun ExamenSheetContent(
     onDismiss: () -> Unit,
     onSave: (Examen) -> Unit
 ) {
+    val context = LocalContext.current
     val nombre = remember(examen?.id) { mutableStateOf(examen?.nombre ?: "") }
     val fecha = remember(examen?.id) { mutableStateOf(examen?.fecha ?: "") }
     val hora = remember(examen?.id) { mutableStateOf(examen?.hora ?: "") }
@@ -1650,7 +1667,7 @@ fun ExamenSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            if (examen == null) "Nuevo examen" else "Editar examen",
+            if (examen == null) stringResource(R.string.notas_new_exam_title) else stringResource(R.string.notas_edit_exam_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -1663,7 +1680,7 @@ fun ExamenSheetContent(
         OutlinedTextField(
             value = nombre.value,
             onValueChange = { nombre.value = it; nombreError = null },
-            label = { Text("Nombre del examen") },
+            label = { Text(stringResource(R.string.notas_exam_name_label)) },
             modifier = Modifier.fillMaxWidth(),
             isError = nombreError != null,
             supportingText = nombreError?.let { msg -> { Text(msg) } },
@@ -1673,7 +1690,7 @@ fun ExamenSheetContent(
         OutlinedTextField(
             value = fecha.value,
             onValueChange = {},
-            label = { Text("Fecha (dd/MM/yyyy)") },
+            label = { Text(stringResource(R.string.notas_exam_date_format_label)) },
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
@@ -1692,11 +1709,11 @@ fun ExamenSheetContent(
         OutlinedTextField(
             value = hora.value,
             onValueChange = {},
-            label = { Text("Hora") },
+            label = { Text(stringResource(R.string.notas_exam_hour_label)) },
             readOnly = true,
             isError = horaError != null,
             supportingText = horaError?.let { msg -> { Text(msg) } },
-            placeholder = { Text("Toca para seleccionar") },
+            placeholder = { Text(stringResource(R.string.notas_exam_hour_placeholder)) },
             trailingIcon = {
                 IconButton(onClick = { mostrarTimePicker = true }) {
                     Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -1721,15 +1738,15 @@ fun ExamenSheetContent(
             OutlinedButton(
                 onClick = onDismiss,
                 modifier = Modifier.weight(1f)
-            ) { Text("Cancelar") }
+            ) { Text(stringResource(R.string.action_cancel)) }
             Button(
                 onClick = {
                     if (nombre.value.trim().isBlank()) {
-                        nombreError = "El nombre es obligatorio"
+                        nombreError = context.getString(R.string.notas_exam_name_required)
                         return@Button
                     }
                     if (hora.value.isBlank()) {
-                        horaError = "La hora es obligatoria"
+                        horaError = context.getString(R.string.notas_exam_hour_required)
                         return@Button
                     }
                     onSave(Examen(
@@ -1744,7 +1761,7 @@ fun ExamenSheetContent(
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Guardar", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1767,7 +1784,7 @@ fun SelectorDeHora(
         containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
-                "Hora del examen",
+                stringResource(R.string.notas_exam_hour_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -1785,11 +1802,11 @@ fun SelectorDeHora(
                     onDismiss()
                 },
                 shape = MaterialTheme.shapes.large
-            ) { Text("Aceptar", fontWeight = FontWeight.SemiBold) }
+            ) { Text(stringResource(R.string.action_accept), fontWeight = FontWeight.SemiBold) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, shape = MaterialTheme.shapes.large) {
-                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.action_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )

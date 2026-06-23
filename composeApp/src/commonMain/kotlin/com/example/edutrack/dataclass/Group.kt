@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class GroupRole { OWNER, ADMIN, MEMBER }
 
+// type: "STUDY" (sala de estudio entre iguales) | "CLASSROOM" (aula con profesor)
 @Serializable
 data class Group(
     var id: String? = null,
@@ -14,7 +15,9 @@ data class Group(
     var createdAt: Long? = null,
     var inviteCode: String? = null,
     var isPrivate: Boolean = false,
-    var memberCount: Int = 0
+    var memberCount: Int = 0,
+    var type: String = "STUDY",
+    var linkedAnioId: String? = null
 )
 
 @Serializable

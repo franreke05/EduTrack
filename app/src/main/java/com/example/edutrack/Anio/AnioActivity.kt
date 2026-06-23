@@ -97,6 +97,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.edutrack.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.intl.Locale
@@ -220,7 +222,7 @@ fun AnioScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = anio.nombre ?: "Año escolar",
+                        text = anio.nombre ?: stringResource(R.string.anio_default_name),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -238,7 +240,7 @@ fun AnioScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Volver",
+                                    contentDescription = stringResource(R.string.anio_topbar_back_cd),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -250,7 +252,7 @@ fun AnioScreen(
                     IconButton(onClick = { showEditAnioSheet = true }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar curso",
+                            contentDescription = stringResource(R.string.anio_topbar_edit_cd),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -261,7 +263,7 @@ fun AnioScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Buscar asignatura",
+                            contentDescription = stringResource(R.string.anio_topbar_search_cd),
                             tint = if (showSearch) MaterialTheme.colorScheme.primary
                                    else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
@@ -271,7 +273,7 @@ fun AnioScreen(
                         IconButton(onClick = { showActionsMenu = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Más opciones",
+                                contentDescription = stringResource(R.string.anio_topbar_more_cd),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -285,7 +287,7 @@ fun AnioScreen(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        "Exportar PDF",
+                                        stringResource(R.string.anio_menu_export_pdf),
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 },
@@ -313,7 +315,7 @@ fun AnioScreen(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        "Eliminar curso",
+                                        stringResource(R.string.anio_menu_delete_course),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.error
                                     )
@@ -341,11 +343,12 @@ fun AnioScreen(
             )
         },
         floatingActionButton = {
+            val limitMsg = stringResource(R.string.anio_limit_snackbar, maxAsignaturas)
             ExtendedFloatingActionButton(
                 onClick = {
                     if (anioLleno) {
                         snackbarScope.launch {
-                            snackbarHostState.showSnackbar("Límite de asignaturas alcanzado ($maxAsignaturas)")
+                            snackbarHostState.showSnackbar(limitMsg)
                         }
                     } else {
                         showAsignaturaSheet = true
@@ -357,7 +360,7 @@ fun AnioScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Asignatura", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.anio_fab_asignatura), fontWeight = FontWeight.Bold)
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -382,7 +385,7 @@ fun AnioScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("Buscar asignatura") },
+                        label = { Text(stringResource(R.string.anio_search_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = spacing),
@@ -553,7 +556,7 @@ fun AnioScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
-                                        text = "AÑO ACADÉMICO",
+                                        text = stringResource(R.string.anio_anio_academico_label),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = onContainer.copy(alpha = 0.48f),
@@ -595,7 +598,7 @@ fun AnioScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Info,
-                                            contentDescription = "Ver descripción del año",
+                                            contentDescription = stringResource(R.string.anio_description_info_cd),
                                             tint = onContainer.copy(alpha = 0.70f),
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -613,14 +616,14 @@ fun AnioScreen(
                                 } else {
                                     "–"
                                 },
-                                sublabel = "media",
+                                sublabel = stringResource(R.string.anio_stat_media),
                                 color = mediaColor,
                                 modifier = Modifier.weight(1f)
                             )
 
                                 PremiumYearStatChip(
                                     label = "$actuales / $maxAsignaturas",
-                                    sublabel = "asignaturas",
+                                    sublabel = stringResource(R.string.anio_stat_asignaturas),
                                     color = onContainer,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -628,7 +631,7 @@ fun AnioScreen(
                                 if (totalCreditos > 0) {
                                     PremiumYearStatChip(
                                         label = "$totalCreditos",
-                                        sublabel = "créditos",
+                                        sublabel = stringResource(R.string.anio_stat_creditos),
                                         color = onContainer,
                                         modifier = Modifier.weight(1f)
                                     )
@@ -636,7 +639,7 @@ fun AnioScreen(
                             }
 
                             PremiumYearProgressBar(
-                                label = "Asignaturas completadas",
+                                label = stringResource(R.string.anio_progress_label),
                                 progress = progressAnimated,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.fillMaxWidth()
@@ -658,12 +661,12 @@ fun AnioScreen(
                         ) {
                             Text("📚", style = MaterialTheme.typography.displaySmall)
                             Text(
-                                text = "No hay asignaturas aún",
+                                text = stringResource(R.string.anio_empty_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Pulsa + para añadir tu primera asignatura",
+                                text = stringResource(R.string.anio_empty_body),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -707,11 +710,11 @@ fun AnioScreen(
     if (showDescriptionDialog) {
         AlertDialog(
             onDismissRequest = { showDescriptionDialog = false },
-            title = { Text("Descripción de ${anio.nombre}") },
-            text = { Text(anio.descripcion ?: "No hay descripción.") },
+            title = { Text(stringResource(R.string.anio_description_title, anio.nombre ?: "")) },
+            text = { Text(anio.descripcion ?: stringResource(R.string.anio_description_empty)) },
             confirmButton = {
                 TextButton(onClick = { showDescriptionDialog = false }) {
-                    Text("Cerrar")
+                    Text(stringResource(R.string.action_close))
                 }
             }
         )
@@ -740,7 +743,7 @@ fun AnioScreen(
             },
             title = {
                 Text(
-                    "Eliminar curso",
+                    stringResource(R.string.anio_delete_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -748,7 +751,7 @@ fun AnioScreen(
             },
             text = {
                 Text(
-                    "¿Seguro que quieres eliminar \"${anio.nombre}\"? Se borrarán todas sus asignaturas y notas. Esta acción no se puede deshacer.",
+                    stringResource(R.string.anio_delete_text, anio.nombre ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -769,7 +772,7 @@ fun AnioScreen(
                     ),
                     shape = MaterialTheme.shapes.large
                 ) {
-                    Text("Eliminar", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.action_delete), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -777,7 +780,7 @@ fun AnioScreen(
                     onClick = { showDeleteAnioDialog = false },
                     shape = MaterialTheme.shapes.large
                 ) {
-                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.action_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -900,7 +903,7 @@ fun AsignaturaCard(
                         color = mediaColor
                     )
                     Text(
-                        text = "media",
+                        text = stringResource(R.string.anio_stat_media),
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant
                     )
@@ -908,7 +911,7 @@ fun AsignaturaCard(
             }
 
             Text(
-                text = asignatura.nombre ?: "Asignatura $index",
+                text = asignatura.nombre ?: stringResource(R.string.anio_asig_default_name, index),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = colorScheme.onSurface,
@@ -917,10 +920,10 @@ fun AsignaturaCard(
             )
 
             val statusLabel = when {
-                media == null -> "Sin nota"
-                media >= notaMinAprobado + 2.0 -> "Notable"
-                media >= notaMinAprobado -> "Aprobado"
-                else -> "Suspenso"
+                media == null -> stringResource(R.string.anio_card_sin_nota)
+                media >= notaMinAprobado + 2.0 -> stringResource(R.string.anio_card_notable)
+                media >= notaMinAprobado -> stringResource(R.string.anio_card_aprobado)
+                else -> stringResource(R.string.anio_card_suspenso)
             }
 
             // Chips: cada uno toma solo lo que necesita, sin medir en absoluto
@@ -1083,13 +1086,13 @@ private fun EditarAnioSheetContent(
             }
             Column {
                 Text(
-                    "Editar curso",
+                    stringResource(R.string.anio_edit_sheet_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "Modifica los datos del curso",
+                    stringResource(R.string.anio_edit_sheet_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1101,9 +1104,9 @@ private fun EditarAnioSheetContent(
         OutlinedTextField(
             value = nombre,
             onValueChange = { nombre = it; nombreError = false },
-            label = { Text("Nombre del curso") },
+            label = { Text(stringResource(R.string.anio_edit_field_nombre)) },
             isError = nombreError,
-            supportingText = if (nombreError) {{ Text("El nombre es obligatorio") }} else null,
+            supportingText = if (nombreError) {{ Text(stringResource(R.string.error_name_required)) }} else null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large
@@ -1112,7 +1115,7 @@ private fun EditarAnioSheetContent(
         OutlinedTextField(
             value = descripcion,
             onValueChange = { descripcion = it },
-            label = { Text("Descripción (opcional)") },
+            label = { Text(stringResource(R.string.anio_edit_field_descripcion)) },
             minLines = 2,
             maxLines = 4,
             modifier = Modifier.fillMaxWidth(),
@@ -1128,7 +1131,7 @@ private fun EditarAnioSheetContent(
                 }
                 maxAsigError = false
             },
-            label = { Text("Máximo de asignaturas") },
+            label = { Text(stringResource(R.string.anio_edit_field_max_asig)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             isError = maxAsigError,
@@ -1137,24 +1140,24 @@ private fun EditarAnioSheetContent(
             supportingText = {
                 if (maxAsigError) {
                     Text(
-                        "Debe estar entre $actuales y 20",
+                        stringResource(R.string.anio_edit_max_asig_error, actuales),
                         color = MaterialTheme.colorScheme.error
                     )
                 } else {
-                    Text("Tienes $actuales asignatura${if (actuales != 1) "s" else ""} · máximo 20.")
+                    Text(if (actuales != 1) stringResource(R.string.anio_edit_max_asig_hint_plural, actuales) else stringResource(R.string.anio_edit_max_asig_hint, actuales))
                 }
             }
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                "Tipo de periodo",
+                stringResource(R.string.anio_edit_periodo_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "Afecta a todas las asignaturas del curso.",
+                stringResource(R.string.anio_edit_periodo_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1187,7 +1190,7 @@ private fun EditarAnioSheetContent(
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.large
             ) {
-                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.action_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(
                 onClick = {
@@ -1199,7 +1202,7 @@ private fun EditarAnioSheetContent(
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.large
             ) {
-                Text("Guardar", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -1237,7 +1240,7 @@ private fun CrearAsignaturaSheetContent(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                "Nueva asignatura",
+                stringResource(R.string.anio_nueva_asignatura_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -1253,7 +1256,7 @@ private fun CrearAsignaturaSheetContent(
         OutlinedTextField(
             value = nombre.value,
             onValueChange = { nombre.value = it; nombreError = null },
-            label = { Text("Nombre") },
+            label = { Text(stringResource(R.string.anio_asig_field_nombre)) },
             modifier = Modifier.fillMaxWidth(),
             isError = nombreError != null,
             supportingText = nombreError?.let { msg -> { Text(msg) } },
@@ -1262,7 +1265,7 @@ private fun CrearAsignaturaSheetContent(
         OutlinedTextField(
             value = descripcion.value,
             onValueChange = { descripcion.value = it },
-            label = { Text("Descripción (opcional)") },
+            label = { Text(stringResource(R.string.anio_asig_field_descripcion)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 3
@@ -1270,7 +1273,7 @@ private fun CrearAsignaturaSheetContent(
         OutlinedTextField(
             value = creditos.value,
             onValueChange = { creditos.value = it.filter { c -> c.isDigit() }; creditosError = null },
-            label = { Text("Créditos ECTS") },
+            label = { Text(stringResource(R.string.anio_asig_field_creditos)) },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             isError = creditosError != null,
@@ -1295,7 +1298,7 @@ private fun CrearAsignaturaSheetContent(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    "Periodo del curso: $tipoPeriodo",
+                    stringResource(R.string.anio_asig_periodo_label, tipoPeriodo),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Medium
@@ -1303,17 +1306,19 @@ private fun CrearAsignaturaSheetContent(
             }
         }
 
+        val msgNombreObligatorio = stringResource(R.string.anio_asig_nombre_error)
+        val msgCreditosError = stringResource(R.string.anio_asig_creditos_error)
         Button(
             onClick = {
                 val trimmedNombre = nombre.value.trim()
                 val creditosInt = creditos.value.toIntOrNull() ?: 0
                 var hasError = false
                 if (anioId.isNullOrEmpty() || trimmedNombre.isBlank()) {
-                    nombreError = "El nombre es obligatorio"
+                    nombreError = msgNombreObligatorio
                     hasError = true
                 }
                 if (creditosInt <= 0) {
-                    creditosError = "Introduce créditos válidos (> 0)"
+                    creditosError = msgCreditosError
                     hasError = true
                 }
                 if (hasError) return@Button
@@ -1334,7 +1339,7 @@ private fun CrearAsignaturaSheetContent(
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Crear asignatura", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.anio_asig_create_btn), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1350,10 +1355,14 @@ private fun PublicarAsignaturaDialog(
     val usuario = LocalUsuario.current
     var selectedGroupId by remember { mutableStateOf(grupos.firstOrNull()?.groupId) }
     var isSharing by remember { mutableStateOf(false) }
+    val defaultUser = stringResource(R.string.anio_default_user)
+    val defaultGroup = stringResource(R.string.anio_default_group)
+    val msgSuccess = stringResource(R.string.anio_publish_success)
+    val msgError = stringResource(R.string.anio_publish_error)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Publicar en grupo") },
+        title = { Text(stringResource(R.string.anio_publish_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -1365,13 +1374,13 @@ private fun PublicarAsignaturaDialog(
                 val media = asignatura.media
                 if (media != null && media > 0.0) {
                     Text(
-                        text = "Media: ${String.format("%.1f", media)}",
+                        text = stringResource(R.string.anio_publish_media, media),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
-                    text = "Elige el grupo donde publicar:",
+                    text = stringResource(R.string.anio_publish_choose),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1380,7 +1389,7 @@ private fun PublicarAsignaturaDialog(
                     FilterChip(
                         selected = isSelected,
                         onClick = { selectedGroupId = grupo.groupId },
-                        label = { Text(grupo.name ?: "Grupo") },
+                        label = { Text(grupo.name ?: defaultGroup) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1393,7 +1402,7 @@ private fun PublicarAsignaturaDialog(
                     val uid = userId ?: FirebaseAuth.getInstance().currentUser?.uid ?: return@Button
                     val userName = usuario?.nombre?.takeIf { it.isNotBlank() }
                         ?: FirebaseAuth.getInstance().currentUser?.displayName
-                        ?: "Usuario"
+                        ?: defaultUser
                     isSharing = true
                     val subject = GroupSharedSubject(
                         name = asignatura.nombre,
@@ -1409,7 +1418,7 @@ private fun PublicarAsignaturaDialog(
                         isSharing = false
                         Toast.makeText(
                             context,
-                            if (success) "Publicado en el grupo" else "Error al publicar",
+                            if (success) msgSuccess else msgError,
                             Toast.LENGTH_SHORT
                         ).show()
                         onDismiss()
@@ -1420,12 +1429,12 @@ private fun PublicarAsignaturaDialog(
                 if (isSharing) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Publicar")
+                    Text(stringResource(R.string.anio_publish_btn))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

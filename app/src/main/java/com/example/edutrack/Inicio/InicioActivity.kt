@@ -112,6 +112,8 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.edutrack.R
 import com.example.edutrack.data.SessionPrefs
 import com.example.edutrack.data.sessionDataStore
 import androidx.datastore.preferences.core.edit
@@ -301,8 +303,8 @@ fun CuerpoInicioContent(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Confirmar eliminación") },
-            text = { Text("¿Estás seguro de que quieres eliminar el año '${anioToDelete?.nombre}'?") },
+            title = { Text(stringResource(R.string.inicio_delete_title)) },
+            text = { Text(stringResource(R.string.inicio_delete_text, anioToDelete?.nombre ?: "")) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -317,19 +319,19 @@ fun CuerpoInicioContent(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
 
     if (showCourseUpgrade) {
         UpgradeSheet(
-            title = "Has llegado al límite del plan gratis",
-            message = "Con Edutrack gratis puedes crear hasta 2 cursos. Premium desbloquea cursos ilimitados y el simulador completo.",
+            title = stringResource(R.string.inicio_upgrade_title),
+            message = stringResource(R.string.inicio_upgrade_message),
             onUpgrade = onPaywall,
             onDismiss = { showCourseUpgrade = false }
         )
@@ -380,7 +382,7 @@ private fun InstagramTopBar(
         Column(modifier = Modifier.weight(1f)) {
             if (nombre != null) {
                 Text(
-                    text = "¡Hola, $nombre! 👋",
+                    text = stringResource(R.string.inicio_hello_user, nombre),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
@@ -391,7 +393,7 @@ private fun InstagramTopBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Edutrack",
+                    text = stringResource(R.string.inicio_app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -402,7 +404,7 @@ private fun InstagramTopBar(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "Premium",
+                            text = stringResource(R.string.inicio_premium_badge),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -413,7 +415,7 @@ private fun InstagramTopBar(
             }
         }
         IconButton(onClick = onGrupos) {
-            Icon(Icons.Default.Group, contentDescription = "Grupos", tint = MaterialTheme.colorScheme.onBackground)
+            Icon(Icons.Default.Group, contentDescription = stringResource(R.string.inicio_grupos_cd), tint = MaterialTheme.colorScheme.onBackground)
         }
         // Avatar con inicial en lugar de icono genérico
         Box(
@@ -446,12 +448,12 @@ private fun StoriesRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            StoryItem(label = "Nueva", isNew = true, index = 0, media = null, onClick = onCrearAnio)
+            StoryItem(label = stringResource(R.string.inicio_story_new_label), isNew = true, index = 0, media = null, onClick = onCrearAnio)
         }
         itemsIndexed(anios) { index, anio ->
             val media = calcularMediaAnio(anio)
             StoryItem(
-                label = anio.nombre?.take(10) ?: "Curso",
+                label = anio.nombre?.take(10) ?: stringResource(R.string.inicio_story_default_label),
                 isNew = false,
                 index = index,
                 media = media,
@@ -507,7 +509,7 @@ private fun StoryItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Nueva",
+                        contentDescription = stringResource(R.string.inicio_story_new_cd),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -607,7 +609,7 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
                     tint = colorScheme.primary, modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    "Resumen académico",
+                    stringResource(R.string.inicio_resumen_title),
                     style = MaterialTheme.typography.labelMedium,
                     color = colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold
@@ -627,7 +629,7 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("${anios.size}", color = colorScheme.primary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(if (anios.size == 1) "Curso" else "Cursos", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    Text(if (anios.size == 1) stringResource(R.string.inicio_stat_course_singular) else stringResource(R.string.inicio_stat_course_plural), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
                 Column(
                     modifier = Modifier
@@ -637,7 +639,7 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("$totalAsignaturas", color = colorScheme.tertiary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Asignaturas", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    Text(stringResource(R.string.inicio_stat_subjects), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
                 Column(
                     modifier = Modifier
@@ -650,7 +652,7 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
                         if (mediaGlobal != null) String.format("%.1f", animatedMedia) else "—",
                         color = mediaColor, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold
                     )
-                    Text("Media", color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    Text(stringResource(R.string.inicio_stat_average), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -671,7 +673,7 @@ private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
                         tint = colorScheme.primary, modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        "Ir al simulador",
+                        stringResource(R.string.inicio_simulador_cta),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = colorScheme.primary,
@@ -726,10 +728,10 @@ private fun AnioFeedCard(
         else -> colorScheme.error
     }
     val statusText = when {
-        mediaAnio == null -> "Sin notas"
-        mediaAnio >= minAprobado + 2.0 -> "Vas muy bien"
-        mediaAnio >= minAprobado -> "Aprobado"
-        else -> "En riesgo"
+        mediaAnio == null -> stringResource(R.string.inicio_anio_status_no_notas)
+        mediaAnio >= minAprobado + 2.0 -> stringResource(R.string.inicio_anio_status_muy_bien)
+        mediaAnio >= minAprobado -> stringResource(R.string.inicio_anio_status_aprobado)
+        else -> stringResource(R.string.inicio_anio_status_riesgo)
     }
     val statusColor = mediaColor
     val asignaturas = anio.lista_asignaturas?.size ?: 0
@@ -785,7 +787,7 @@ private fun AnioFeedCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = anio.nombre ?: "Curso $index",
+                        text = anio.nombre ?: stringResource(R.string.inicio_story_default_label),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
@@ -797,7 +799,7 @@ private fun AnioFeedCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "$asignaturas / $maxAsig asignaturas",
+                            text = stringResource(R.string.inicio_anio_asignaturas_count, asignaturas, maxAsig),
                             style = MaterialTheme.typography.bodySmall,
                             color = colorScheme.onSurfaceVariant
                         )
@@ -822,7 +824,7 @@ private fun AnioFeedCard(
                         onDismissRequest = onMenuDismiss
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Abrir curso", style = MaterialTheme.typography.bodyMedium) },
+                            text = { Text(stringResource(R.string.inicio_menu_abrir_curso), style = MaterialTheme.typography.bodyMedium) },
                             leadingIcon = {
                                 Icon(
                                     Icons.AutoMirrored.Filled.OpenInNew,
@@ -835,7 +837,7 @@ private fun AnioFeedCard(
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
                         DropdownMenuItem(
-                            text = { Text("Simulador", style = MaterialTheme.typography.bodyMedium) },
+                            text = { Text(stringResource(R.string.inicio_menu_simulador), style = MaterialTheme.typography.bodyMedium) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Calculate,
@@ -848,7 +850,7 @@ private fun AnioFeedCard(
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
                         DropdownMenuItem(
-                            text = { Text("Eliminar", style = MaterialTheme.typography.bodyMedium, color = colorScheme.error) },
+                            text = { Text(stringResource(R.string.inicio_menu_eliminar), style = MaterialTheme.typography.bodyMedium, color = colorScheme.error) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Delete,
@@ -893,7 +895,7 @@ private fun AnioFeedCard(
                         color = mediaColor
                     )
                     Text(
-                        text = "media actual",
+                        text = stringResource(R.string.inicio_anio_media_actual),
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurfaceVariant
                     )
@@ -993,14 +995,14 @@ private fun SimuladorFeedCard(onSimulador: () -> Unit) {
                         modifier = Modifier.size(30.dp)
                     )
                     Text(
-                        text = "¿Qué nota necesitas?",
+                        text = stringResource(R.string.inicio_simulador_question),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onPrimary
                     )
                 }
                 Text(
-                    text = "Selecciona una asignatura y Edutrack te dice exactamente qué necesitas para alcanzar tu objetivo.",
+                    text = stringResource(R.string.inicio_simulador_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onPrimary.copy(alpha = 0.85f),
                     lineHeight = 20.sp
@@ -1017,7 +1019,7 @@ private fun SimuladorFeedCard(onSimulador: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Abrir simulador",
+                            text = stringResource(R.string.inicio_simulador_open),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = colorScheme.primary
@@ -1139,7 +1141,7 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                     )
                     Column {
                         Text(
-                            text = "Exámenes de este mes",
+                            text = stringResource(R.string.inicio_examenes_title),
                             style = MaterialTheme.typography.labelSmall,
                             color = colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
@@ -1157,7 +1159,7 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                 ) {
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Calendario", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.inicio_calendario_btn), style = MaterialTheme.typography.labelSmall)
                 }
             }
 
@@ -1212,13 +1214,13 @@ private fun ExamenesFeedCard(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                         )
                     }
                     Text(
-                        "Sin exámenes este mes",
+                        stringResource(R.string.inicio_examenes_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = colorScheme.onSurface
                     )
                     Text(
-                        "Añade fechas de examen en tus asignaturas",
+                        stringResource(R.string.inicio_examenes_empty_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant
                     )
@@ -1422,14 +1424,14 @@ private fun CalendarioBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Exámenes • ${monthName.replaceFirstChar { it.uppercase() }} $currentYear",
+                    text = stringResource(R.string.inicio_calendar_header, monthName.replaceFirstChar { it.uppercase() }, currentYear),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Cerrar",
+                        contentDescription = stringResource(R.string.inicio_calendar_close_cd),
                         modifier = Modifier.rotate(90f)
                     )
                 }
@@ -1517,7 +1519,7 @@ private fun CalendarioBottomSheet(
             // Exámenes del día seleccionado
             if (selectedDay != null && selectedDay in examensByDay) {
                 Text(
-                    text = "Exámenes del ${selectedDay} de ${monthName}",
+                    text = stringResource(R.string.inicio_calendar_exams_day, selectedDay!!, monthName ?: ""),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1553,7 +1555,7 @@ private fun CalendarioBottomSheet(
                                 onNavAsignatura(entry.anioId)
                                 onDismiss()
                             }) {
-                                Text("Ver", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.inicio_calendar_ver), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -1585,14 +1587,14 @@ private fun EmptyFeedState(onCrearAnio: () -> Unit) {
         ) {
             Text(text = "📚", style = MaterialTheme.typography.displayLarge, textAlign = TextAlign.Center)
             Text(
-                text = "Tu feed está vacío",
+                text = stringResource(R.string.inicio_feed_empty_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Crea tu primer curso y empieza a controlar tus notas.",
+                text = stringResource(R.string.inicio_feed_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -1604,7 +1606,7 @@ private fun EmptyFeedState(onCrearAnio: () -> Unit) {
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Crear curso")
+                Text(stringResource(R.string.inicio_feed_crear_curso))
             }
         }
     }
@@ -1628,10 +1630,10 @@ fun SelectorDeFecha(onFechaSeleccionada: (String) -> Unit, onDismiss: () -> Unit
                     onFechaSeleccionada(fechaSeleccionada)
                     onDismiss()
                 }
-            ) { Text("OK") }
+            ) { Text(stringResource(R.string.action_accept)) }
         },
         dismissButton = {
-            TextButton(onClick = { onDismiss() }) { Text("Cancelar") }
+            TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.action_cancel)) }
         }
     ) {
         DatePicker(state = datePickerState)

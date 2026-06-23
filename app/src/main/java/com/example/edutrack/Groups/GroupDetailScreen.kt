@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
@@ -65,9 +66,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.edutrack.R
 import coil.compose.AsyncImage
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupRole
@@ -86,7 +90,8 @@ fun GrupoDetalleScreen(
     userId: String?,
     groupId: String,
     onBack: () -> Unit = {},
-    onPaywall: () -> Unit = {}
+    onPaywall: () -> Unit = {},
+    onNavigateToAnio: ((String) -> Unit)? = null
 ) {
     val group by rememberGroupState(groupId)
     val members by rememberGroupMembersState(groupId)
@@ -104,12 +109,17 @@ fun GrupoDetalleScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
 
     val myMember = members.find { it.uid == userId }
     val myRole = myMember?.role?.let { runCatching { GroupRole.valueOf(it) }.getOrNull() }
         ?: GroupRole.MEMBER
     val isOwner = myRole == GroupRole.OWNER
     val isAdmin = myRole == GroupRole.ADMIN || isOwner
+
+    val isClassroom = group?.type == "CLASSROOM"
+    val allGrades by rememberAllGroupGradesState(if (isClassroom && isAdmin) groupId else null)
+    val myGrades by rememberStudentGradesState(if (isClassroom && !isAdmin) groupId else null, userId)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -165,23 +175,30 @@ fun GrupoDetalleScreen(
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("Resumen", fontWeight = FontWeight.SemiBold) }
+                        text = { Text(stringResource(R.string.group_tab_summary), fontWeight = FontWeight.SemiBold) }
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("Novedades", fontWeight = FontWeight.SemiBold) }
+                        text = { Text(stringResource(R.string.group_tab_feed), fontWeight = FontWeight.SemiBold) }
                     )
                     Tab(
                         selected = selectedTab == 2,
                         onClick = { selectedTab = 2 },
-                        text = { Text("Recursos", fontWeight = FontWeight.SemiBold) }
+                        text = { Text(stringResource(R.string.group_tab_resources), fontWeight = FontWeight.SemiBold) }
                     )
                     Tab(
                         selected = selectedTab == 3,
                         onClick = { selectedTab = 3 },
-                        text = { Text("Exámenes", fontWeight = FontWeight.SemiBold) }
+                        text = { Text(stringResource(R.string.group_tab_exams), fontWeight = FontWeight.SemiBold) }
                     )
+                    if (isClassroom) {
+                        Tab(
+                            selected = selectedTab == 4,
+                            onClick = { selectedTab = 4 },
+                            text = { Text(stringResource(R.string.group_tab_grades), fontWeight = FontWeight.SemiBold) }
+                        )
+                    }
                 }
                 when (selectedTab) {
                     1 -> GroupFeedTab(
@@ -208,6 +225,26 @@ fun GrupoDetalleScreen(
                             .fillMaxSize()
                             .padding(horizontal = tabletSidePad)
                     )
+                    4 -> if (isClassroom) {
+                        if (isAdmin) {
+                            GroupGradesTeacherTab(
+                                groupId = groupId,
+                                userId = userId,
+                                members = members,
+                                allGrades = allGrades,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = tabletSidePad)
+                            )
+                        } else {
+                            GroupGradesStudentTab(
+                                grades = myGrades,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = tabletSidePad)
+                            )
+                        }
+                    }
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = hPad, vertical = 16.dp),
@@ -254,11 +291,27 @@ fun GrupoDetalleScreen(
                 } // end AnimatedVisibility header
             }
 
+            // Botón "Ver curso" para grupos CLASSROOM con anio vinculado
+            val linkedAnioId = group?.linkedAnioId?.takeIf { it.isNotBlank() }
+            if (isClassroom && linkedAnioId != null && onNavigateToAnio != null) {
+                item {
+                    Button(
+                        onClick = { onNavigateToAnio(linkedAnioId) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ver curso", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
             // Código de invitación (visible para todos los miembros)
             if (!group?.inviteCode.isNullOrBlank()) {
                 item {
                     Text(
-                        text = "Código de invitación",
+                        text = stringResource(R.string.group_invite_code),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
@@ -295,7 +348,7 @@ fun GrupoDetalleScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        "Compartir",
+                                        stringResource(R.string.action_share),
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -333,9 +386,9 @@ fun GrupoDetalleScreen(
                     ) {
                         members.forEachIndexed { index, member ->
                             val roleLabel = when (member.role) {
-                                GroupRole.OWNER.name -> "Propietario"
-                                GroupRole.ADMIN.name -> "Administrador"
-                                else -> "Miembro"
+                                GroupRole.OWNER.name -> stringResource(R.string.group_role_owner)
+                                GroupRole.ADMIN.name -> stringResource(R.string.group_role_admin)
+                                else -> stringResource(R.string.group_role_member)
                             }
                             ListItem(
                                 headlineContent = {
@@ -404,7 +457,7 @@ fun GrupoDetalleScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Aún no hay asignaturas compartidas.",
+                                text = stringResource(R.string.group_no_subjects),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -462,7 +515,7 @@ fun GrupoDetalleScreen(
             onDismiss = { showQrSheet = false },
             onCopied = {
                 clipboard.setText(AnnotatedString(group?.inviteCode ?: ""))
-                scope.launch { snackbarHostState.showSnackbar("Código copiado al portapapeles") }
+                scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.group_invite_copied)) }
             }
         )
     }
@@ -514,7 +567,7 @@ fun GrupoDetalleScreen(
                             isDeletingSubject = false
                             subjectToDelete = null
                             if (!success) {
-                                scope.launch { snackbarHostState.showSnackbar("Error al eliminar la asignatura") }
+                                scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.state_error)) }
                             }
                         }
                     },
@@ -524,13 +577,13 @@ fun GrupoDetalleScreen(
                     if (isDeletingSubject) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onError, strokeWidth = 2.dp)
                     } else {
-                        Text("Eliminar")
+                        Text(stringResource(R.string.action_delete))
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { subjectToDelete = null }, enabled = !isDeletingSubject) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -555,7 +608,7 @@ fun GrupoDetalleScreen(
                             isLeaving = false
                             showLeaveDialog = false
                             if (success) onBack()
-                            else scope.launch { snackbarHostState.showSnackbar("Error al salir del grupo") }
+                            else scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.state_error)) }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -565,11 +618,11 @@ fun GrupoDetalleScreen(
                         color = MaterialTheme.colorScheme.onError,
                         strokeWidth = 2.dp
                     )
-                    else Text("Salir")
+                    else Text(stringResource(R.string.action_leave))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLeaveDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showLeaveDialog = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -810,14 +863,14 @@ private fun SharedSubjectDetailDialog(
                 Button(onClick = onImport) {
                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copiar a mis asignaturas")
+                    Text(stringResource(R.string.action_copy))
                 }
             } else {
-                TextButton(onClick = onDismiss) { Text("Cerrar") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
             }
         },
         dismissButton = if (canImport) {
-            { TextButton(onClick = onDismiss) { Text("Cerrar") } }
+            { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } }
         } else null
     )
 }

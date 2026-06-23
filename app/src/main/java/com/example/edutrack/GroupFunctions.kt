@@ -2,11 +2,13 @@ package com.example.edutrack
 
 import com.example.edutrack.dataclass.Asignatura
 import com.example.edutrack.dataclass.GroupFeedEventType
+import com.example.edutrack.dataclass.GroupGrade
 import com.example.edutrack.dataclass.GroupRole
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.SubjectImport
 import com.google.firebase.database.ServerValue
 import java.util.UUID
+// aniosRef is a top-level function in DbRefs.kt in the same package
 
 // ponytail: 6-char code with unambiguous charset — collision probability negligible at current scale
 fun generarCodigoInvitacion(): String {
@@ -21,17 +23,23 @@ fun crearGrupo(
     isPrivate: Boolean,
     ownerDisplayName: String,
     ownerPhotoUrl: String? = null,
+    type: String = "STUDY",
     onResult: (groupId: String?) -> Unit
 ) {
     val groupId = groupsRef().push().key ?: run { onResult(null); return }
     val inviteCode = generarCodigoInvitacion()
     val now = System.currentTimeMillis()
 
-    val updates = mapOf(
+    val linkedAnioId = if (type == "CLASSROOM") {
+        aniosRef(ownerUid).push().key
+    } else null
+
+    val mutableUpdates = mutableMapOf<String, Any>(
         "/${ROOT_NODE}/groups/$groupId" to mapOf(
             "id" to groupId, "name" to name, "description" to description,
             "ownerUid" to ownerUid, "createdAt" to now, "inviteCode" to inviteCode,
-            "isPrivate" to isPrivate, "memberCount" to 1
+            "isPrivate" to isPrivate, "memberCount" to 1, "type" to type,
+            "linkedAnioId" to (linkedAnioId ?: "")
         ),
         "/${ROOT_NODE}/groupMembers/$groupId/$ownerUid" to mapOf(
             "uid" to ownerUid, "role" to GroupRole.OWNER.name, "joinedAt" to now,
@@ -43,7 +51,18 @@ fun crearGrupo(
         )
     )
 
-    db().updateChildren(updates)
+    if (linkedAnioId != null) {
+        mutableUpdates["/${ROOT_NODE}/users/$ownerUid/anios/$linkedAnioId"] = mapOf(
+            "id" to linkedAnioId, "nombre" to name,
+            "descripcion" to description,
+            "nota_minima_aprobado" to 5.0,
+            "tipo_ponderacion" to "simple",
+            "tipo_periodo" to "Cuatrimestre",
+            "numero_asignaturas" to 0
+        )
+    }
+
+    db().updateChildren(mutableUpdates)
         .addOnSuccessListener { onResult(groupId) }
         .addOnFailureListener { onResult(null) }
 }
@@ -250,6 +269,30 @@ fun importarAsignaturaDesdeGrupo(
                 .addOnFailureListener { onResult(false, "Error al crear la asignatura") }
         }
         .addOnFailureListener { e -> onResult(false, "Error comprobando duplicados: ${e.message?.take(60)}") }
+}
+
+fun addGradeToStudent(
+    groupId: String,
+    studentUid: String,
+    grade: GroupGrade,
+    onResult: (Boolean) -> Unit
+) {
+    val ref = studentGradesRef(groupId, studentUid).push()
+    val id = ref.key ?: run { onResult(false); return }
+    ref.setValue(grade.copy(id = id, studentUid = studentUid, createdAt = System.currentTimeMillis()))
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener { onResult(false) }
+}
+
+fun removeGradeFromStudent(
+    groupId: String,
+    studentUid: String,
+    gradeId: String,
+    onResult: (Boolean) -> Unit
+) {
+    studentGradesRef(groupId, studentUid).child(gradeId).removeValue()
+        .addOnSuccessListener { onResult(true) }
+        .addOnFailureListener { onResult(false) }
 }
 
 // ponytail: orderByChild query → was O(n) full scan, now O(log n) index lookup

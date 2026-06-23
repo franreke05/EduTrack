@@ -8,18 +8,21 @@ import androidx.compose.runtime.remember
 import com.example.edutrack.dataclass.Group
 import com.example.edutrack.dataclass.GroupExam
 import com.example.edutrack.dataclass.GroupFeedEvent
+import com.example.edutrack.dataclass.GroupGrade
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.dataclass.GroupResource
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.dataclass.UserGroup
 import com.example.edutrack.groupExamsRef
 import com.example.edutrack.groupFeedRef
+import com.example.edutrack.groupGradesRef
 import com.example.edutrack.groupMemberRef
 import com.example.edutrack.groupMembersRef
 import com.example.edutrack.groupRef
 import com.example.edutrack.groupResourcesRef
 import com.example.edutrack.groupSharedSubjectsRef
 import com.example.edutrack.profileRef
+import com.example.edutrack.studentGradesRef
 import com.example.edutrack.userGroupsRef
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -215,6 +218,63 @@ fun rememberGroupExamsState(groupId: String?): State<List<GroupExam>> {
             }
             override fun onCancelled(error: DatabaseError) {
                 android.util.Log.e("Grupos", "Error leyendo exámenes del grupo: ${error.message}")
+            }
+        }
+        ref.addValueEventListener(listener)
+        onDispose { ref.removeEventListener(listener) }
+    }
+    return state
+}
+
+// Notas de un estudiante concreto en un grupo aula — para la vista del alumno.
+@Composable
+fun rememberStudentGradesState(groupId: String?, studentUid: String?): State<List<GroupGrade>> {
+    val state = remember { mutableStateOf<List<GroupGrade>>(emptyList()) }
+    DisposableEffect(groupId, studentUid) {
+        if (groupId.isNullOrBlank() || studentUid.isNullOrBlank()) {
+            state.value = emptyList()
+            return@DisposableEffect onDispose {}
+        }
+        val ref = studentGradesRef(groupId, studentUid)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                state.value = snapshot.children
+                    .mapNotNull { it.getValue(GroupGrade::class.java) }
+                    .sortedByDescending { it.createdAt ?: 0L }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("Grupos", "Error leyendo notas del alumno: ${error.message}")
+            }
+        }
+        ref.addValueEventListener(listener)
+        onDispose { ref.removeEventListener(listener) }
+    }
+    return state
+}
+
+// Notas de todos los alumnos de un grupo — para la vista del profesor.
+// ponytail: Map<studentUid, List<GroupGrade>> — un solo listener, sin stream por alumno
+@Composable
+fun rememberAllGroupGradesState(groupId: String?): State<Map<String, List<GroupGrade>>> {
+    val state = remember { mutableStateOf<Map<String, List<GroupGrade>>>(emptyMap()) }
+    DisposableEffect(groupId) {
+        if (groupId.isNullOrBlank()) {
+            state.value = emptyMap()
+            return@DisposableEffect onDispose {}
+        }
+        val ref = groupGradesRef(groupId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                state.value = snapshot.children.associate { studentSnap ->
+                    val uid = studentSnap.key ?: return@associate "" to emptyList()
+                    val grades = studentSnap.children
+                        .mapNotNull { it.getValue(GroupGrade::class.java) }
+                        .sortedByDescending { it.createdAt ?: 0L }
+                    uid to grades
+                }.filterKeys { it.isNotBlank() }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("Grupos", "Error leyendo notas del grupo: ${error.message}")
             }
         }
         ref.addValueEventListener(listener)

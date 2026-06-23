@@ -58,12 +58,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import com.example.edutrack.R
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.edutrack.dataclass.GroupExam
+import com.example.edutrack.utils.addGroupExamToCalendar
 import com.example.edutrack.dataclass.GroupFeedEventType
 import com.example.edutrack.dataclass.GroupMember
 import com.example.edutrack.groupExamsRef
@@ -118,7 +122,7 @@ fun GroupExamsTab(
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "Sin exámenes anunciados",
+                    text = stringResource(R.string.group_exams_empty),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -137,7 +141,7 @@ fun GroupExamsTab(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Anunciar examen", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.exam_add), fontWeight = FontWeight.SemiBold)
                 }
             }
         } else {
@@ -227,6 +231,7 @@ private fun ExamCard(
     canDelete: Boolean,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     val daysLabel = exam.fecha?.let { daysUntil(it) } ?: ""
     val alpha = if (isPast) 0.55f else 1f
     var showConfirmDelete by remember { mutableStateOf(false) }
@@ -322,6 +327,16 @@ private fun ExamCard(
                             fontWeight = FontWeight.Bold,
                             color = chipTextColor,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                if (!isPast) {
+                    IconButton(onClick = { addGroupExamToCalendar(context, exam) }, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.CalendarMonth,
+                            contentDescription = "Añadir al calendario",
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -421,7 +436,7 @@ private fun AddGroupExamSheet(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("Anunciar examen", fontWeight = FontWeight.Bold) },
+                    title = { Text(stringResource(R.string.exam_add), fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { sheetState.hide(); onDismiss() } }) {
                             Icon(Icons.Default.Close, contentDescription = "Cerrar")
@@ -435,7 +450,7 @@ private fun AddGroupExamSheet(
                                 onClick = ::guardar,
                                 enabled = !isSaving && nombre.isNotBlank() && fecha.isNotBlank()
                             ) {
-                                Text("Anunciar", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(stringResource(R.string.action_send), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -472,7 +487,7 @@ private fun AddGroupExamSheet(
                             label = { Text("Nombre del examen *") },
                             placeholder = { Text("Ej: Parcial 1, Examen final…") },
                             isError = nombreError,
-                            supportingText = if (nombreError) ({ Text("El nombre es obligatorio") }) else null,
+                            supportingText = if (nombreError) ({ Text(stringResource(R.string.error_required_field)) }) else null,
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             keyboardOptions = KeyboardOptions(
@@ -520,7 +535,7 @@ private fun AddGroupExamSheet(
                             label = { Text("Fecha *") },
                             placeholder = { Text("Selecciona la fecha") },
                             isError = fechaError,
-                            supportingText = if (fechaError) ({ Text("La fecha es obligatoria") }) else null,
+                            supportingText = if (fechaError) ({ Text(stringResource(R.string.error_required_field)) }) else null,
                             readOnly = true,
                             trailingIcon = {
                                 IconButton(onClick = { showDatePicker = true }) {
@@ -583,7 +598,7 @@ private fun AddGroupExamSheet(
                     } else {
                         Icon(Icons.Default.Event, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Anunciar examen", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.exam_add), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -610,7 +625,7 @@ private fun AddGroupExamSheet(
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)

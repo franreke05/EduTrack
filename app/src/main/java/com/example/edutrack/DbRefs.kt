@@ -24,6 +24,9 @@ fun groupSharedSubjectsRef(groupId: String) = db().child(ROOT_NODE).child("group
 fun groupFeedRef(groupId: String) = db().child(ROOT_NODE).child("groupFeed").child(groupId)
 fun groupResourcesRef(groupId: String) = db().child(ROOT_NODE).child("groupResources").child(groupId)
 fun groupExamsRef(groupId: String) = db().child(ROOT_NODE).child("groupExams").child(groupId)
+fun groupGradesRef(groupId: String) = db().child(ROOT_NODE).child("groupGrades").child(groupId)
+fun studentGradesRef(groupId: String, studentUid: String) = groupGradesRef(groupId).child(studentUid)
+
 fun groupImportsRef(uid: String) = userRef(uid).child("groupImports")
 fun groupImportsMetaRef(uid: String, monthKey: String) = groupImportsRef(uid).child("_meta").child(monthKey)
 

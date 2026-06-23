@@ -1,7 +1,9 @@
 package com.example.edutrack.Splash
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import com.example.edutrack.utils.wrapWithLocale
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
@@ -41,6 +43,7 @@ import kotlinx.coroutines.launch
 
 // Activity que inicializa Firebase y muestra el splash.
 class EduTrack : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)

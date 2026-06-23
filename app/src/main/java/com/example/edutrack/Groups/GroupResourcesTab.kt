@@ -60,8 +60,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import com.example.edutrack.R
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -135,7 +137,7 @@ fun GroupResourcesTab(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Añadir recurso", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.resource_add), fontWeight = FontWeight.SemiBold)
                 }
             }
         } else {
@@ -369,7 +371,7 @@ private fun AddResourceSheet(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("Añadir recurso", fontWeight = FontWeight.Bold) },
+                    title = { Text(stringResource(R.string.resource_add), fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { sheetState.hide(); onDismiss() } }) {
                             Icon(Icons.Default.Close, contentDescription = "Cerrar")
@@ -419,7 +421,7 @@ private fun AddResourceSheet(
                                 },
                                 enabled = !isSaving && title.isNotBlank()
                             ) {
-                                Text("Publicar", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(stringResource(R.string.action_send), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -456,7 +458,7 @@ private fun AddResourceSheet(
                             label = { Text("Título *") },
                             placeholder = { Text("Ej: Apuntes tema 3, Vídeo explicativo…") },
                             isError = titleError,
-                            supportingText = if (titleError) ({ Text("El título es obligatorio") }) else ({
+                            supportingText = if (titleError) ({ Text(stringResource(R.string.error_required_field)) }) else ({
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     Text("${title.length}/200", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -593,7 +595,7 @@ private fun AddResourceSheet(
                     } else {
                         Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Publicar recurso", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.resource_add), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))

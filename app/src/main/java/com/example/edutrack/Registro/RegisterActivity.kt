@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,19 +16,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -34,16 +40,19 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -54,11 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,6 +82,7 @@ import com.example.edutrack.R
 import com.example.edutrack.dataclass.Usuario
 import com.example.edutrack.profileRef
 import com.example.edutrack.ui.theme.EduTrackTheme
+import com.example.edutrack.utils.wrapWithLocale
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -83,11 +92,10 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 
-// Modos de autenticacion disponibles.
 private enum class AuthMode { Login, Register }
 
-// Activity de acceso y registro.
 class RegisterActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -99,11 +107,11 @@ class RegisterActivity : ComponentActivity() {
     }
 }
 
-// Pantalla principal para login o registro.
 @Composable
 fun RegisteerScreen(
     modifier: Modifier = Modifier,
     onAuthSuccess: (String) -> Unit = {},
+    onForgotPassword: (() -> Unit)? = null,
     isLoadingOverride: Boolean? = null
 ) {
     val context = LocalContext.current
@@ -133,10 +141,11 @@ fun RegisteerScreen(
         onPasswordChange = { password = it },
         onConfirmPasswordChange = { confirmPassword = it },
         onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
+        onForgotPassword = onForgotPassword,
         onSubmit = {
             if (loading.value) return@RegisteerContent
             if (email.isBlank() || password.isBlank()) {
-                Toast.makeText(context, "Completa el correo/usuario y la contraseña.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.registro_fill_email_password), Toast.LENGTH_LONG).show()
                 return@RegisteerContent
             }
             loading.value = true
@@ -154,16 +163,16 @@ fun RegisteerScreen(
                             } else {
                                 val loginError = when {
                                     task.exception?.message?.contains("no user record") == true ->
-                                        "No existe cuenta con ese correo."
+                                        context.getString(R.string.registro_error_no_account)
                                     task.exception?.message?.contains("password is invalid") == true ||
                                     task.exception?.message?.contains("INVALID_LOGIN_CREDENTIALS") == true ->
-                                        "Contraseña incorrecta."
+                                        context.getString(R.string.registro_error_wrong_password)
                                     task.exception?.message?.contains("too many") == true ->
-                                        "Demasiados intentos. Espera un momento."
+                                        context.getString(R.string.registro_error_too_many_attempts)
                                     task.exception?.message?.contains("Chain validation failed") == true ||
                                     task.exception?.message?.contains("SSL") == true ->
-                                        "Error de conexión. Verifica que la fecha y hora del dispositivo sean correctas."
-                                    else -> "Error: ${task.exception?.message ?: "desconocido"}"
+                                        context.getString(R.string.registro_error_connection)
+                                    else -> context.getString(R.string.registro_error_prefix, task.exception?.message ?: context.getString(R.string.registro_error_unknown))
                                 }
                                 Toast.makeText(context, loginError, Toast.LENGTH_LONG).show()
                             }
@@ -175,7 +184,7 @@ fun RegisteerScreen(
                     resolveEmailForUsername(loginInput) { resolvedEmail ->
                         if (resolvedEmail == null) {
                             loading.value = false
-                            Toast.makeText(context, "Usuario no encontrado.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, context.getString(R.string.registro_error_user_not_found), Toast.LENGTH_LONG).show()
                         } else {
                             signInWithEmail(resolvedEmail)
                         }
@@ -184,17 +193,17 @@ fun RegisteerScreen(
             } else {
                 if (confirmPassword.isBlank()) {
                     loading.value = false
-                    Toast.makeText(context, "Confirma tu contraseña.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.registro_confirm_password), Toast.LENGTH_LONG).show()
                     return@RegisteerContent
                 }
                 if (password != confirmPassword) {
                     loading.value = false
-                    Toast.makeText(context, "Las contraseñas no coinciden.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.registro_passwords_no_match), Toast.LENGTH_LONG).show()
                     return@RegisteerContent
                 }
                 if (password.length < 6) {
                     loading.value = false
-                    Toast.makeText(context, "La contraseña debe tener al menos 6 caracteres.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.registro_password_min_length), Toast.LENGTH_LONG).show()
                     return@RegisteerContent
                 }
                 auth.createUserWithEmailAndPassword(email.trim(), password)
@@ -204,18 +213,18 @@ fun RegisteerScreen(
                             auth.currentUser?.let { user ->
                                 persistUserInDatabase(user, context, displayName.trim().ifBlank { null })
                                 sendVerificationEmailIfNeeded(user, context)
-                                Toast.makeText(context, "Cuenta creada. Revisa tu correo para verificarla.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(R.string.registro_account_created), Toast.LENGTH_LONG).show()
                                 onAuthSuccess(user.uid)
                             }
                         } else {
                             val errorMsg = when {
                                 task.exception?.message?.contains("email address is already in use") == true ->
-                                    "Este correo ya tiene una cuenta. Inicia sesión."
+                                    context.getString(R.string.registro_error_email_in_use)
                                 task.exception?.message?.contains("badly formatted") == true ->
-                                    "El formato del correo no es válido."
+                                    context.getString(R.string.registro_error_bad_email)
                                 task.exception?.message?.contains("weak-password") == true ->
-                                    "La contraseña es demasiado débil."
-                                else -> "Error: ${task.exception?.message ?: "desconocido"}"
+                                    context.getString(R.string.registro_error_weak_password)
+                                else -> context.getString(R.string.registro_error_prefix, task.exception?.message ?: context.getString(R.string.registro_error_unknown))
                             }
                             Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                         }
@@ -245,17 +254,17 @@ fun RegisteerScreen(
                         }
                     } else {
                         loading.value = false
-                        Toast.makeText(context, "Tipo de credencial no compatible.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.registro_error_credential_type), Toast.LENGTH_LONG).show()
                     }
                 } catch (e: GetCredentialCancellationException) {
                     loading.value = false
                 } catch (e: GetCredentialException) {
                     loading.value = false
                     val msg = e.message?.take(120) ?: "Error desconocido"
-                    Toast.makeText(context, "Google Sign-In: $msg", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.registro_error_google_signin, msg), Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     loading.value = false
-                    Toast.makeText(context, "Error inesperado: ${e.message?.take(100)}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.registro_error_unexpected, e.message?.take(100) ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         },
@@ -267,7 +276,6 @@ fun RegisteerScreen(
     )
 }
 
-// Contenido visual del formulario de autenticacion.
 @Composable
 private fun RegisteerContent(
     modifier: Modifier,
@@ -283,342 +291,400 @@ private fun RegisteerContent(
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
+    onForgotPassword: (() -> Unit)?,
     onSubmit: () -> Unit,
     onGoogleSignIn: () -> Unit,
     onToggleMode: () -> Unit
 ) {
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val colorScheme = MaterialTheme.colorScheme
+    val cs = MaterialTheme.colorScheme
+    val isRegister = authMode == AuthMode.Register
 
-    Surface(modifier = modifier.fillMaxSize(), color = colorScheme.background) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isTablet = maxWidth > 600.dp
-            val hPad = if (isTablet) (maxWidth - 480.dp) / 2f else 20.dp
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            colorScheme.primaryContainer.copy(alpha = 0.95f),
-                            colorScheme.surface,
-                            colorScheme.surfaceVariant
-                        )
-                    )
-                )
-                .padding(horizontal = hPad)
-        ) {
+    Surface(modifier = modifier.fillMaxSize(), color = cs.background) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val hPad = if (maxWidth > 600.dp) (maxWidth - 460.dp) / 2f else 20.dp
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = screenHeight * 0.06f, bottom = screenHeight * 0.04f),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                    .imePadding()
+                    .padding(horizontal = hPad),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Card(
+                Spacer(Modifier.height(52.dp))
+
+                // ── Logo + marca ─────────────────────────────────────────────
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
-                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    shape = MaterialTheme.shapes.extraLarge
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(cs.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.agendita),
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    "EduTrack",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = cs.onBackground
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (isRegister) stringResource(R.string.registro_register_subtitle)
+                    else stringResource(R.string.registro_login_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cs.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(28.dp))
+
+                // ── Tarjeta principal ────────────────────────────────────────
+                Card(
+                    modifier = Modifier.fillMaxWidth().animateContentSize(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = cs.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 20.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.agendita),
-                            contentDescription = "Logo",
-                            modifier = Modifier
-                                .size(minOf(screenHeight * 0.12f, 96.dp))
-                                .clip(CircleShape)
-                        )
 
-                        Text(
-                            text = if (authMode == AuthMode.Login) "Controla tus notas desde el primer día" else "Empieza a controlar tus notas",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Text(
-                            text = if (authMode == AuthMode.Login) {
-                                "Calcula tu media, organiza tus asignaturas y descubre qué necesitas sacar para aprobar."
-                            } else {
-                                "Crea tu cuenta y empieza a saber exactamente cómo vas en cada asignatura."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
+                        // Google
                         OutlinedButton(
                             onClick = onGoogleSignIn,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = colorScheme.onSurface
-                            ),
-                            border = BorderStroke(1.dp, colorScheme.outlineVariant),
-                            enabled = !isLoading,
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, cs.outlineVariant),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.onSurface),
+                            enabled = !isLoading
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(
-                                    color = colorScheme.primary,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.primary)
                             } else {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_google_logo),
-                                            contentDescription = null,
-                                            tint = Color.Unspecified,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Text(
-                                            text = "Continuar con Google",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = colorScheme.onSurface,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Icon(painterResource(R.drawable.ic_google_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Text(stringResource(R.string.registro_google_btn), fontWeight = FontWeight.SemiBold)
                             }
                         }
 
-                        Divider(color = colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        // OR divider
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
+                            Text("o", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                            HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
+                        }
 
+                        // Email
                         OutlinedTextField(
                             value = email,
                             onValueChange = onEmailChange,
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = if (authMode == AuthMode.Login) "Correo o usuario" else "Correo electrónico") },
-                            placeholder = {
-                                Text(
-                                    text = if (authMode == AuthMode.Login) {
-                                        "correo@ejemplo.com o usuario"
-                                    } else {
-                                        "correo@ejemplo.com"
-                                    }
-                                )
-                            },
+                            label = { Text(if (isRegister) stringResource(R.string.registro_email_label) else stringResource(R.string.registro_email_or_user_label)) },
+                            placeholder = { Text(if (isRegister) stringResource(R.string.registro_email_placeholder) else stringResource(R.string.registro_email_or_user_placeholder)) },
                             singleLine = true,
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorScheme.primary,
-                                unfocusedBorderColor = colorScheme.outlineVariant,
-                                focusedContainerColor = colorScheme.surface,
-                                unfocusedContainerColor = colorScheme.surface,
-                                cursorColor = colorScheme.primary
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                autoCorrect = false,
-                                keyboardType = KeyboardType.Email,
-                                imeAction = ImeAction.Next
-                            )
+                            shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
                         )
 
-                        if (authMode == AuthMode.Register) {
+                        // Nombre (solo registro)
+                        AnimatedVisibility(visible = isRegister) {
                             OutlinedTextField(
                                 value = displayName,
                                 onValueChange = onDisplayNameChange,
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text(text = "Nombre o usuario") },
-                                placeholder = { Text(text = "Tu nombre visible") },
+                                label = { Text(stringResource(R.string.registro_name_label)) },
+                                placeholder = { Text(stringResource(R.string.registro_name_placeholder)) },
                                 singleLine = true,
-                                shape = MaterialTheme.shapes.extraLarge,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = colorScheme.primary,
-                                    unfocusedBorderColor = colorScheme.outlineVariant,
-                                    focusedContainerColor = colorScheme.surface,
-                                    unfocusedContainerColor = colorScheme.surface,
-                                    cursorColor = colorScheme.primary
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    autoCorrect = false,
-                                    imeAction = ImeAction.Next
-                                )
+                                shape = RoundedCornerShape(14.dp),
+                                keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Next)
                             )
                         }
 
+                        // Contraseña
                         OutlinedTextField(
                             value = password,
                             onValueChange = onPasswordChange,
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text(text = "Contraseña") },
-                            placeholder = { Text(text = "********") },
+                            label = { Text(stringResource(R.string.registro_password_label)) },
                             singleLine = true,
-                            shape = MaterialTheme.shapes.extraLarge,
+                            shape = RoundedCornerShape(14.dp),
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
                                 IconButton(onClick = onTogglePasswordVisibility) {
                                     Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (passwordVisible) stringResource(R.string.registro_hide_password_cd) else stringResource(R.string.registro_show_password_cd)
                                     )
                                 }
                             },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorScheme.primary,
-                                unfocusedBorderColor = colorScheme.outlineVariant,
-                                focusedContainerColor = colorScheme.surface,
-                                unfocusedContainerColor = colorScheme.surface,
-                                cursorColor = colorScheme.primary
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                autoCorrect = false,
-                                keyboardType = KeyboardType.Password,
-                                imeAction = if (authMode == AuthMode.Register) ImeAction.Next else ImeAction.Done
-                            )
+                            keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = if (isRegister) ImeAction.Next else ImeAction.Done)
                         )
 
-                        if (authMode == AuthMode.Register) {
+                        // Olvidé contraseña (solo login)
+                        AnimatedVisibility(visible = !isRegister) {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                TextButton(
+                                    onClick = { onForgotPassword?.invoke() },
+                                    enabled = !isLoading && onForgotPassword != null,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.auth_forgot_password),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = cs.primary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Confirmar contraseña (solo registro)
+                        AnimatedVisibility(visible = isRegister) {
                             OutlinedTextField(
                                 value = confirmPassword,
                                 onValueChange = onConfirmPasswordChange,
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text(text = "Confirmar contraseña") },
-                                placeholder = { Text(text = "Repite tu contraseña") },
+                                label = { Text(stringResource(R.string.registro_confirm_password_label)) },
                                 singleLine = true,
-                                shape = MaterialTheme.shapes.extraLarge,
+                                shape = RoundedCornerShape(14.dp),
                                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = colorScheme.primary,
-                                    unfocusedBorderColor = colorScheme.outlineVariant,
-                                    focusedContainerColor = colorScheme.surface,
-                                    unfocusedContainerColor = colorScheme.surface,
-                                    cursorColor = colorScheme.primary
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    autoCorrect = false,
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Done
-                                )
+                                keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
                             )
                         }
 
+                        // Botón principal
                         Button(
                             onClick = onSubmit,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = MaterialTheme.shapes.large,
-                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
                             enabled = !isLoading
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(
-                                    color = colorScheme.onPrimary,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.onPrimary)
                             } else {
                                 Text(
-                                    text = if (authMode == AuthMode.Login) "Iniciar sesión" else "Crear cuenta",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = colorScheme.onPrimary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = if (authMode == AuthMode.Login) "¿No tienes cuenta?" else "¿Ya tienes cuenta?",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colorScheme.onSurfaceVariant
-                            )
-                            TextButton(onClick = onToggleMode, enabled = !isLoading) {
-                                Text(
-                                    text = if (authMode == AuthMode.Login) "Regístrate aquí" else "Inicia sesión",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
+                                    if (isRegister) stringResource(R.string.registro_create_account_btn) else stringResource(R.string.registro_login_btn),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelLarge
                                 )
                             }
                         }
                     }
                 }
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
-                    colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                    shape = MaterialTheme.shapes.extraLarge
+                Spacer(Modifier.height(16.dp))
+
+                // Toggle login / registro
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Text(
+                        if (isRegister) stringResource(R.string.registro_already_account) else stringResource(R.string.registro_no_account),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant
+                    )
+                    TextButton(onClick = onToggleMode, enabled = !isLoading) {
                         Text(
-                            text = "¿Qué nota necesitas para aprobar?",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = "Edutrack calcula tu media automáticamente y te dice qué necesitas sacar en cada examen. Tus datos se sincronizan en todos tus dispositivos.",
-                            textAlign = TextAlign.Center,
-                            color = colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Divider(color = colorScheme.outlineVariant.copy(alpha = 0.4f))
-                        Text(
-                            text = "Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
+                            if (isRegister) stringResource(R.string.registro_login_link) else stringResource(R.string.registro_register_link),
+                            fontWeight = FontWeight.SemiBold,
+                            color = cs.primary,
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                 }
+
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.registro_legal_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Spacer(Modifier.height(32.dp))
             }
         }
-        } // BoxWithConstraints
     }
 }
 
+// ── Pantalla de recuperación de contraseña ───────────────────────────────────
 
-private fun persistUserInDatabase(
-    user: FirebaseUser?,
-    context: Context,
-    displayName: String? = null
-) {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ForgotPasswordScreen(onBack: () -> Unit = {}) {
+    val context = LocalContext.current
+    val auth = remember { Firebase.auth }
+    var email by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var sent by remember { mutableStateOf(false) }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {},
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            )
+        }
+    ) { inner ->
+        val cs = MaterialTheme.colorScheme
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner)
+                .imePadding()
+        ) {
+            val hPad = if (maxWidth > 600.dp) (maxWidth - 460.dp) / 2f else 20.dp
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = hPad),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(Modifier.height(24.dp))
+
+                // Icono
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(if (sent) cs.tertiaryContainer else cs.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (sent) Icons.Default.CheckCircle else Icons.Default.Email,
+                        contentDescription = null,
+                        tint = if (sent) cs.onTertiaryContainer else cs.primary,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Text(
+                    if (sent) "Correo enviado" else stringResource(R.string.auth_forgot_password),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onBackground,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    if (sent)
+                        "Hemos enviado las instrucciones a $email. Revisa tu bandeja de entrada (y la carpeta de spam)."
+                    else
+                        "Introduce tu correo y te enviaremos un enlace para restablecer tu contraseña.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cs.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+
+                Spacer(Modifier.height(32.dp))
+
+                if (!sent) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = cs.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = email,
+                                onValueChange = { email = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(stringResource(R.string.registro_email_label)) },
+                                placeholder = { Text(stringResource(R.string.registro_email_placeholder)) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp),
+                                keyboardOptions = KeyboardOptions(
+                                    autoCorrect = false,
+                                    keyboardType = KeyboardType.Email,
+                                    imeAction = ImeAction.Done
+                                ),
+                                enabled = !isLoading
+                            )
+
+                            Button(
+                                onClick = {
+                                    val trimmed = email.trim()
+                                    if (trimmed.isBlank()) {
+                                        Toast.makeText(context, context.getString(R.string.registro_fill_email_password), Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    isLoading = true
+                                    auth.sendPasswordResetEmail(trimmed)
+                                        .addOnCompleteListener { task ->
+                                            isLoading = false
+                                            if (task.isSuccessful) {
+                                                sent = true
+                                            } else {
+                                                Toast.makeText(context, context.getString(R.string.registro_error_bad_email), Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                enabled = !isLoading && email.isNotBlank()
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.onPrimary)
+                                } else {
+                                    Text("Enviar instrucciones", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Volver al inicio de sesión", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                Spacer(Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+// ── Helpers de Firebase (sin cambios) ───────────────────────────────────────
+
+private fun persistUserInDatabase(user: FirebaseUser?, context: Context, displayName: String? = null) {
     val currentUser = user ?: return
     val userRef = profileRef(currentUser.uid)
-
     userRef.get().addOnSuccessListener { snapshot ->
         val nombreCalculado = displayName?.takeIf { it.isNotBlank() }
             ?: currentUser.displayName
@@ -626,79 +692,55 @@ private fun persistUserInDatabase(
             ?: "Usuario"
         val authPhotoUrl = currentUser.photoUrl?.toString()
         if (snapshot.exists()) {
-            val updates = mutableMapOf<String, Any>(
-                "nombre" to nombreCalculado,
-                "email" to (currentUser.email ?: "")
-            )
-            // Solo sobreescribe la foto si el perfil no tiene una personalizada y la cuenta de Google tiene una.
+            val updates = mutableMapOf<String, Any>("nombre" to nombreCalculado, "email" to (currentUser.email ?: ""))
             val existingPhoto = snapshot.child("photoUrl").getValue(String::class.java)
-            if (existingPhoto.isNullOrBlank() && !authPhotoUrl.isNullOrBlank()) {
-                updates["photoUrl"] = authPhotoUrl
-            }
+            if (existingPhoto.isNullOrBlank() && !authPhotoUrl.isNullOrBlank()) updates["photoUrl"] = authPhotoUrl
             userRef.updateChildren(updates)
         } else {
-            val usuario = Usuario(
-                id = currentUser.uid,
-                nombre = nombreCalculado,
-                email = currentUser.email ?: "",
-                photoUrl = authPhotoUrl
-            )
-            userRef.setValue(usuario)
+            userRef.setValue(Usuario(id = currentUser.uid, nombre = nombreCalculado, email = currentUser.email ?: "", photoUrl = authPhotoUrl))
         }
     }.addOnFailureListener {
-        Toast.makeText(context, "No se pudo guardar el usuario en la base de datos.", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.registro_error_save_user), Toast.LENGTH_LONG).show()
     }
 }
 
-// Envia correo de verificacion si hace falta.
 private fun sendVerificationEmailIfNeeded(user: FirebaseUser?, context: Context) {
-    val currentUser = user ?: return
-    if (!currentUser.isEmailVerified) {
-        currentUser.sendEmailVerification()
-            .addOnFailureListener {
-                Toast.makeText(context, "No se pudo enviar el correo de verificación.", Toast.LENGTH_LONG).show()
-            }
-    }
+    user?.takeIf { !it.isEmailVerified }?.sendEmailVerification()
+        ?.addOnFailureListener {
+            Toast.makeText(context, context.getString(R.string.registro_error_verification_email), Toast.LENGTH_LONG).show()
+        }
 }
 
-// Con la nueva estructura de DB no se puede hacer query cross-user; solo se admite login por email.
 private fun resolveEmailForUsername(username: String, onResolved: (String?) -> Unit) {
     onResolved(null)
 }
 
-// Autentica con Google y persiste el usuario si es valido.
 private fun firebaseAuthWithGoogle(
-    auth: FirebaseAuth,
-    idToken: String?,
-    context: Context,
-    loading: MutableState<Boolean>,
-    authMode: AuthMode,
-    onSuccess: (FirebaseUser) -> Unit
+    auth: FirebaseAuth, idToken: String?, context: Context,
+    loading: MutableState<Boolean>, authMode: AuthMode, onSuccess: (FirebaseUser) -> Unit
 ) {
     if (idToken.isNullOrEmpty()) {
         loading.value = false
-        Toast.makeText(context, "No se recibió el token de Google.", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.registro_error_no_google_token), Toast.LENGTH_LONG).show()
         return
     }
-
     val credential = GoogleAuthProvider.getCredential(idToken, null)
-    auth.signInWithCredential(credential)
-        .addOnCompleteListener { task ->
-            loading.value = false
-            if (task.isSuccessful) {
-                val isNewUser = task.result?.additionalUserInfo?.isNewUser == true
-                val user = auth.currentUser
-                persistUserInDatabase(user, context)
-                sendVerificationEmailIfNeeded(user, context)
-                val message = when {
-                    isNewUser -> "Cuenta creada con Google."
-                    authMode == AuthMode.Register -> "Esta cuenta ya existe. Iniciando sesión."
-                    else -> "Sesión iniciada con Google."
-                }
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                if (user != null) onSuccess(user)
-            } else {
-                Toast.makeText(context, "Error autenticando con Google.", Toast.LENGTH_LONG).show()
+    auth.signInWithCredential(credential).addOnCompleteListener { task ->
+        loading.value = false
+        if (task.isSuccessful) {
+            val isNewUser = task.result?.additionalUserInfo?.isNewUser == true
+            val user = auth.currentUser
+            persistUserInDatabase(user, context)
+            sendVerificationEmailIfNeeded(user, context)
+            val message = when {
+                isNewUser -> context.getString(R.string.registro_google_account_created)
+                authMode == AuthMode.Register -> context.getString(R.string.registro_google_already_exists)
+                else -> context.getString(R.string.registro_google_signed_in)
             }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            if (user != null) onSuccess(user)
+        } else {
+            Toast.makeText(context, context.getString(R.string.registro_error_google_auth), Toast.LENGTH_LONG).show()
         }
+    }
 }
