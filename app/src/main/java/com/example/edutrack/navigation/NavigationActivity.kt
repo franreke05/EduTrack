@@ -5,13 +5,26 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import com.example.edutrack.utils.wrapWithLocale
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import android.net.Uri
@@ -25,7 +38,6 @@ import com.example.edutrack.data.darkModeFlow
 import com.example.edutrack.data.isLoggedFlow
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
-import com.example.edutrack.data.userIdFlow
 import com.example.edutrack.Configuracion.ConfiguracionScreen
 import com.example.edutrack.Groups.CrearGrupoScreen
 import com.example.edutrack.Groups.GrupoDetalleScreen
@@ -40,6 +52,7 @@ import com.example.edutrack.Simulador.SimuladorScreen
 import com.example.edutrack.Premium.PaywallScreen
 import com.example.edutrack.data.isOnboardedFlow
 import com.example.edutrack.data.setOnboarded
+import com.example.edutrack.data.userIdFlow
 import kotlinx.coroutines.launch
 import com.example.edutrack.DB_URL
 import com.google.firebase.auth.ktx.auth
@@ -58,13 +71,12 @@ import com.example.edutrack.ui.LocalUserGroups
 import com.example.edutrack.ui.LocalUsuario
 import com.example.edutrack.ui.LocalUserPlan
 
-// Maneja la navegacion principal y el estado de sesion.
+private val ROOT_ROUTES = setOf("inicio", "simulador", "perfil")
+
 class NavigationActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
-    // Configura el contenido Compose y las rutas de navegacion.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Debe llamarse antes de cualquier uso de FirebaseDatabase para activar caché en disco.
         FirebaseDatabase.getInstance(DB_URL).setPersistenceEnabled(true)
         setContent {
             val navController = rememberNavController()
@@ -75,18 +87,13 @@ class NavigationActivity : ComponentActivity() {
             val isDarkMode by context.darkModeFlow().collectAsState(initial = false)
             val isOnboarded by context.isOnboardedFlow().collectAsState(initial = true)
 
-            // Usa el uid de Firebase Auth directamente para evitar race conditions con DataStore.
             val userId = userIdFromStore ?: Firebase.auth.currentUser?.uid
 
-            // Restaura sesion si Firebase ya tiene un usuario autenticado.
             LaunchedEffect(Unit) {
                 val current = Firebase.auth.currentUser
-                if (current != null) {
-                    context.setUserSession(current.uid)
-                }
+                if (current != null) context.setUserSession(current.uid)
             }
 
-            // Mantiene los nodos más leídos sincronizados en caché local.
             LaunchedEffect(userId) {
                 val uid = userId ?: return@LaunchedEffect
                 val root = FirebaseDatabase.getInstance(DB_URL).reference.child("Edutrack")
@@ -110,199 +117,243 @@ class NavigationActivity : ComponentActivity() {
                     LocalPremiumCache provides premiumCache,
                     LocalUserGroups provides userGroups,
                 ) {
-                NavHost(
-                    navController = navController,
-                    startDestination = "splash"
-                ) {
-                    composable("splash") {
-                        SplashScreen(
-                            onFinished = {
-                                val hasUser = Firebase.auth.currentUser != null || isLogged
-                                if (hasUser) navController.navigate("inicio") {
-                                    popUpTo("splash") { inclusive = true }
-                                } else navController.navigate("login") {
-                                    popUpTo("splash") { inclusive = true }
+                    val currentBackStack by navController.currentBackStackEntryAsState()
+                    val currentRoute = currentBackStack?.destination?.route
+
+                    Scaffold(
+                        contentWindowInsets = WindowInsets(0),
+                        bottomBar = {
+                            if (currentRoute in ROOT_ROUTES) {
+                                NavigationBar {
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.Home, null) },
+                                        label = { Text("Inicio") },
+                                        selected = currentRoute == "inicio",
+                                        onClick = {
+                                            navController.navigate("inicio") {
+                                                popUpTo("inicio") { inclusive = false }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.Calculate, null) },
+                                        label = { Text("Simulador") },
+                                        selected = currentRoute == "simulador",
+                                        onClick = {
+                                            navController.navigate("simulador") {
+                                                popUpTo("inicio") { inclusive = false }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Default.Person, null) },
+                                        label = { Text("Perfil") },
+                                        selected = currentRoute == "perfil",
+                                        onClick = {
+                                            navController.navigate("perfil") {
+                                                popUpTo("inicio") { inclusive = false }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    )
                                 }
                             }
-                        )
-                    }
-                    composable("login") {
-                        RegisteerScreen(
-                            isLoadingOverride = null,
-                            onForgotPassword = { navController.navigate("forgot_password") },
-                            onAuthSuccess = { uid ->
-                                scope.launch { context.setUserSession(uid) }
-                                val destination = if (isOnboarded) "inicio" else "onboarding"
-                                navController.navigate(destination) {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                            }
-                        )
-                    }
-                    composable("forgot_password") {
-                        ForgotPasswordScreen(onBack = { navController.popBackStack() })
-                    }
-                    composable("onboarding") {
-                        OnboardingScreen(
-                            onFinish = {
-                                scope.launch { context.setOnboarded() }
-                                navController.navigate("inicio") {
-                                    popUpTo("onboarding") { inclusive = true }
-                                }
-                            }
-                        )
-                    }
-                    composable("inicio") {
-                        CuerpoInicio(
-                            userId = userId,
-                            onAnioSelected = { anioId ->
-                                scope.launch { context.setSelectedAnio(anioId ?: "") }
-                                navController.navigate("anio/$anioId")
-                            },
-                            onCrearAnio = { navController.navigate("crearAnio") },
-                            onPerfil = { navController.navigate("perfil") },
-                            onSimulador = { navController.navigate("simulador") },
-                            onPaywall = { navController.navigate("paywall") },
-                            onGrupos = { navController.navigate("grupos") }
-                        )
-                    }
-                    composable("simulador") {
-                        SimuladorScreen(
-                            userId = userId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") }
-                        )
-                    }
-                    composable("paywall") {
-                        PaywallScreen(
-                            userId = userId,
-                            onDismiss = { navController.popBackStack() },
-                            onPurchase = { navController.popBackStack() },
-                            onRestorePurchase = { navController.popBackStack() }
-                        )
-                    }
-                    composable("grupos") {
-                        GruposScreen(
-                            userId = userId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") },
-                            onCrearGrupo = { navController.navigate("crearGrupo") },
-                            onUnirseGrupo = { navController.navigate("unirseGrupo") },
-                            onGrupoDetalle = { groupId -> navController.navigate("grupoDetalle/$groupId") }
-                        )
-                    }
-                    composable("crearGrupo") {
-                        CrearGrupoScreen(
-                            userId = userId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") },
-                            onGroupCreated = { groupId ->
-                                navController.navigate("grupoDetalle/$groupId") {
-                                    popUpTo("grupos")
-                                }
-                            }
-                        )
-                    }
-                    composable("unirseGrupo") {
-                        UnirseGrupoScreen(
-                            userId = userId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") },
-                            onGroupJoined = { navController.popBackStack() }
-                        )
-                    }
-                    composable(
-                        route = "grupoDetalle/{groupId}",
-                        arguments = listOf(navArgument("groupId") { type = NavType.StringType })
-                    ) { backStackEntry ->
-                        val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
-                        GrupoDetalleScreen(
-                            userId = userId,
-                            groupId = groupId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") },
-                            onNavigateToAnio = { anioId -> navController.navigate("anio/$anioId") }
-                        )
-                    }
-                    composable(
-                        route = "anio/{anioId}",
-                        arguments = listOf(navArgument("anioId") { type = NavType.StringType })
-                    ) { backStackEntry ->
-                        val anioId = backStackEntry.arguments?.getString("anioId")
-                        AnioRoute(
-                            userId = userId,
-                            anioId = anioId,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") },
-                            onOpenNotas = { asignatura, anioActualId ->
-                                val asignaturaId = Uri.encode(asignatura.id.orEmpty())
-                                val asignaturaNombre = Uri.encode(asignatura.nombre.orEmpty())
-                                val tipoPeriodo = Uri.encode(asignatura.tipo_periodo ?: "Trimestre")
-                                val numeroPeriodos = asignatura.numero_periodos ?: 3
-                                val encodedAnioId = Uri.encode(anioActualId.orEmpty())
-                                navController.navigate(
-                                    "notas/$asignaturaId/$asignaturaNombre/$tipoPeriodo/$numeroPeriodos?anioId=$encodedAnioId"
+                        }
+                    ) { innerPadding ->
+                        NavHost(
+                            navController = navController,
+                            startDestination = "splash",
+                            modifier = Modifier.padding(innerPadding)
+                        ) {
+                            composable("splash") {
+                                SplashScreen(
+                                    onFinished = {
+                                        val hasUser = Firebase.auth.currentUser != null || isLogged
+                                        if (hasUser) navController.navigate("inicio") {
+                                            popUpTo("splash") { inclusive = true }
+                                        } else navController.navigate("login") {
+                                            popUpTo("splash") { inclusive = true }
+                                        }
+                                    }
                                 )
                             }
-                        )
-                    }
-                    composable(
-                        route = "notas/{asignaturaId}/{asignaturaNombre}/{tipoPeriodo}/{numeroPeriodos}?anioId={anioId}",
-                        arguments = listOf(
-                            navArgument("asignaturaId") { type = NavType.StringType },
-                            navArgument("asignaturaNombre") { type = NavType.StringType },
-                            navArgument("tipoPeriodo") { type = NavType.StringType },
-                            navArgument("numeroPeriodos") { type = NavType.IntType },
-                            navArgument("anioId") { type = NavType.StringType; defaultValue = "" },
-                        )
-                    ) { entry ->
-                        val asignaturaId = Uri.decode(entry.arguments?.getString("asignaturaId").orEmpty())
-                        val asignaturaNombre = Uri.decode(entry.arguments?.getString("asignaturaNombre").orEmpty())
-                        val tipoPeriodo = Uri.decode(entry.arguments?.getString("tipoPeriodo").orEmpty())
-                        val numeroPeriodos = entry.arguments?.getInt("numeroPeriodos") ?: 3
-                        val anioId = entry.arguments?.getString("anioId")?.takeIf { it.isNotBlank() }
-                        NotasScreen(
-                            asignaturaId = asignaturaId,
-                            asignaturaNombre = asignaturaNombre,
-                            tipoPeriodo = tipoPeriodo,
-                            numeroPeriodos = numeroPeriodos,
-                            anioId = anioId,
-                            userId = userId ?: "",
-                            notaMinima = 5.0,
-                            onBack = { navController.popBackStack() },
-                            onPaywall = { navController.navigate("paywall") }
-                        )
-                    }
-                    composable("perfil") {
-                        CuerpoPerfil(
-                            userId = userId,
-                            onSettings = { navController.navigate("configuracion") },
-                            onFinish = { navController.popBackStack() },
-                            onLogout = {
-                                scope.launch {
-                                    context.clearSession()
-                                    Firebase.auth.signOut()
-                                    navController.navigate("login") {
-                                        popUpTo(navController.graph.id) { inclusive = true }
-                                        launchSingleTop = true
+                            composable("login") {
+                                RegisteerScreen(
+                                    isLoadingOverride = null,
+                                    onForgotPassword = { navController.navigate("forgot_password") },
+                                    onAuthSuccess = { uid ->
+                                        scope.launch { context.setUserSession(uid) }
+                                        val destination = if (isOnboarded) "inicio" else "onboarding"
+                                        navController.navigate(destination) {
+                                            popUpTo("login") { inclusive = true }
+                                        }
                                     }
-                                }
-                            },
-                            onPaywall = { navController.navigate("paywall") }
-                        )
+                                )
+                            }
+                            composable("forgot_password") {
+                                ForgotPasswordScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable("onboarding") {
+                                OnboardingScreen(
+                                    onFinish = {
+                                        scope.launch { context.setOnboarded() }
+                                        navController.navigate("inicio") {
+                                            popUpTo("onboarding") { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
+                            composable("inicio") {
+                                CuerpoInicio(
+                                    userId = userId,
+                                    onAnioSelected = { anioId ->
+                                        scope.launch { context.setSelectedAnio(anioId ?: "") }
+                                        navController.navigate("anio/$anioId")
+                                    },
+                                    onCrearAnio = { navController.navigate("crearAnio") },
+                                    onPerfil = { navController.navigate("perfil") },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onGrupos = { navController.navigate("grupos") }
+                                )
+                            }
+                            composable("simulador") {
+                                SimuladorScreen(
+                                    userId = userId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") }
+                                )
+                            }
+                            composable("paywall") {
+                                PaywallScreen(
+                                    userId = userId,
+                                    onDismiss = { navController.popBackStack() },
+                                    onPurchase = { navController.popBackStack() },
+                                    onRestorePurchase = { navController.popBackStack() }
+                                )
+                            }
+                            composable("grupos") {
+                                GruposScreen(
+                                    userId = userId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onCrearGrupo = { navController.navigate("crearGrupo") },
+                                    onUnirseGrupo = { navController.navigate("unirseGrupo") },
+                                    onGrupoDetalle = { groupId -> navController.navigate("grupoDetalle/$groupId") }
+                                )
+                            }
+                            composable("crearGrupo") {
+                                CrearGrupoScreen(
+                                    userId = userId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onGroupCreated = { groupId ->
+                                        navController.navigate("grupoDetalle/$groupId") {
+                                            popUpTo("grupos")
+                                        }
+                                    }
+                                )
+                            }
+                            composable("unirseGrupo") {
+                                UnirseGrupoScreen(
+                                    userId = userId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onGroupJoined = { navController.popBackStack() }
+                                )
+                            }
+                            composable(
+                                route = "grupoDetalle/{groupId}",
+                                arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+                                GrupoDetalleScreen(
+                                    userId = userId,
+                                    groupId = groupId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onNavigateToAnio = { anioId -> navController.navigate("anio/$anioId") }
+                                )
+                            }
+                            composable(
+                                route = "anio/{anioId}",
+                                arguments = listOf(navArgument("anioId") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val anioId = backStackEntry.arguments?.getString("anioId")
+                                AnioRoute(
+                                    userId = userId,
+                                    anioId = anioId,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") },
+                                    onOpenNotas = { asignatura, anioActualId ->
+                                        val asignaturaId = Uri.encode(asignatura.id.orEmpty())
+                                        val asignaturaNombre = Uri.encode(asignatura.nombre.orEmpty())
+                                        val tipoPeriodo = Uri.encode(asignatura.tipo_periodo ?: "Trimestre")
+                                        val numeroPeriodos = asignatura.numero_periodos ?: 3
+                                        val encodedAnioId = Uri.encode(anioActualId.orEmpty())
+                                        navController.navigate(
+                                            "notas/$asignaturaId/$asignaturaNombre/$tipoPeriodo/$numeroPeriodos?anioId=$encodedAnioId"
+                                        )
+                                    }
+                                )
+                            }
+                            composable(
+                                route = "notas/{asignaturaId}/{asignaturaNombre}/{tipoPeriodo}/{numeroPeriodos}?anioId={anioId}",
+                                arguments = listOf(
+                                    navArgument("asignaturaId") { type = NavType.StringType },
+                                    navArgument("asignaturaNombre") { type = NavType.StringType },
+                                    navArgument("tipoPeriodo") { type = NavType.StringType },
+                                    navArgument("numeroPeriodos") { type = NavType.IntType },
+                                    navArgument("anioId") { type = NavType.StringType; defaultValue = "" },
+                                )
+                            ) { entry ->
+                                val asignaturaId = Uri.decode(entry.arguments?.getString("asignaturaId").orEmpty())
+                                val asignaturaNombre = Uri.decode(entry.arguments?.getString("asignaturaNombre").orEmpty())
+                                val tipoPeriodo = Uri.decode(entry.arguments?.getString("tipoPeriodo").orEmpty())
+                                val numeroPeriodos = entry.arguments?.getInt("numeroPeriodos") ?: 3
+                                val anioId = entry.arguments?.getString("anioId")?.takeIf { it.isNotBlank() }
+                                NotasScreen(
+                                    asignaturaId = asignaturaId,
+                                    asignaturaNombre = asignaturaNombre,
+                                    tipoPeriodo = tipoPeriodo,
+                                    numeroPeriodos = numeroPeriodos,
+                                    anioId = anioId,
+                                    userId = userId ?: "",
+                                    notaMinima = 5.0,
+                                    onBack = { navController.popBackStack() },
+                                    onPaywall = { navController.navigate("paywall") }
+                                )
+                            }
+                            composable("perfil") {
+                                CuerpoPerfil(
+                                    userId = userId,
+                                    onSettings = { navController.navigate("configuracion") },
+                                    onFinish = { navController.popBackStack() },
+                                    onLogout = {
+                                        scope.launch {
+                                            context.clearSession()
+                                            Firebase.auth.signOut()
+                                            navController.navigate("login") {
+                                                popUpTo(navController.graph.id) { inclusive = true }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
+                                    onPaywall = { navController.navigate("paywall") }
+                                )
+                            }
+                            composable("configuracion") {
+                                ConfiguracionScreen(onBack = { navController.popBackStack() })
+                            }
+                            composable("crearAnio") {
+                                CreacionAnioScreen(
+                                    userId = userId,
+                                    onFinish = { navController.popBackStack() }
+                                )
+                            }
+                        }
                     }
-                    composable("configuracion") {
-                        ConfiguracionScreen(
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
-                    composable("crearAnio") {
-                        CreacionAnioScreen(
-                            userId = userId,
-                            onFinish = { navController.popBackStack() }
-                        )
-                    }
-                }
                 }
             }
         }

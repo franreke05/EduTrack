@@ -3,13 +3,8 @@ package com.example.edutrack.Inicio
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,7 +14,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -84,7 +78,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -150,7 +143,6 @@ fun Iniciopreview() {
             onAnioSelected = {},
             onCrearAnio = {},
             onPerfil = {},
-            onSimulador = {},
             onPaywall = {},
             onGrupos = {}
         )
@@ -164,7 +156,6 @@ fun CuerpoInicio(
     onAnioSelected: (String?) -> Unit = {},
     onCrearAnio: () -> Unit = {},
     onPerfil: () -> Unit = {},
-    onSimulador: () -> Unit = {},
     onPaywall: () -> Unit = {},
     onGrupos: () -> Unit = {}
 ) {
@@ -178,7 +169,6 @@ fun CuerpoInicio(
         onAnioSelected = onAnioSelected,
         onCrearAnio = onCrearAnio,
         onPerfil = onPerfil,
-        onSimulador = onSimulador,
         onPaywall = onPaywall,
         onGrupos = onGrupos
     )
@@ -193,7 +183,6 @@ fun CuerpoInicioContent(
     onAnioSelected: (String?) -> Unit = {},
     onCrearAnio: () -> Unit = {},
     onPerfil: () -> Unit = {},
-    onSimulador: () -> Unit = {},
     onPaywall: () -> Unit = {},
     onGrupos: () -> Unit = {}
 ) {
@@ -221,20 +210,20 @@ fun CuerpoInicioContent(
             item {
                 InstagramTopBar(
                     onPerfil = onPerfil,
-                    onGrupos = onGrupos,
                     isPremium = userPlan == UserPlan.PREMIUM
                 )
             }
 
             item {
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                StoriesRow(
-                    anios = anios,
-                    onCrearAnio = guardedCrearAnio,
-                    onAnioNavigate = { anio -> onAnioSelected(anio.id) }
-                )
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(10.dp))
+                AnimatedFeedItem(index = 0) {
+                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
+                }
+            }
+
+            item {
+                AnimatedFeedItem(index = 1) {
+                    GruposQuickRow(onGrupos = onGrupos)
+                }
             }
 
             if (anios.isEmpty()) {
@@ -243,62 +232,50 @@ fun CuerpoInicioContent(
                 }
             } else {
                 item {
-                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                        val isTablet = maxWidth > 600.dp
-
-                        if (isTablet) {
-                            // Layout en dos columnas para tablets
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // Primera fila: Resumen Académico + Simulador
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    AnimatedFeedItem(index = 0) {
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            ResumenGeneralCard(
-                                                anios = anios,
-                                                onSimulador = onSimulador
-                                            )
-                                        }
-                                    }
-                                    AnimatedFeedItem(index = 1) {
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            SimuladorFeedCard(onSimulador = onSimulador)
-                                        }
-                                    }
-                                }
-
-                                // Segunda fila: Exámenes del mes (fullwidth)
-                                AnimatedFeedItem(index = 2) {
-                                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
-                                }
-                            }
-                        } else {
-                            // Layout en columna para móviles
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                AnimatedFeedItem(index = 0) {
-                                    ResumenGeneralCard(
-                                        anios = anios,
-                                        onSimulador = onSimulador
-                                    )
-                                }
-                                AnimatedFeedItem(index = 1) {
-                                    SimuladorFeedCard(onSimulador = onSimulador)
-                                }
-                                AnimatedFeedItem(index = 2) {
-                                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
-                                }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Mis cursos",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        if (PlanManager.canCreateCourse(userPlan, anios.size)) {
+                            TextButton(onClick = guardedCrearAnio) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Añadir")
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                itemsIndexed(anios, key = { _, anio -> anio.id ?: anio.hashCode() }) { index, anio ->
+                    AnimatedFeedItem(index = index + 2) {
+                        AnioFeedCard(
+                            anio = anio,
+                            index = index + 1,
+                            showMenu = showMenuFor == anio.id,
+                            onMenuToggle = {
+                                showMenuFor = if (showMenuFor == anio.id) null else anio.id
+                            },
+                            onMenuDismiss = { showMenuFor = null },
+                            onOpen = { onAnioSelected(anio.id) },
+                            onDelete = {
+                                anioToDelete = anio
+                                showDeleteDialog = true
+                                showMenuFor = null
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -362,7 +339,6 @@ private fun AnimatedFeedItem(index: Int, content: @Composable () -> Unit) {
 @Composable
 private fun InstagramTopBar(
     onPerfil: () -> Unit,
-    onGrupos: () -> Unit = {},
     isPremium: Boolean = false
 ) {
     // Slide-down de la barra al entrar
@@ -417,9 +393,6 @@ private fun InstagramTopBar(
                     }
                 }
             }
-        }
-        IconButton(onClick = onGrupos) {
-            Icon(Icons.Default.Group, contentDescription = stringResource(R.string.inicio_grupos_cd), tint = MaterialTheme.colorScheme.onBackground)
         }
         // Avatar con inicial en lugar de icono genérico
         Box(
@@ -573,140 +546,38 @@ private fun StoryItem(
     }
 }
 
-// Tarjeta de resumen global: media total, cursos activos, asignaturas totales.
 @Composable
-private fun ResumenGeneralCard(anios: List<Anio>, onSimulador: () -> Unit) {
-    val colorScheme = MaterialTheme.colorScheme
-    val medias = anios.mapNotNull { calcularMediaAnio(it) }
-    val mediaGlobal = if (medias.isNotEmpty()) medias.average() else null
-    val totalAsignaturas = anios.sumOf { it.lista_asignaturas?.size ?: 0 }
-
-    val animatedMedia by animateFloatAsState(
-        targetValue = mediaGlobal?.toFloat() ?: 0f,
-        animationSpec = tween(1200, easing = FastOutSlowInEasing),
-        label = "mediaGlobal"
-    )
-
-    val mediaColor = when {
-        mediaGlobal == null -> colorScheme.onSurfaceVariant
-        mediaGlobal >= 7.0 -> colorScheme.tertiary
-        mediaGlobal >= 5.0 -> colorScheme.primary
-        else -> colorScheme.error
-    }
-
+private fun GruposQuickRow(onGrupos: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val userGroups = LocalUserGroups.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surfaceVariant),
+        elevation = CardDefaults.cardElevation(0.dp),
+        onClick = onGrupos
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.TrendingUp, null,
-                    tint = colorScheme.primary, modifier = Modifier.size(16.dp)
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(Icons.Default.Group, contentDescription = null, tint = cs.primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Grupos", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 Text(
-                    stringResource(R.string.inicio_resumen_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
+                    if (userGroups.isEmpty()) "Únete o crea un grupo"
+                    else "${userGroups.size} grupo${if (userGroups.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            // 3 mini-stats con color propio
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                        .padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("${anios.size}", color = colorScheme.primary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(if (anios.size == 1) stringResource(R.string.inicio_stat_course_singular) else stringResource(R.string.inicio_stat_course_plural), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(colorScheme.tertiary.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                        .padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("$totalAsignaturas", color = colorScheme.tertiary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                    Text(stringResource(R.string.inicio_stat_subjects), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(mediaColor.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                        .padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        if (mediaGlobal != null) String.format("%.1f", animatedMedia) else "—",
-                        color = mediaColor, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold
-                    )
-                    Text(stringResource(R.string.inicio_stat_average), color = colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            // CTA simulador
-            Surface(
-                onClick = onSimulador,
-                color = colorScheme.primary.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.TrendingUp, null,
-                        tint = colorScheme.primary, modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        stringResource(R.string.inicio_simulador_cta),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Default.ChevronRight, null,
-                        tint = colorScheme.primary, modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = cs.onSurfaceVariant)
         }
-    }
-}
-
-@Composable
-private fun StatBadge(label: String, sublabel: String, color: Color) {
-    Column(horizontalAlignment = Alignment.End) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = sublabel,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -718,7 +589,6 @@ private fun AnioFeedCard(
     onMenuToggle: () -> Unit,
     onMenuDismiss: () -> Unit,
     onOpen: () -> Unit,
-    onSimulador: () -> Unit,
     onDelete: () -> Unit
 ) {
     val mediaAnio = calcularMediaAnio(anio)
@@ -841,19 +711,6 @@ private fun AnioFeedCard(
                         )
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.inicio_menu_simulador), style = MaterialTheme.typography.bodyMedium) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Calculate,
-                                    contentDescription = null,
-                                    tint = colorScheme.secondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            onClick = { onMenuDismiss(); onSimulador() }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp))
-                        DropdownMenuItem(
                             text = { Text(stringResource(R.string.inicio_menu_eliminar), style = MaterialTheme.typography.bodyMedium, color = colorScheme.error) },
                             leadingIcon = {
                                 Icon(
@@ -929,110 +786,36 @@ private fun AnioFeedCard(
                     }
                 }
             }
-        }
-    }
-}
 
-// Tarjeta del simulador con shimmer animado sobre el gradiente.
-@Composable
-private fun SimuladorFeedCard(onSimulador: () -> Unit) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    val shimmerTransition = rememberInfiniteTransition(label = "shimmer")
-    val shimmerProgress by shimmerTransition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerOffset"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        onClick = onSimulador,
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.primary)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        listOf(colorScheme.primary, colorScheme.tertiary.copy(alpha = 0.85f))
-                    )
-                )
-        ) {
-            // Shimmer layer
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(116.dp)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.10f),
-                                Color.Transparent
-                            ),
-                            start = Offset(shimmerProgress * 600f, 0f),
-                            end = Offset(shimmerProgress * 600f + 400f, 400f)
-                        )
-                    )
-            )
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Calculate,
-                        contentDescription = null,
-                        tint = colorScheme.onPrimary,
-                        modifier = Modifier.size(30.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.inicio_simulador_question),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onPrimary
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.inicio_simulador_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onPrimary.copy(alpha = 0.85f),
-                    lineHeight = 20.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
+            // Asignaturas inline
+            val subjects = anio.lista_asignaturas?.values?.toList()?.sortedBy { it.nombre } ?: emptyList()
+            if (subjects.isNotEmpty()) {
+                HorizontalDivider(color = colorScheme.outlineVariant.copy(alpha = 0.3f))
+                subjects.forEach { subject ->
+                    val nota = subject.media ?: 0.0
+                    val notaColor = when {
+                        nota <= 0 -> colorScheme.onSurfaceVariant
+                        nota >= 7 -> colorScheme.tertiary
+                        nota >= (anio.nota_minima_aprobado ?: 5.0) -> colorScheme.primary
+                        else -> colorScheme.error
+                    }
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = stringResource(R.string.inicio_simulador_open),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.primary
+                            text = subject.nombre ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
                         )
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                        Text(
+                            text = if (nota > 0) String.format("%.1f", nota) else "—",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = notaColor
                         )
                     }
                 }

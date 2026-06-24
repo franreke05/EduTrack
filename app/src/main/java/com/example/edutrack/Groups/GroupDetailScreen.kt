@@ -954,10 +954,7 @@ fun GroupCourseSheet(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .androidx.compose.foundation.background(
-                                            cs.primaryContainer,
-                                            CircleShape
-                                        ),
+                                        .background(cs.primaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
