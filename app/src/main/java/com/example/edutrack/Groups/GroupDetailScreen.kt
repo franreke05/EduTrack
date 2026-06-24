@@ -19,7 +19,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
@@ -105,6 +109,7 @@ fun GrupoDetalleScreen(
     var subjectToDelete by remember { mutableStateOf<GroupSharedSubject?>(null) }
     var isDeletingSubject by remember { mutableStateOf(false) }
     var showQrSheet by remember { mutableStateOf(false) }
+    var showCourseSheet by remember { mutableStateOf(false) }
     var importTarget by remember { mutableStateOf<GroupSharedSubject?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -293,10 +298,13 @@ fun GrupoDetalleScreen(
 
             // Botón "Ver curso" para grupos CLASSROOM con anio vinculado
             val linkedAnioId = group?.linkedAnioId?.takeIf { it.isNotBlank() }
-            if (isClassroom && linkedAnioId != null && onNavigateToAnio != null) {
+            if (isClassroom && linkedAnioId != null) {
                 item {
                     Button(
-                        onClick = { onNavigateToAnio(linkedAnioId) },
+                        onClick = {
+                            if (isOwner && onNavigateToAnio != null) onNavigateToAnio(linkedAnioId)
+                            else showCourseSheet = true
+                        },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = MaterialTheme.shapes.extraLarge
                     ) {
@@ -506,6 +514,14 @@ fun GrupoDetalleScreen(
                 selectedSubject = null
             },
             onDismiss = { selectedSubject = null }
+        )
+    }
+
+    if (showCourseSheet) {
+        GroupCourseSheet(
+            groupName = group?.name ?: "",
+            sharedSubjects = sharedSubjects,
+            onDismiss = { showCourseSheet = false }
         )
     }
 
@@ -873,4 +889,103 @@ private fun SharedSubjectDetailDialog(
             { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } }
         } else null
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupCourseSheet(
+    groupName: String,
+    sharedSubjects: List<GroupSharedSubject>,
+    onDismiss: () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = cs.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = groupName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = cs.onSurface
+            )
+            Text(
+                text = "Asignaturas compartidas por el profesor",
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant
+            )
+            HorizontalDivider(color = cs.outlineVariant)
+
+            if (sharedSubjects.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "El profesor aún no ha compartido asignaturas",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = cs.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(sharedSubjects, key = { it.id ?: it.hashCode().toString() }) { subject ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = cs.surfaceVariant
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .androidx.compose.foundation.background(
+                                            cs.primaryContainer,
+                                            CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.MenuBook,
+                                        contentDescription = null,
+                                        tint = cs.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = subject.name ?: "Asignatura",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = cs.onSurface
+                                    )
+                                    Text(
+                                        text = "${subject.tipoPeriodo ?: "Trimestre"} · ${subject.numeroPeriodos ?: 3} periodos",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = cs.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
 }

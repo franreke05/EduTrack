@@ -48,6 +48,7 @@ import com.example.edutrack.currentMonthKey
 import com.example.edutrack.dataclass.Anio
 import com.example.edutrack.dataclass.GroupSharedSubject
 import com.example.edutrack.domain.UserPlan
+import com.example.edutrack.domain.PlanManager
 import com.example.edutrack.groupImportsMetaRef
 import com.example.edutrack.importarAsignaturaDesdeGrupo
 import com.google.firebase.database.DataSnapshot
@@ -239,6 +240,15 @@ fun SubjectImportSheet(
                         }
                         if (creditos < 1) {
                             errorMsg = "Los créditos deben ser al menos 1"
+                            return@Button
+                        }
+                        // Enforce per-course subject limit for free users
+                        val selectedAnio = anios.firstOrNull { it.id == anioId }
+                        val currentSubjects = selectedAnio?.lista_asignaturas?.size ?: 0
+                        if (!PlanManager.canAddSubject(plan, currentSubjects)) {
+                            errorMsg = null
+                            onDismiss()
+                            onPaywall()
                             return@Button
                         }
                         errorMsg = null
