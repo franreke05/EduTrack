@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -71,7 +71,7 @@ import com.example.edutrack.ui.LocalUserGroups
 import com.example.edutrack.ui.LocalUsuario
 import com.example.edutrack.ui.LocalUserPlan
 
-private val ROOT_ROUTES = setOf("inicio", "simulador", "perfil")
+private val ROOT_ROUTES = setOf("inicio", "simulador", "grupos")
 
 class NavigationActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
@@ -148,11 +148,11 @@ class NavigationActivity : ComponentActivity() {
                                         }
                                     )
                                     NavigationBarItem(
-                                        icon = { Icon(Icons.Default.Person, null) },
-                                        label = { Text("Perfil") },
-                                        selected = currentRoute == "perfil",
+                                        icon = { Icon(Icons.Default.Group, null) },
+                                        label = { Text("Grupos") },
+                                        selected = currentRoute == "grupos",
                                         onClick = {
-                                            navController.navigate("perfil") {
+                                            navController.navigate("grupos") {
                                                 popUpTo("inicio") { inclusive = false }
                                                 launchSingleTop = true
                                             }
@@ -214,8 +214,7 @@ class NavigationActivity : ComponentActivity() {
                                     },
                                     onCrearAnio = { navController.navigate("crearAnio") },
                                     onPerfil = { navController.navigate("perfil") },
-                                    onPaywall = { navController.navigate("paywall") },
-                                    onGrupos = { navController.navigate("grupos") }
+                                    onPaywall = { navController.navigate("paywall") }
                                 )
                             }
                             composable("simulador") {

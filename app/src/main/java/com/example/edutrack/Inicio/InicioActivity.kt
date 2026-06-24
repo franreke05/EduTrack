@@ -143,8 +143,7 @@ fun Iniciopreview() {
             onAnioSelected = {},
             onCrearAnio = {},
             onPerfil = {},
-            onPaywall = {},
-            onGrupos = {}
+            onPaywall = {}
         )
     }
 }
@@ -156,8 +155,7 @@ fun CuerpoInicio(
     onAnioSelected: (String?) -> Unit = {},
     onCrearAnio: () -> Unit = {},
     onPerfil: () -> Unit = {},
-    onPaywall: () -> Unit = {},
-    onGrupos: () -> Unit = {}
+    onPaywall: () -> Unit = {}
 ) {
     val aniosFromFirebase = LocalAnios.current
     val userPlan = LocalUserPlan.current
@@ -169,8 +167,7 @@ fun CuerpoInicio(
         onAnioSelected = onAnioSelected,
         onCrearAnio = onCrearAnio,
         onPerfil = onPerfil,
-        onPaywall = onPaywall,
-        onGrupos = onGrupos
+        onPaywall = onPaywall
     )
 }
 
@@ -183,8 +180,7 @@ fun CuerpoInicioContent(
     onAnioSelected: (String?) -> Unit = {},
     onCrearAnio: () -> Unit = {},
     onPerfil: () -> Unit = {},
-    onPaywall: () -> Unit = {},
-    onGrupos: () -> Unit = {}
+    onPaywall: () -> Unit = {}
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var anioToDelete by remember { mutableStateOf<Anio?>(null) }
@@ -215,15 +211,14 @@ fun CuerpoInicioContent(
             }
 
             item {
-                AnimatedFeedItem(index = 0) {
-                    ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
-                }
-            }
-
-            item {
-                AnimatedFeedItem(index = 1) {
-                    GruposQuickRow(onGrupos = onGrupos)
-                }
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                StoriesRow(
+                    anios = anios,
+                    onCrearAnio = guardedCrearAnio,
+                    onAnioNavigate = { anio -> onAnioSelected(anio.id) }
+                )
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             if (anios.isEmpty()) {
@@ -232,34 +227,12 @@ fun CuerpoInicioContent(
                 }
             } else {
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Mis cursos",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        if (PlanManager.canCreateCourse(userPlan, anios.size)) {
-                            TextButton(onClick = guardedCrearAnio) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Añadir")
-                            }
-                        }
+                    AnimatedFeedItem(index = 0) {
+                        ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
                     }
                 }
                 itemsIndexed(anios, key = { _, anio -> anio.id ?: anio.hashCode() }) { index, anio ->
-                    AnimatedFeedItem(index = index + 2) {
+                    AnimatedFeedItem(index = index + 1) {
                         AnioFeedCard(
                             anio = anio,
                             index = index + 1,
@@ -543,41 +516,6 @@ private fun StoryItem(
             modifier = Modifier.width(68.dp),
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-private fun GruposQuickRow(onGrupos: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val userGroups = LocalUserGroups.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = cs.surfaceVariant),
-        elevation = CardDefaults.cardElevation(0.dp),
-        onClick = onGrupos
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(Icons.Default.Group, contentDescription = null, tint = cs.primary)
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Grupos", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (userGroups.isEmpty()) "Únete o crea un grupo"
-                    else "${userGroups.size} grupo${if (userGroups.size != 1) "s" else ""}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant
-                )
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = cs.onSurfaceVariant)
-        }
     }
 }
 
@@ -1309,7 +1247,11 @@ private fun CalendarioBottomSheet(
                                     else -> Color.Transparent
                                 }
                             )
-                            .clickable { selectedDay = day },
+                            .clickable {
+                                selectedDay = if (!hasExams) null
+                                else if (selectedDay == day) null
+                                else day
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
