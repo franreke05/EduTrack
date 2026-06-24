@@ -228,7 +228,7 @@ fun CuerpoInicioContent(
             } else {
                 item {
                     AnimatedFeedItem(index = 0) {
-                        ExamenesFeedCard(anios = anios, onAnioSelected = onAnioSelected)
+                        TimelineExamenes(anios = anios, onAnioSelected = onAnioSelected)
                     }
                 }
                 itemsIndexed(anios, key = { _, anio -> anio.id ?: anio.hashCode() }) { index, anio ->
@@ -846,6 +846,168 @@ private fun rememberExamenesMes(
         onDispose {}
     }
     return state
+}
+
+@Composable
+private fun TimelineExamenes(anios: List<Anio>, onAnioSelected: (String?) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val userGroups = LocalUserGroups.current
+    val now = remember { Calendar.getInstance() }
+    val todayDay = now.get(Calendar.DAY_OF_MONTH)
+    val currentMonth = now.get(Calendar.MONTH) + 1
+    val currentYear = now.get(Calendar.YEAR)
+    val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val userId = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }
+    val examensByDay by rememberExamenesMes(anios, userId, userGroups, currentMonth, currentYear)
+    var showCalendario by remember { mutableStateOf(false) }
+    val monthName = remember {
+        now.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale("es"))
+            ?.replaceFirstChar { it.uppercase() } ?: ""
+    }
+    // Java Calendar: Sunday=1; Spanish short: D L M X J V S
+    val dowLetters = remember { arrayOf("D", "L", "M", "X", "J", "V", "S") }
+    val remainingDays = daysInMonth - todayDay + 1
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(top = 14.dp, bottom = 8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.DateRange, null,
+                        tint = cs.primary, modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        "Exámenes · $monthName",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurface
+                    )
+                }
+                TextButton(onClick = { showCalendario = true }) {
+                    Text(
+                        "Ver mes",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // ponytail: current month only; extend to 2 months when needed
+                items(remainingDays) { offset ->
+                    val day = todayDay + offset
+                    val cal = Calendar.getInstance().apply {
+                        set(Calendar.YEAR, currentYear)
+                        set(Calendar.MONTH, currentMonth - 1)
+                        set(Calendar.DAY_OF_MONTH, day)
+                    }
+                    val dowIdx = cal.get(Calendar.DAY_OF_WEEK) - 1
+                    val isToday = offset == 0
+                    val isWeekend = dowIdx == 0 || dowIdx == 6
+                    val exams = examensByDay[day] ?: emptyList()
+                    val hasExam = exams.isNotEmpty()
+                    val examColor = if (exams.size > 1) cs.error else cs.tertiary
+
+                    Column(
+                        modifier = Modifier
+                            .width(48.dp)
+                            .then(if (hasExam) Modifier.clickable { showCalendario = true } else Modifier),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            dowLetters[dowIdx],
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            color = if (isWeekend) cs.primary.copy(alpha = 0.5f)
+                                    else cs.onSurfaceVariant
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(
+                                    when {
+                                        isToday -> cs.primary
+                                        hasExam -> examColor.copy(alpha = 0.12f)
+                                        else -> Color.Transparent
+                                    },
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                day.toString(),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isToday || hasExam) FontWeight.Bold else FontWeight.Normal,
+                                color = when {
+                                    isToday -> cs.onPrimary
+                                    hasExam -> examColor
+                                    isWeekend -> cs.onSurface.copy(alpha = 0.45f)
+                                    else -> cs.onSurface
+                                }
+                            )
+                        }
+                        if (hasExam) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .background(examColor, CircleShape)
+                            )
+                            Text(
+                                exams.first().nombre.take(5),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = examColor,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.width(44.dp)
+                            )
+                            if (exams.size > 1) {
+                                Text(
+                                    "+${exams.size - 1}",
+                                    fontSize = 8.sp,
+                                    color = cs.error,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(22.dp))
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+
+    if (showCalendario) {
+        CalendarioBottomSheet(
+            anios = anios,
+            userId = userId,
+            onDismiss = { showCalendario = false },
+            onNavAsignatura = onAnioSelected
+        )
+    }
 }
 
 @Composable
