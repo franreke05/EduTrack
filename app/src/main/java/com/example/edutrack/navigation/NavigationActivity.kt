@@ -39,6 +39,8 @@ import com.example.edutrack.data.isLoggedFlow
 import com.example.edutrack.data.setSelectedAnio
 import com.example.edutrack.data.setUserSession
 import com.example.edutrack.Configuracion.ConfiguracionScreen
+import com.example.edutrack.Configuracion.LegalType
+import com.example.edutrack.Configuracion.LegalViewerScreen
 import com.example.edutrack.Groups.CrearGrupoScreen
 import com.example.edutrack.Groups.GrupoDetalleScreen
 import com.example.edutrack.Groups.GruposScreen
@@ -51,10 +53,14 @@ import com.example.edutrack.Onboarding.OnboardingScreen
 import com.example.edutrack.Simulador.SimuladorScreen
 import com.example.edutrack.Premium.PaywallScreen
 import com.example.edutrack.data.isOnboardedFlow
+import com.example.edutrack.data.setEducationLevel
 import com.example.edutrack.data.setOnboarded
+import com.example.edutrack.data.updateStreak
 import com.example.edutrack.data.userIdFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.example.edutrack.DB_URL
+import com.example.edutrack.profileRef
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.ktx.Firebase
@@ -77,7 +83,6 @@ class NavigationActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(newBase.wrapWithLocale())
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FirebaseDatabase.getInstance(DB_URL).setPersistenceEnabled(true)
         setContent {
             val navController = rememberNavController()
             val context = LocalContext.current
@@ -85,7 +90,7 @@ class NavigationActivity : ComponentActivity() {
             val isLogged by context.isLoggedFlow().collectAsState(initial = false)
             val userIdFromStore by context.userIdFlow().collectAsState(initial = null)
             val isDarkMode by context.darkModeFlow().collectAsState(initial = false)
-            val isOnboarded by context.isOnboardedFlow().collectAsState(initial = true)
+            val isOnboarded by context.isOnboardedFlow().collectAsState(initial = false)
 
             val userId = userIdFromStore ?: Firebase.auth.currentUser?.uid
 
@@ -96,6 +101,7 @@ class NavigationActivity : ComponentActivity() {
 
             LaunchedEffect(userId) {
                 val uid = userId ?: return@LaunchedEffect
+                context.updateStreak()
                 val root = FirebaseDatabase.getInstance(DB_URL).reference.child("Edutrack")
                 root.child("users/$uid/anios").keepSynced(true)
                 root.child("users/$uid/premiumCache").keepSynced(true)
@@ -184,10 +190,13 @@ class NavigationActivity : ComponentActivity() {
                                     isLoadingOverride = null,
                                     onForgotPassword = { navController.navigate("forgot_password") },
                                     onAuthSuccess = { uid ->
-                                        scope.launch { context.setUserSession(uid) }
-                                        val destination = if (isOnboarded) "inicio" else "onboarding"
-                                        navController.navigate(destination) {
-                                            popUpTo("login") { inclusive = true }
+                                        scope.launch {
+                                            context.setUserSession(uid)
+                                            val onboarded = context.isOnboardedFlow().first()
+                                            val destination = if (onboarded) "inicio" else "onboarding"
+                                            navController.navigate(destination) {
+                                                popUpTo("login") { inclusive = true }
+                                            }
                                         }
                                     }
                                 )
@@ -197,11 +206,20 @@ class NavigationActivity : ComponentActivity() {
                             }
                             composable("onboarding") {
                                 OnboardingScreen(
-                                    onFinish = {
-                                        scope.launch { context.setOnboarded() }
+                                    onFinish = { level ->
+                                        scope.launch {
+                                            if (level.isNotEmpty()) {
+                                                context.setEducationLevel(level)
+                                                userId?.let { uid ->
+                                                    profileRef(uid).updateChildren(mapOf("educationLevel" to level))
+                                                }
+                                            }
+                                            context.setOnboarded()
+                                        }
                                         navController.navigate("inicio") {
                                             popUpTo("onboarding") { inclusive = true }
                                         }
+                                        navController.navigate("crearAnio")
                                     }
                                 )
                             }
@@ -343,7 +361,24 @@ class NavigationActivity : ComponentActivity() {
                                 )
                             }
                             composable("configuracion") {
-                                ConfiguracionScreen(onBack = { navController.popBackStack() })
+                                ConfiguracionScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onLegal = { type ->
+                                        navController.navigate("legal/${type.name}")
+                                    }
+                                )
+                            }
+                            composable(
+                                route = "legal/{type}",
+                                arguments = listOf(navArgument("type") { type = NavType.StringType })
+                            ) { entry ->
+                                val legalType = runCatching {
+                                    LegalType.valueOf(entry.arguments?.getString("type") ?: "PRIVACY")
+                                }.getOrDefault(LegalType.PRIVACY)
+                                LegalViewerScreen(
+                                    type = legalType,
+                                    onBack = { navController.popBackStack() }
+                                )
                             }
                             composable("crearAnio") {
                                 CreacionAnioScreen(

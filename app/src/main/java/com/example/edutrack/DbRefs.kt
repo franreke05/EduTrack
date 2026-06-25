@@ -3,6 +3,12 @@ package com.example.edutrack
 internal const val ROOT_NODE = "Edutrack"
 const val DB_URL = "https://edutrack-5579f-default-rtdb.europe-west1.firebasedatabase.app/"
 
+// Documentos legales (docs/legal/). RELLENAR con la URL pública real tras
+// hospedarlos (GitHub Pages / Firebase Hosting). Play Console exige una URL
+// pública de política de privacidad y otra de eliminación de datos.
+const val PRIVACY_POLICY_URL = "https://edutrack.app/privacy"
+const val TERMS_URL = "https://edutrack.app/terms"
+
 internal fun db() = com.google.firebase.database.FirebaseDatabase.getInstance(DB_URL).reference
 
 fun userRef(userId: String) = db().child(ROOT_NODE).child("users").child(userId)

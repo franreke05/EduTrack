@@ -3,6 +3,7 @@ package com.example.edutrack.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,6 +26,9 @@ object SessionPrefs {
     val ANIOS_JSON = stringPreferencesKey("anios_json")
     val PREMIUM_IS_PREMIUM = booleanPreferencesKey("premium_is_premium")
     val PREMIUM_EXPIRES_AT = longPreferencesKey("premium_expires_at")
+    val EDUCATION_LEVEL = stringPreferencesKey("education_level")
+    val STREAK_COUNT = intPreferencesKey("streak_count")
+    val LAST_OPEN_DAY = longPreferencesKey("last_open_day")
 }
 
 fun Context.userIdFlow(): Flow<String?> =
@@ -89,5 +93,30 @@ suspend fun Context.clearSession() {
         it.remove(SessionPrefs.USER_ID)
         it.remove(SessionPrefs.IS_LOGGED)
         it.remove(SessionPrefs.SELECTED_ANIO)
+    }
+}
+
+suspend fun Context.setEducationLevel(level: String) {
+    sessionDataStore.edit { it[SessionPrefs.EDUCATION_LEVEL] = level }
+}
+
+fun Context.educationLevelFlow(): Flow<String> =
+    sessionDataStore.data.map { it[SessionPrefs.EDUCATION_LEVEL] ?: "" }.distinctUntilChanged()
+
+fun Context.streakFlow(): Flow<Int> =
+    sessionDataStore.data.map { it[SessionPrefs.STREAK_COUNT] ?: 0 }.distinctUntilChanged()
+
+// Actualiza el streak en cada apertura. Misma lógica: hoy=no cambia, ayer=+1, anterior=reset a 1.
+suspend fun Context.updateStreak() {
+    val todayEpochDay = System.currentTimeMillis() / 86_400_000L
+    sessionDataStore.edit { prefs ->
+        val lastDay = prefs[SessionPrefs.LAST_OPEN_DAY] ?: 0L
+        val current = prefs[SessionPrefs.STREAK_COUNT] ?: 0
+        prefs[SessionPrefs.LAST_OPEN_DAY] = todayEpochDay
+        prefs[SessionPrefs.STREAK_COUNT] = when (todayEpochDay - lastDay) {
+            0L -> current
+            1L -> current + 1
+            else -> 1
+        }
     }
 }

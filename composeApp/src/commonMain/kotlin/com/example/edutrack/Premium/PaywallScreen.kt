@@ -436,8 +436,8 @@ private fun TrustRow() {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TrustItem(Icons.Rounded.Star,     "Top Educación", "Play Store")
-        TrustItem(Icons.Rounded.Verified, "Pago seguro",  "Google Play")
+        TrustItem(Icons.Rounded.Verified, "Datos en la UE", "Servidores RGPD")
+        TrustItem(Icons.Rounded.Star,     "Pago seguro",    "Google Play")
         TrustItem(Icons.Rounded.Cancel,   "Sin permanencia", "Cancela cuando quieras")
     }
 }
@@ -475,14 +475,20 @@ private fun BottomCta(
             ) {
                 Icon(Icons.Rounded.Bolt, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
+                // Trial como gancho principal: requiere configurar una oferta de
+                // prueba gratuita de 7 días en Play Console para edutrack_premium_*.
+                // Si no la configuras, cambia este texto por "Suscribirme — …".
                 Text(
-                    if (selectedPlan == "annual") "Suscribirme — 14,99 €/año"
-                    else "Suscribirme — 2,49 €/mes",
+                    "Empezar 7 días gratis",
                     color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text("Suscripción gestionada por Google Play.", fontSize = 11.sp, color = Slate500)
+            Text(
+                if (selectedPlan == "annual") "Luego 14,99 €/año · cancela cuando quieras"
+                else "Luego 2,49 €/mes · cancela cuando quieras",
+                fontSize = 11.sp, color = Slate500, textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(4.dp))
             Text(
                 "Restaurar compra",

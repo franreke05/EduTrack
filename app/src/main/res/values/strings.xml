@@ -238,7 +238,7 @@
     <string name="inicio_calendar_exams_day">Exámenes del %d de %s</string>
     <string name="inicio_calendar_ver">Ver</string>
     <string name="inicio_feed_empty_title">Tu feed está vacío</string>
-    <string name="inicio_feed_empty_body">Crea tu primer curso y empieza a controlar tus notas.</string>
+    <string name="inicio_feed_empty_body">En 30 segundos: crea un curso, añade tus asignaturas y verás tu media al instante.</string>
     <string name="inicio_feed_crear_curso">Crear curso</string>
     <string name="inicio_delete_title">Confirmar eliminación</string>
     <string name="inicio_delete_text">¿Estás seguro de que quieres eliminar el año \'%s\'?</string>
@@ -253,6 +253,14 @@
     <string name="inicio_menu_abrir_curso">Abrir curso</string>
     <string name="inicio_menu_simulador">Simulador</string>
     <string name="inicio_menu_eliminar">Eliminar</string>
+    <!-- Inicio – StatsBar & feed 2.0 -->
+    <string name="inicio_stat_media_global">Media global</string>
+    <string name="inicio_stat_aprobadas">Aprobadas</string>
+    <string name="inicio_stat_en_riesgo">En riesgo</string>
+    <string name="inicio_stat_prox_examen">Próx. examen</string>
+    <string name="inicio_stat_dias">%d días</string>
+    <string name="inicio_timeline_ver_mes">Ver mes</string>
+    <string name="inicio_mis_asignaturas">Mis asignaturas</string>
 
     <!-- AnioActivity -->
     <string name="anio_anio_academico_label">AÑO ACADÉMICO</string>
@@ -479,6 +487,7 @@
     <string name="perfil_delete_confirm_title">¿Eliminar tu cuenta?</string>
     <string name="perfil_delete_confirm_msg">Esta acción es permanente. Se borrarán todos tus datos, incluidos los años y asignaturas. ¿Estás seguro?</string>
     <string name="perfil_confirm_delete_btn">Sí, eliminar todo</string>
+    <string name="perfil_delete_error">No se pudo eliminar la cuenta. Comprueba tu conexión e inténtalo de nuevo.</string>
     <string name="perfil_see_premium">Ver Premium</string>
     <string name="perfil_renewal_text">Se renueva el %s</string>
     <string name="perfil_feature_no_ads">Sin anuncios</string>
@@ -583,7 +592,7 @@
     <string name="registro_register_link">Regístrate</string>
     <string name="registro_promo_title">Tu gestor académico</string>
     <string name="registro_promo_body">Controla tus notas, exámenes y asignaturas desde un solo lugar.</string>
-    <string name="registro_legal_notice">Al registrarte aceptas los términos y condiciones.</string>
+    <string name="registro_legal_notice">Al continuar aceptas los Términos de uso y la Política de privacidad.</string>
     <string name="registro_confirm_password">Confirma la contraseña</string>
     <string name="registro_passwords_no_match">Las contraseñas no coinciden</string>
     <string name="registro_password_min_length">La contraseña debe tener al menos 6 caracteres</string>
@@ -641,4 +650,16 @@
     <string name="perfil_free_feat_notes">Notas ilimitadas</string>
     <string name="anio_default_name">Año escolar</string>
     <string name="anio_asig_default_name">Asignatura %d</string>
+    <string name="registro_verification_sent_title">¡Correo enviado!</string>
+    <string name="registro_verification_sent_body">Enviamos un enlace de verificación a %s. Revisa tu bandeja de entrada y verifica tu cuenta.</string>
+    <string name="registro_verification_continue">Continuar</string>
+    <string name="registro_not_verified_title">Correo no verificado</string>
+    <string name="registro_not_verified_body">La cuenta %s aún no está verificada. Pulsa el enlace del correo que te enviamos.</string>
+    <string name="registro_resend_email">Reenviar email</string>
+    <string name="registro_already_verified_btn">Ya lo verifiqué</string>
+    <string name="registro_verification_resent">Email de verificación reenviado</string>
+    <string name="registro_not_verified_yet">Aún no hemos recibido la verificación. Inténtalo de nuevo.</string>
+    <string name="legal_privacy_title">Política de privacidad</string>
+    <string name="legal_terms_title">Términos de uso</string>
+    <string name="legal_contact_btn">Contactar con el responsable</string>
 </resources>

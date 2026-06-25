@@ -45,18 +45,18 @@
 │                                                                               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-┌─ GESTO 3: SWIPE DOWN (EN BOTTOM SHEETS) ──────────────────────────────────────┐
-│                                                                               │
+┌─ GESTO 3: SWIPE DOWN (EN BOTTOM SHEETS) ────────────────────────────────────┐
+│                                                                             │
 │ DÓNDE:      ModalBottomSheet (crear asignatura, etc)                        │
 │ ACCIÓN:     Deslizar hacia abajo desde el drag handle                       │
 │ RESULTADO:  Cierra el modal automáticamente                                 │
-│                                                                               │
-│ Visualización:                                                               │
-│                                                                               │
+│                                                                             │
+│ Visualización:                                                              │
+│                                                                             │
 │                 ┌─────────────────────────────┐                             │
-│                 │ ═══════ ← Drag handle       │  Presión aquí ↓            │
-│                 │                             │                              │
-│                 │  Crear Nueva Asignatura    │                             │
+│                 │ ═══════ ← Drag handle       │  Presión aquí ↓             │
+│                 │                             │                             │
+│                 │  Crear Nueva Asignatura    │                              │
 │                 │  ─────────────────────────  │                             │
 │                 │  Nombre: [________]         │                             │
 │                 │  Créditos: [__]             │                             │

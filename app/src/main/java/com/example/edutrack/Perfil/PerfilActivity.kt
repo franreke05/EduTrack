@@ -1,6 +1,7 @@
 package com.example.edutrack.Perfil
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -100,6 +101,7 @@ fun CuerpoPerfil(
     val userPlan = LocalUserPlan.current
     val premiumCache = LocalPremiumCache.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var deletingAccount by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -500,12 +502,20 @@ fun CuerpoPerfil(
                     Button(
                         onClick = {
                             usuario?.id?.let {
-                                borrarUsuarioCompleto(context, it) {
+                                deletingAccount = true
+                                borrarUsuarioCompleto(it) { success ->
+                                    deletingAccount = false
                                     showDeleteDialog = false
-                                    onLogout()
+                                    if (success) onLogout()
+                                    else Toast.makeText(
+                                        context,
+                                        context.getString(R.string.perfil_delete_error),
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 }
                             }
                         },
+                        enabled = !deletingAccount,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError

@@ -1,6 +1,8 @@
 package com.example.edutrack.Registro
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -124,6 +126,9 @@ fun RegisteerScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var verificationFlow by remember { mutableStateOf("") } // "sent" | "not_verified" | ""
+    var pendingUid by remember { mutableStateOf("") }
+    var verificationTargetEmail by remember { mutableStateOf("") }
 
     val isLoading = isLoadingOverride ?: loading.value
 
@@ -157,8 +162,15 @@ fun RegisteerScreen(
                             loading.value = false
                             if (task.isSuccessful) {
                                 auth.currentUser?.let { user ->
-                                    persistUserInDatabase(user, context)
-                                    onAuthSuccess(user.uid)
+                                    val isEmailProvider = user.providerData.any { it.providerId == "password" }
+                                    if (isEmailProvider && !user.isEmailVerified) {
+                                        pendingUid = user.uid
+                                        verificationTargetEmail = user.email ?: resolvedEmail
+                                        verificationFlow = "not_verified"
+                                    } else {
+                                        persistUserInDatabase(user, context)
+                                        onAuthSuccess(user.uid)
+                                    }
                                 }
                             } else {
                                 val loginError = when {
@@ -213,8 +225,9 @@ fun RegisteerScreen(
                             auth.currentUser?.let { user ->
                                 persistUserInDatabase(user, context, displayName.trim().ifBlank { null })
                                 sendVerificationEmailIfNeeded(user, context)
-                                Toast.makeText(context, context.getString(R.string.registro_account_created), Toast.LENGTH_LONG).show()
-                                onAuthSuccess(user.uid)
+                                pendingUid = user.uid
+                                verificationTargetEmail = user.email ?: email.trim()
+                                verificationFlow = "sent"
                             }
                         } else {
                             val errorMsg = when {
@@ -272,6 +285,31 @@ fun RegisteerScreen(
             authMode = if (authMode == AuthMode.Login) AuthMode.Register else AuthMode.Login
             confirmPassword = ""
             displayName = ""
+            verificationFlow = ""
+        },
+        verificationFlow = verificationFlow,
+        verificationTargetEmail = verificationTargetEmail,
+        onContinueAfterVerification = { onAuthSuccess(pendingUid) },
+        onResendVerification = {
+            auth.currentUser?.sendEmailVerification()?.addOnCompleteListener { task ->
+                val msg = if (task.isSuccessful)
+                    context.getString(R.string.registro_verification_resent)
+                else
+                    context.getString(R.string.registro_error_verification_email)
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            }
+        },
+        onCheckVerification = {
+            loading.value = true
+            auth.currentUser?.reload()?.addOnCompleteListener {
+                loading.value = false
+                if (auth.currentUser?.isEmailVerified == true) {
+                    persistUserInDatabase(auth.currentUser, context)
+                    onAuthSuccess(pendingUid)
+                } else {
+                    Toast.makeText(context, context.getString(R.string.registro_not_verified_yet), Toast.LENGTH_LONG).show()
+                }
+            } ?: kotlin.run { loading.value = false }
         }
     )
 }
@@ -294,10 +332,19 @@ private fun RegisteerContent(
     onForgotPassword: (() -> Unit)?,
     onSubmit: () -> Unit,
     onGoogleSignIn: () -> Unit,
-    onToggleMode: () -> Unit
+    onToggleMode: () -> Unit,
+    verificationFlow: String,
+    verificationTargetEmail: String,
+    onContinueAfterVerification: () -> Unit,
+    onResendVerification: () -> Unit,
+    onCheckVerification: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     val isRegister = authMode == AuthMode.Register
+    val ctx = LocalContext.current
+    val openUrl: (String) -> Unit = { url ->
+        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    }
 
     Surface(modifier = modifier.fillMaxSize(), color = cs.background) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -347,177 +394,303 @@ private fun RegisteerContent(
 
                 Spacer(Modifier.height(28.dp))
 
-                // ── Tarjeta principal ────────────────────────────────────────
-                Card(
-                    modifier = Modifier.fillMaxWidth().animateContentSize(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = cs.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-
-                        // Google
-                        OutlinedButton(
-                            onClick = onGoogleSignIn,
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, cs.outlineVariant),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.onSurface),
-                            enabled = !isLoading
+                when (verificationFlow) {
+                    "sent" -> VerificationSentCard(
+                        email = verificationTargetEmail,
+                        isLoading = isLoading,
+                        onContinue = onContinueAfterVerification
+                    )
+                    "not_verified" -> NotVerifiedCard(
+                        email = verificationTargetEmail,
+                        isLoading = isLoading,
+                        onResend = onResendVerification,
+                        onCheck = onCheckVerification
+                    )
+                    else -> {
+                        // ── Tarjeta principal ────────────────────────────────────────
+                        Card(
+                            modifier = Modifier.fillMaxWidth().animateContentSize(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = cs.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.primary)
-                            } else {
-                                Icon(painterResource(R.drawable.ic_google_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(stringResource(R.string.registro_google_btn), fontWeight = FontWeight.SemiBold)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+
+                                // Google
+                                OutlinedButton(
+                                    onClick = onGoogleSignIn,
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = BorderStroke(1.dp, cs.outlineVariant),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.onSurface),
+                                    enabled = !isLoading
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.primary)
+                                    } else {
+                                        Icon(painterResource(R.drawable.ic_google_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(stringResource(R.string.registro_google_btn), fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                // OR divider
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
+                                    Text("o", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                                    HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
+                                }
+
+                                // Email
+                                OutlinedTextField(
+                                    value = email,
+                                    onValueChange = onEmailChange,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text(if (isRegister) stringResource(R.string.registro_email_label) else stringResource(R.string.registro_email_or_user_label)) },
+                                    placeholder = { Text(if (isRegister) stringResource(R.string.registro_email_placeholder) else stringResource(R.string.registro_email_or_user_placeholder)) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(14.dp),
+                                    keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
+                                )
+
+                                // Nombre (solo registro)
+                                AnimatedVisibility(visible = isRegister) {
+                                    OutlinedTextField(
+                                        value = displayName,
+                                        onValueChange = onDisplayNameChange,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.registro_name_label)) },
+                                        placeholder = { Text(stringResource(R.string.registro_name_placeholder)) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(14.dp),
+                                        keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Next)
+                                    )
+                                }
+
+                                // Contraseña
+                                OutlinedTextField(
+                                    value = password,
+                                    onValueChange = onPasswordChange,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text(stringResource(R.string.registro_password_label)) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(14.dp),
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    trailingIcon = {
+                                        IconButton(onClick = onTogglePasswordVisibility) {
+                                            Icon(
+                                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = if (passwordVisible) stringResource(R.string.registro_hide_password_cd) else stringResource(R.string.registro_show_password_cd)
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = if (isRegister) ImeAction.Next else ImeAction.Done)
+                                )
+
+                                // Olvidé contraseña (solo login)
+                                AnimatedVisibility(visible = !isRegister) {
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                        TextButton(
+                                            onClick = { onForgotPassword?.invoke() },
+                                            enabled = !isLoading && onForgotPassword != null,
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.auth_forgot_password),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = cs.primary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Confirmar contraseña (solo registro)
+                                AnimatedVisibility(visible = isRegister) {
+                                    OutlinedTextField(
+                                        value = confirmPassword,
+                                        onValueChange = onConfirmPasswordChange,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        label = { Text(stringResource(R.string.registro_confirm_password_label)) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(14.dp),
+                                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
+                                    )
+                                }
+
+                                // Botón principal
+                                Button(
+                                    onClick = onSubmit,
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    enabled = !isLoading
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.onPrimary)
+                                    } else {
+                                        Text(
+                                            if (isRegister) stringResource(R.string.registro_create_account_btn) else stringResource(R.string.registro_login_btn),
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    }
+                                }
                             }
                         }
 
-                        // OR divider
+                        Spacer(Modifier.height(16.dp))
+
+                        // Toggle login / registro
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
-                            Text("o", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = cs.outlineVariant)
-                        }
-
-                        // Email
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = onEmailChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(if (isRegister) stringResource(R.string.registro_email_label) else stringResource(R.string.registro_email_or_user_label)) },
-                            placeholder = { Text(if (isRegister) stringResource(R.string.registro_email_placeholder) else stringResource(R.string.registro_email_or_user_placeholder)) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
-                        )
-
-                        // Nombre (solo registro)
-                        AnimatedVisibility(visible = isRegister) {
-                            OutlinedTextField(
-                                value = displayName,
-                                onValueChange = onDisplayNameChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.registro_name_label)) },
-                                placeholder = { Text(stringResource(R.string.registro_name_placeholder)) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
-                                keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Next)
+                            Text(
+                                if (isRegister) stringResource(R.string.registro_already_account) else stringResource(R.string.registro_no_account),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurfaceVariant
                             )
-                        }
-
-                        // Contraseña
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = onPasswordChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text(stringResource(R.string.registro_password_label)) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = onTogglePasswordVisibility) {
-                                    Icon(
-                                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (passwordVisible) stringResource(R.string.registro_hide_password_cd) else stringResource(R.string.registro_show_password_cd)
-                                    )
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = if (isRegister) ImeAction.Next else ImeAction.Done)
-                        )
-
-                        // Olvidé contraseña (solo login)
-                        AnimatedVisibility(visible = !isRegister) {
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                                TextButton(
-                                    onClick = { onForgotPassword?.invoke() },
-                                    enabled = !isLoading && onForgotPassword != null,
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.auth_forgot_password),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = cs.primary
-                                    )
-                                }
+                            TextButton(onClick = onToggleMode, enabled = !isLoading) {
+                                Text(
+                                    if (isRegister) stringResource(R.string.registro_login_link) else stringResource(R.string.registro_register_link),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = cs.primary,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
 
-                        // Confirmar contraseña (solo registro)
-                        AnimatedVisibility(visible = isRegister) {
-                            OutlinedTextField(
-                                value = confirmPassword,
-                                onValueChange = onConfirmPasswordChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.registro_confirm_password_label)) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
-                            )
-                        }
-
-                        // Botón principal
-                        Button(
-                            onClick = onSubmit,
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            enabled = !isLoading
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.registro_legal_notice),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.onPrimary)
-                            } else {
+                            TextButton(onClick = { openUrl(com.example.edutrack.PRIVACY_POLICY_URL) }) {
                                 Text(
-                                    if (isRegister) stringResource(R.string.registro_create_account_btn) else stringResource(R.string.registro_login_btn),
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.labelLarge
+                                    stringResource(R.string.config_privacy_policy),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = cs.primary
+                                )
+                            }
+                            Text("·", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                            TextButton(onClick = { openUrl(com.example.edutrack.TERMS_URL) }) {
+                                Text(
+                                    stringResource(R.string.config_terms_of_service),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = cs.primary
                                 )
                             }
                         }
                     }
                 }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Toggle login / registro
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        if (isRegister) stringResource(R.string.registro_already_account) else stringResource(R.string.registro_no_account),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = cs.onSurfaceVariant
-                    )
-                    TextButton(onClick = onToggleMode, enabled = !isLoading) {
-                        Text(
-                            if (isRegister) stringResource(R.string.registro_login_link) else stringResource(R.string.registro_register_link),
-                            fontWeight = FontWeight.SemiBold,
-                            color = cs.primary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.registro_legal_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
                 Spacer(Modifier.height(32.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun VerificationSentCard(email: String, isLoading: Boolean, onContinue: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier.size(80.dp).clip(RoundedCornerShape(22.dp))
+                .background(cs.tertiaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.CheckCircle, null, tint = cs.onTertiaryContainer, modifier = Modifier.size(38.dp))
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            stringResource(R.string.registro_verification_sent_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = cs.onBackground,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.registro_verification_sent_body, email),
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = onContinue,
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(stringResource(R.string.registro_verification_continue), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@Composable
+private fun NotVerifiedCard(email: String, isLoading: Boolean, onResend: () -> Unit, onCheck: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier.size(80.dp).clip(RoundedCornerShape(22.dp))
+                .background(cs.errorContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Email, null, tint = cs.onErrorContainer, modifier = Modifier.size(38.dp))
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(
+            stringResource(R.string.registro_not_verified_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = cs.onBackground,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.registro_not_verified_body, email),
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = onCheck,
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = cs.onPrimary)
+            } else {
+                Text(stringResource(R.string.registro_already_verified_btn), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onResend,
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text(stringResource(R.string.registro_resend_email), fontWeight = FontWeight.SemiBold)
         }
     }
 }

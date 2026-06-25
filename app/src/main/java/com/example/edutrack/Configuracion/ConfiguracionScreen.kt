@@ -77,7 +77,8 @@ private const val PLAY_STORE_PACKAGE_ID = "com.edutrack.app"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracionScreen(
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onLegal: (LegalType) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -181,13 +182,15 @@ fun ConfiguracionScreen(
                         SettingItem(
                             icon = Icons.Rounded.Lock,
                             title = stringResource(R.string.config_privacy_policy),
-                            onClick = { context.openExternalUrl("https://edutrack.app/privacy") }
+                            subtitle = "RGPD · LOPDGDD · Tus derechos",
+                            onClick = { onLegal(LegalType.PRIVACY) }
                         )
                         SettingsDivider()
                         SettingItem(
                             icon = Icons.Rounded.Gavel,
                             title = stringResource(R.string.config_terms_of_service),
-                            onClick = { context.openExternalUrl("https://edutrack.app/terms") }
+                            subtitle = "Uso, suscripción y responsabilidad",
+                            onClick = { onLegal(LegalType.TERMS) }
                         )
                     }
                 }
@@ -387,7 +390,7 @@ private fun LanguageDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 options.forEach { (code, label) ->
-                    val isEnabled = code == "es"
+                    val isEnabled = true
                     val clickModifier = if (isEnabled) Modifier.clickable { onSelect(code) } else Modifier
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

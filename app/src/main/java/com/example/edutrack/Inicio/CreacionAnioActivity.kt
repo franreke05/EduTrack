@@ -40,10 +40,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.example.edutrack.data.educationLevelFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -74,6 +78,18 @@ fun CreacionAnioScreen(
     var notaMinima by remember { mutableStateOf(5.0) }
     var tipoPonderacion by remember { mutableStateOf("creditos") }
     var tipoPeriodo by remember { mutableStateOf("Cuatrimestre") }
+
+    val context = LocalContext.current
+    val educationLevel by context.educationLevelFlow().collectAsState(initial = "")
+    var defaultsApplied by remember { mutableStateOf(false) }
+    LaunchedEffect(educationLevel) {
+        if (!defaultsApplied && educationLevel.isNotEmpty()) {
+            val d = defaultsForEducationLevel(educationLevel)
+            tipoPonderacion = d.tipoPonderacion
+            tipoPeriodo = d.tipoPeriodo
+            defaultsApplied = true
+        }
+    }
 
     val notasOpciones = listOf(4.0, 4.5, 5.0, 5.5, 6.0)
 

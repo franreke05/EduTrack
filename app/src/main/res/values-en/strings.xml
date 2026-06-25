@@ -238,7 +238,7 @@
     <string name="inicio_calendar_exams_day">Exams on %d of %s</string>
     <string name="inicio_calendar_ver">View</string>
     <string name="inicio_feed_empty_title">Your feed is empty</string>
-    <string name="inicio_feed_empty_body">Create your first course and start tracking your grades.</string>
+    <string name="inicio_feed_empty_body">In 30 seconds: create a course, add your subjects, and see your average instantly.</string>
     <string name="inicio_feed_crear_curso">Create course</string>
     <string name="inicio_delete_title">Confirm deletion</string>
     <string name="inicio_delete_text">Are you sure you want to delete the year \'%s\'?</string>
@@ -253,6 +253,14 @@
     <string name="inicio_menu_abrir_curso">Open course</string>
     <string name="inicio_menu_simulador">Simulator</string>
     <string name="inicio_menu_eliminar">Delete</string>
+    <!-- Inicio – StatsBar & feed 2.0 -->
+    <string name="inicio_stat_media_global">Overall average</string>
+    <string name="inicio_stat_aprobadas">Passed</string>
+    <string name="inicio_stat_en_riesgo">At risk</string>
+    <string name="inicio_stat_prox_examen">Next exam</string>
+    <string name="inicio_stat_dias">%d days</string>
+    <string name="inicio_timeline_ver_mes">View month</string>
+    <string name="inicio_mis_asignaturas">My subjects</string>
 
     <!-- AnioActivity -->
     <string name="anio_anio_academico_label">ACADEMIC YEAR</string>
@@ -479,6 +487,7 @@
     <string name="perfil_delete_confirm_title">Delete your account?</string>
     <string name="perfil_delete_confirm_msg">This action is permanent. All your data, including years and subjects, will be deleted. Are you sure?</string>
     <string name="perfil_confirm_delete_btn">Yes, delete everything</string>
+    <string name="perfil_delete_error">Couldn\'t delete your account. Check your connection and try again.</string>
     <string name="perfil_see_premium">See Premium</string>
     <string name="perfil_renewal_text">Renews on %s</string>
     <string name="perfil_feature_no_ads">No ads</string>
@@ -583,7 +592,7 @@
     <string name="registro_register_link">Sign up</string>
     <string name="registro_promo_title">Your academic manager</string>
     <string name="registro_promo_body">Track your grades, exams and subjects from one place.</string>
-    <string name="registro_legal_notice">By signing up you accept the terms and conditions.</string>
+    <string name="registro_legal_notice">By continuing you accept the Terms of Use and the Privacy Policy.</string>
     <string name="registro_confirm_password">Confirm password</string>
     <string name="registro_passwords_no_match">Passwords do not match</string>
     <string name="registro_password_min_length">Password must be at least 6 characters</string>
@@ -641,4 +650,16 @@
     <string name="perfil_free_feat_notes">Unlimited grades</string>
     <string name="anio_default_name">Academic year</string>
     <string name="anio_asig_default_name">Subject %d</string>
+    <string name="registro_verification_sent_title">Email sent!</string>
+    <string name="registro_verification_sent_body">We sent a verification link to %s. Check your inbox and verify your account.</string>
+    <string name="registro_verification_continue">Continue</string>
+    <string name="registro_not_verified_title">Email not verified</string>
+    <string name="registro_not_verified_body">Account %s is not yet verified. Click the link in the email we sent you.</string>
+    <string name="registro_resend_email">Resend email</string>
+    <string name="registro_already_verified_btn">I\'ve verified it</string>
+    <string name="registro_verification_resent">Verification email resent</string>
+    <string name="registro_not_verified_yet">Verification not received yet. Try again.</string>
+    <string name="legal_privacy_title">Privacy Policy</string>
+    <string name="legal_terms_title">Terms of Use</string>
+    <string name="legal_contact_btn">Contact the data controller</string>
 </resources>

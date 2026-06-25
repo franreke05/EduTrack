@@ -122,3 +122,12 @@ private fun parseFechaOrNull(fecha: String): Date? {
         null
     }
 }
+
+data class AcademicDefaults(val tipoPonderacion: String, val tipoPeriodo: String)
+
+fun defaultsForEducationLevel(level: String): AcademicDefaults = when (level) {
+    "Universidad" -> AcademicDefaults("creditos", "Cuatrimestre")
+    "ESO", "Bachillerato" -> AcademicDefaults("simple", "Trimestre")
+    "FP" -> AcademicDefaults("simple", "Cuatrimestre")
+    else -> AcademicDefaults("creditos", "Cuatrimestre")
+}

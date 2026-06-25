@@ -30,7 +30,7 @@ fun EduTrackApp() {
 
     EduTrackTheme {
         when (route) {
-            ShellRoute.Onboarding -> OnboardingScreen(onFinish = { route = ShellRoute.Home })
+            ShellRoute.Onboarding -> OnboardingScreen(onFinish = { _ -> route = ShellRoute.Home })
             ShellRoute.Home -> EduTrackShellHome(
                 onOpenPremium = { route = ShellRoute.Paywall }
             )

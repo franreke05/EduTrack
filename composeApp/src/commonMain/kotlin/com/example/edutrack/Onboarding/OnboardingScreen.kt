@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,13 +26,17 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,11 +66,15 @@ private val pages = listOf(
     )
 )
 
+private val educationLevels = listOf("ESO", "Bachillerato", "FP", "Universidad")
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun OnboardingScreen(onFinish: () -> Unit) {
+fun OnboardingScreen(onFinish: (educationLevel: String) -> Unit) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
     val colorScheme = MaterialTheme.colorScheme
+    var selectedLevel by remember { mutableStateOf("") }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -83,7 +93,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 )
         ) {
             TextButton(
-                onClick = onFinish,
+                onClick = { onFinish("") },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
@@ -148,20 +158,43 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     enter = fadeIn(tween(300)),
                     exit = fadeOut(tween(200))
                 ) {
-                    Button(
-                        onClick = onFinish,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Empezar a controlar mis notas",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onPrimary
+                            text = "¿En qué curso estás?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.onBackground
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            educationLevels.forEach { level ->
+                                FilterChip(
+                                    selected = selectedLevel == level,
+                                    onClick = { selectedLevel = level },
+                                    label = { Text(level) }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { onFinish(selectedLevel) },
+                            enabled = selectedLevel.isNotEmpty(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
+                        ) {
+                            Text(
+                                text = "Empezar a controlar mis notas",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onPrimary
+                            )
+                        }
                     }
                 }
 

@@ -12,6 +12,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.RequestConfiguration
 
 /**
  * AdMobBanner: Muestra anuncios de AdMob solo para usuarios FREE.
@@ -36,6 +37,16 @@ object AdMobHelper {
 
     fun initialize(context: Context) {
         if (!isInitialized) {
+            // Público 13-17 (menores). En la UE esto obliga a anuncios NO
+            // personalizados y aptos para menores (RGPD + política Familias de Play).
+            MobileAds.setRequestConfiguration(
+                RequestConfiguration.Builder()
+                    .setTagForUnderAgeOfConsent(
+                        RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE
+                    )
+                    .setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_T)
+                    .build()
+            )
             MobileAds.initialize(context)
             isInitialized = true
         }

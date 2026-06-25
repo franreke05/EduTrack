@@ -1,6 +1,8 @@
 package com.example.edutrack.Inicio
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -32,6 +34,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,6 +73,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -113,6 +118,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.edutrack.R
 import com.example.edutrack.data.SessionPrefs
 import com.example.edutrack.data.sessionDataStore
+import com.example.edutrack.data.streakFlow
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -228,28 +234,26 @@ fun CuerpoInicioContent(
             } else {
                 item {
                     AnimatedFeedItem(index = 0) {
+                        CourseStatsPager(anios = anios)
+                    }
+                }
+                item {
+                    AnimatedFeedItem(index = 1) {
+                        MejorPeorCard(anios = anios)
+                    }
+                }
+                item {
+                    AnimatedFeedItem(index = 2) {
                         TimelineExamenes(anios = anios, onAnioSelected = onAnioSelected)
                     }
                 }
-                itemsIndexed(anios, key = { _, anio -> anio.id ?: anio.hashCode() }) { index, anio ->
-                    AnimatedFeedItem(index = index + 1) {
-                        AnioFeedCard(
-                            anio = anio,
-                            index = index + 1,
-                            showMenu = showMenuFor == anio.id,
-                            onMenuToggle = {
-                                showMenuFor = if (showMenuFor == anio.id) null else anio.id
-                            },
-                            onMenuDismiss = { showMenuFor = null },
-                            onOpen = { onAnioSelected(anio.id) },
-                            onDelete = {
-                                anioToDelete = anio
-                                showDeleteDialog = true
-                                showMenuFor = null
-                            }
-                        )
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+                item {
+                    AnimatedFeedItem(index = 3) {
+                        AsignaturasResumenCard(anios = anios, onAnioSelected = onAnioSelected)
                     }
                 }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
         }
     }
@@ -322,6 +326,8 @@ private fun InstagramTopBar(
         launch { alpha.animateTo(1f, animationSpec = tween(400)) }
     }
 
+    val context = LocalContext.current
+    val streak by context.streakFlow().collectAsState(initial = 0)
     val usuario = LocalUsuario.current
     val nombre = usuario?.nombre?.takeIf { it.isNotBlank() }
 
@@ -361,6 +367,20 @@ private fun InstagramTopBar(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                if (streak >= 2) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "🔥 $streak",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -849,6 +869,457 @@ private fun rememberExamenesMes(
 }
 
 @Composable
+private fun CourseStatsPager(anios: List<Anio>) {
+    val cs = MaterialTheme.colorScheme
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val pagerState = rememberPagerState(pageCount = { anios.size })
+    val divColor = cs.onPrimaryContainer.copy(alpha = 0.15f)
+    val onPC = cs.onPrimaryContainer
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column {
+            HorizontalPager(state = pagerState) { page ->
+                val anio = anios[page]
+                val subjects = anio.lista_asignaturas?.values ?: emptyList()
+                val minima = anio.nota_minima_aprobado ?: 5.0
+                val withGrades = subjects.filter { (it.media ?: 0.0) > 0.0 }
+                val media = if (withGrades.isEmpty()) null
+                            else withGrades.map { it.media ?: 0.0 }.average()
+                val aprobadas = if (withGrades.isEmpty()) null
+                                else withGrades.count { (it.media ?: 0.0) >= minima } * 100 / withGrades.size
+                val enRiesgo = withGrades.count { (it.media ?: 0.0) < minima }
+                val nextExamDays = subjects.mapNotNull { it.fechaExamen }.mapNotNull { dateStr ->
+                    runCatching {
+                        val cal = Calendar.getInstance()
+                        cal.time = sdf.parse(dateStr) ?: return@runCatching null
+                        ((cal.timeInMillis - Calendar.getInstance().timeInMillis) / (1000L * 60 * 60 * 24))
+                            .toInt().takeIf { it >= 0 }
+                    }.getOrNull()
+                }.minOrNull()
+
+                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                    Text(
+                        anio.nombre ?: stringResource(R.string.field_course),
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onPC.copy(alpha = 0.65f),
+                        textAlign = TextAlign.Center
+                    )
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatCell(
+                            value = if (media != null) String.format("%.1f", media) else "—",
+                            label = stringResource(R.string.inicio_stat_media_global),
+                            color = when {
+                                media == null -> onPC.copy(0.4f)
+                                media >= 7.0 -> cs.tertiary
+                                media >= minima -> onPC
+                                else -> cs.error
+                            },
+                            labelColor = onPC.copy(0.65f),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(Modifier.width(1.dp).height(52.dp).align(Alignment.CenterVertically).background(divColor))
+                        StatCell(
+                            value = if (aprobadas != null) "$aprobadas%" else "—",
+                            label = stringResource(R.string.inicio_stat_aprobadas),
+                            color = if (aprobadas != null && aprobadas >= 80) cs.tertiary else onPC.copy(if (aprobadas == null) 0.4f else 1f),
+                            labelColor = onPC.copy(0.65f),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    HorizontalDivider(color = divColor, modifier = Modifier.padding(horizontal = 12.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        StatCell(
+                            value = if (withGrades.isEmpty()) "—" else enRiesgo.toString(),
+                            label = stringResource(R.string.inicio_stat_en_riesgo),
+                            color = if (enRiesgo > 0) cs.error else onPC.copy(if (withGrades.isEmpty()) 0.4f else 1f),
+                            labelColor = onPC.copy(0.65f),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(Modifier.width(1.dp).height(52.dp).align(Alignment.CenterVertically).background(divColor))
+                        StatCell(
+                            value = when (nextExamDays) {
+                                null -> "—"
+                                0 -> stringResource(R.string.exam_today)
+                                1 -> stringResource(R.string.exam_tomorrow)
+                                else -> stringResource(R.string.inicio_stat_dias, nextExamDays)
+                            },
+                            label = stringResource(R.string.inicio_stat_prox_examen),
+                            color = when {
+                                nextExamDays == null -> onPC.copy(0.4f)
+                                nextExamDays <= 2 -> cs.error
+                                else -> onPC
+                            },
+                            labelColor = onPC.copy(0.65f),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            if (anios.size > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(anios.size) { idx ->
+                        val selected = pagerState.currentPage == idx
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(if (selected) 8.dp else 6.dp)
+                                .background(
+                                    onPC.copy(alpha = if (selected) 0.8f else 0.25f),
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsBar(anios: List<Anio>) {
+    val cs = MaterialTheme.colorScheme
+    val allSubjects = anios.flatMap { it.lista_asignaturas?.values ?: emptyList() }
+    val withGrades = allSubjects.filter { (it.media ?: 0.0) > 0.0 }
+    val mediaGlobal = if (withGrades.isEmpty()) null else withGrades.map { it.media ?: 0.0 }.average()
+    val enRiesgo = anios.sumOf { anio ->
+        val minima = anio.nota_minima_aprobado ?: 5.0
+        (anio.lista_asignaturas?.values ?: emptyList()).count { s ->
+            val m = s.media ?: 0.0; m > 0.0 && m < minima
+        }
+    }
+    val aprobadas = anios.sumOf { anio ->
+        val minima = anio.nota_minima_aprobado ?: 5.0
+        (anio.lista_asignaturas?.values ?: emptyList()).count { s ->
+            (s.media ?: 0.0) >= minima
+        }
+    }
+    val tasaAprobadas = if (withGrades.isEmpty()) null
+    else (aprobadas * 100 / withGrades.size)
+
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val nextExamDays = remember(anios) {
+        val now = Calendar.getInstance().timeInMillis
+        allSubjects.mapNotNull { it.fechaExamen }
+            .mapNotNull { dateStr ->
+                runCatching {
+                    val cal = Calendar.getInstance()
+                    cal.time = sdf.parse(dateStr) ?: return@runCatching null
+                    ((cal.timeInMillis - now) / (1000L * 60 * 60 * 24)).toInt()
+                }.getOrNull()
+            }
+            .filter { it >= 0 }.minOrNull()
+    }
+
+    val divColor = cs.onPrimaryContainer.copy(alpha = 0.15f)
+    val proxText = when (nextExamDays) {
+        null -> "—"
+        0 -> stringResource(R.string.exam_today)
+        1 -> stringResource(R.string.exam_tomorrow)
+        else -> stringResource(R.string.inicio_stat_dias, nextExamDays)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                StatCell(
+                    value = if (mediaGlobal != null) String.format("%.1f", mediaGlobal) else "—",
+                    label = stringResource(R.string.inicio_stat_media_global),
+                    color = when {
+                        mediaGlobal == null -> cs.onPrimaryContainer.copy(0.4f)
+                        mediaGlobal >= 7.0 -> cs.tertiary
+                        mediaGlobal >= 5.0 -> cs.onPrimaryContainer
+                        else -> cs.error
+                    },
+                    labelColor = cs.onPrimaryContainer.copy(0.65f),
+                    modifier = Modifier.weight(1f)
+                )
+                Box(modifier = Modifier.width(1.dp).height(52.dp).align(Alignment.CenterVertically)
+                    .background(divColor))
+                StatCell(
+                    value = if (tasaAprobadas != null) "$tasaAprobadas%" else "—",
+                    label = stringResource(R.string.inicio_stat_aprobadas),
+                    color = when {
+                        tasaAprobadas == null -> cs.onPrimaryContainer.copy(0.4f)
+                        tasaAprobadas >= 80 -> cs.tertiary
+                        else -> cs.onPrimaryContainer
+                    },
+                    labelColor = cs.onPrimaryContainer.copy(0.65f),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            HorizontalDivider(color = divColor, modifier = Modifier.padding(horizontal = 12.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                StatCell(
+                    value = if (enRiesgo == 0 && withGrades.isEmpty()) "—" else enRiesgo.toString(),
+                    label = stringResource(R.string.inicio_stat_en_riesgo),
+                    color = when {
+                        withGrades.isEmpty() -> cs.onPrimaryContainer.copy(0.4f)
+                        enRiesgo > 0 -> cs.error
+                        else -> cs.onPrimaryContainer
+                    },
+                    labelColor = cs.onPrimaryContainer.copy(0.65f),
+                    modifier = Modifier.weight(1f)
+                )
+                Box(modifier = Modifier.width(1.dp).height(52.dp).align(Alignment.CenterVertically)
+                    .background(divColor))
+                StatCell(
+                    value = proxText,
+                    label = stringResource(R.string.inicio_stat_prox_examen),
+                    color = when {
+                        nextExamDays == null -> cs.onPrimaryContainer.copy(0.4f)
+                        nextExamDays <= 2 -> cs.error
+                        else -> cs.onPrimaryContainer
+                    },
+                    labelColor = cs.onPrimaryContainer.copy(0.65f),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCell(
+    value: String,
+    label: String,
+    color: androidx.compose.ui.graphics.Color,
+    labelColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = color)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = labelColor)
+    }
+}
+
+@Composable
+private fun MejorPeorCard(anios: List<Anio>) {
+    val cs = MaterialTheme.colorScheme
+
+    data class SubjectStat(val nombre: String, val nota: Double, val minima: Double)
+
+    val subjects = remember(anios) {
+        anios.flatMap { anio ->
+            val minima = anio.nota_minima_aprobado ?: 5.0
+            (anio.lista_asignaturas?.values ?: emptyList()).mapNotNull { s ->
+                val nota = s.media ?: 0.0
+                if (nota <= 0.0 || s.nombre.isNullOrBlank()) null
+                else SubjectStat(s.nombre!!, nota, minima)
+            }
+        }
+    }
+
+    if (subjects.size < 2) return
+
+    val mejor = subjects.maxBy { it.nota }
+    val peor = subjects.minBy { it.nota }
+    if (mejor.nombre == peor.nombre) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+            MejorPeorRow(
+                icon = Icons.Rounded.EmojiEvents,
+                iconTint = cs.tertiary,
+                label = "Mejor",
+                nombre = mejor.nombre,
+                nota = mejor.nota,
+                notaColor = cs.tertiary,
+                showDivider = true
+            )
+            MejorPeorRow(
+                icon = Icons.Rounded.Warning,
+                iconTint = if (peor.nota < peor.minima) cs.error else cs.primary,
+                label = "A mejorar",
+                nombre = peor.nombre,
+                nota = peor.nota,
+                notaColor = if (peor.nota < peor.minima) cs.error else cs.primary,
+                showDivider = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun MejorPeorRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: androidx.compose.ui.graphics.Color,
+    label: String,
+    nombre: String,
+    nota: Double,
+    notaColor: androidx.compose.ui.graphics.Color,
+    showDivider: Boolean
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(iconTint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+            Text(
+                nombre,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = cs.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Surface(
+            color = notaColor.copy(alpha = 0.12f),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text(
+                String.format("%.1f", nota),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = notaColor,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+    }
+    if (showDivider) HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.3f))
+}
+
+@Composable
+private fun AsignaturasResumenCard(anios: List<Anio>, onAnioSelected: (String?) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+
+    data class S(val anioId: String?, val nombre: String, val nota: Double, val minima: Double)
+
+    val subjects = remember(anios) {
+        anios.flatMap { anio ->
+            val minima = anio.nota_minima_aprobado ?: 5.0
+            (anio.lista_asignaturas?.values ?: emptyList()).mapNotNull { s ->
+                val name = s.nombre ?: return@mapNotNull null
+                S(anio.id, name, s.media ?: 0.0, minima)
+            }
+        }.sortedWith(Comparator { a, b ->
+            // failing first, then passing, then no-grade; within each group: ascending
+            val aGroup = if (a.nota <= 0) 2 else if (a.nota < a.minima) 0 else 1
+            val bGroup = if (b.nota <= 0) 2 else if (b.nota < b.minima) 0 else 1
+            if (aGroup != bGroup) aGroup.compareTo(bGroup) else a.nota.compareTo(b.nota)
+        })
+    }
+
+    if (subjects.isEmpty()) return
+
+    // Flat section — no Card elevation, visually tertiary vs hero StatsBar and secondary Timeline
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.TrendingUp, null,
+                tint = cs.primary, modifier = Modifier.size(16.dp)
+            )
+            Text(
+                stringResource(R.string.inicio_mis_asignaturas),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = cs.onSurface
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        subjects.forEachIndexed { idx, s ->
+            if (idx > 0) HorizontalDivider(
+                color = cs.outlineVariant.copy(alpha = 0.3f),
+                thickness = 0.5.dp
+            )
+            val notaColor = when {
+                s.nota <= 0.0 -> cs.onSurfaceVariant
+                s.nota >= 7.0 -> cs.tertiary
+                s.nota >= s.minima -> cs.primary
+                else -> cs.error
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAnioSelected(s.anioId) }
+                    .padding(horizontal = 4.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(
+                            if (s.nota <= 0.0) cs.outlineVariant else notaColor,
+                            CircleShape
+                        )
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        s.nombre,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    LinearProgressIndicator(
+                        progress = { (s.nota / 10.0).toFloat().coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = if (s.nota <= 0.0) cs.outlineVariant else notaColor,
+                        trackColor = cs.outlineVariant.copy(alpha = 0.25f),
+                        strokeCap = StrokeCap.Round
+                    )
+                }
+                Text(
+                    if (s.nota > 0.0) String.format("%.1f", s.nota) else "—",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = notaColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TimelineExamenes(anios: List<Anio>, onAnioSelected: (String?) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val userGroups = LocalUserGroups.current
@@ -901,7 +1372,7 @@ private fun TimelineExamenes(anios: List<Anio>, onAnioSelected: (String?) -> Uni
                 }
                 TextButton(onClick = { showCalendario = true }) {
                     Text(
-                        "Ver mes",
+                        stringResource(R.string.inicio_timeline_ver_mes),
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.primary
                     )
